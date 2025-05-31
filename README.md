@@ -16,7 +16,7 @@
 
 ---
 
-## 🚀 Features
+## Features
 
 - **Custom Zones**: Define rectangular monitoring areas.  
 - **Global Banned List**: A central list of materials to track.  
@@ -32,7 +32,7 @@
 
 ---
 
-## 💬 Commands
+## Commands
 
 > Main command: `/autoinform` (alias: `/ainform`)  
 > All admin commands require `autoinform.admin.set`.
@@ -54,7 +54,7 @@
 
 ---
 
-## 🔑 Permissions
+## Permissions
 
 | Permission Node | Description | Default |
 |------------------|-------------|---------|
@@ -64,7 +64,7 @@
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
 Customize plugin behavior in `plugins/AlexxAutoWarn/config.yml`.
 
@@ -89,7 +89,7 @@ banned-materials:
 messages:
   player-denied-placement: "&cYou are not allowed to place {material} here!"
   staff-alert-message: "&c[AutoInform] &e{player} placed {material} in zone '{zone_name}'."
-## 📥 Installation
+## Installation
 Download AlexxAutoWarn.jar from the releases page.
 
 Place the .jar in your server's plugins/ folder.
@@ -102,13 +102,13 @@ Edit config.yml in plugins/AlexxAutoWarn/.
 
 Reload the plugin with /autoinform reload or restart the server.
 
-## 🛠️ Support
+## Support
 For bugs, feature requests, or contributions:
 
 Open an issue on the GitHub Issues page.
 
 Submit a pull request.
 
-## 📝 License
+## License
 This project is licensed under the MIT License.
 See the LICENSE file for details.
