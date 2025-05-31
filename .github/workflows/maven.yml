@@ -6,8 +6,10 @@
 # separate terms of service, privacy policy, and support
 # documentation.
 
-name: Java CI with Maven
-
+name: Build with Maven
+    run: |
+      cd my-plugin # Change to your actual subdirectory name
+      mvn -B clean package --file pom.xml
 on:
   push:
     branches: [ "main" ]
