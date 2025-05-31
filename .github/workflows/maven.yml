@@ -32,11 +32,13 @@ jobs:
       run: mvn -B clean package --file pom.xml
 
     # Upload the built JAR as an artifact so the 'release' job can access it
+    # Updated to actions/upload-artifact@v4
     - name: Upload plugin JAR
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4 # Changed to v4
       with:
         name: AlexxAutoWarn-plugin-jar # A unique name for this artifact
         path: target/*.jar # This assumes your plugin JAR is in the target/ directory and ends with .jar
+        # v4 does not require 'if-no-files-found' by default, it just creates an empty artifact
 
     # Optional: Uploads the full dependency graph to GitHub to improve the quality of Dependabot alerts this repository can receive
     - name: Update dependency graph
@@ -51,8 +53,10 @@ jobs:
       contents: write # Grant write permission to create a release and upload assets
 
     steps:
+    # Download the plugin JAR from the 'build' job
+    # Updated to actions/download-artifact@v4
     - name: Download plugin JAR
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4 # Changed to v4
       with:
         name: AlexxAutoWarn-plugin-jar # Must match the name used in the 'upload-artifact' step
         path: ./downloaded-artifacts # Download to a specific directory
