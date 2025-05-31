@@ -104,3 +104,18 @@ messages:
   plugin-error-loading-zone-coords: "Error loading coordinates for zone '{zone_name}': {message}. Skipping."
   plugin-invalid-banned-material-config: "Invalid material name '{name}' found in config.yml banned-materials list. Skipping."
   plugin-no-zones-in-config: "No 'zones' section found in config.yml. No zones loaded."
+regions: { } # This will be populated automatically by the plugin
+  # Example structure after a region is saved:
+  # regions:
+  #   my_spawn_region:
+  #     name: my_spawn_region
+  #     world: world
+  #     min: {x: 0.0, y: 60.0, z: 0.0}
+  #     max: {x: 100.0, y: 100.0, z: 100.0}
+  #     banned_block_placement:
+  #       - STONE
+  #       - TNT
+  #     ban_chest_interaction: true
+  #     banned_item_usage:
+#       - GOLDEN_APPLE
+#       - ENDER_PEARL
