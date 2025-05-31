@@ -111,4 +111,4 @@ Submit a pull request.
 
 ## License
 This project is licensed under the MIT License.
-See the [LICENSE](LICENSE) file for details.
+See the [LICENSE](LICENSE.md) file for details.
