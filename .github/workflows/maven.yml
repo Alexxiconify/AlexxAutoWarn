@@ -19,6 +19,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions: # Added permissions block for the build job
+      contents: read # Default for checkout
+      security-events: write # Required for dependency submission
 
     steps:
     - uses: actions/checkout@v4
@@ -53,7 +56,7 @@ jobs:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write # Grant write permission to create a release and upload assets
 
     steps:
     - name: Download plugin JAR
