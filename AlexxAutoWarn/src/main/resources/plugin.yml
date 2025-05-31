@@ -1,21 +1,24 @@
-main: net.Alexxiconify.alexxAutoWarn.AlexxAutoWarn
-version: 1.0.0 # Make sure this matches your plugin version
-api-version: 1.20 # Adjust this to your Minecraft server's API version (e.g., 1.19, 1.20, 1.21)
+#file: noinspection SpellCheckingInspection
 name: AlexxAutoWarn
+version: '1.0.0-SNAPSHOT'
+main: net.Alexxiconify.alexxAutoWarn.AlexxsAutoWarn.AlexxAutoWarn
+api-version: '1.21'
 commands:
-  autoinform:
-    description: Manages AutoInform zones and settings.
-    usage: /<command> <subcommand>
-    aliases: [ainform,awi]
+  ainformset:
+    description: Manages AutoInform zones and banned materials.
+    usage: /ainformset <subcommand>
+    aliases: [ autoinform, aw ] # Added aliases for convenience
     permission: autoinform.admin.set
-    permission-message: You do not have permission to use this command.
 permissions:
   autoinform.admin.set:
-    description: Allows setting and managing AutoInform zones.
+    description: Allows access to AutoInform zone and banned material setting commands.
     default: op
-  autoinform.alert.receive:
-    description: Allows receiving alerts for banned material placement.
+  autoinform.alert.receive: # Existing permission for staff alerts
+    description: Allows players to receive alerts about banned material placement.
     default: op
-  autoinform.bypass: # NEW PERMISSION
-    description: Allows a player to bypass all AutoInform zone restrictions.
-    default: false # Set to false by default, grant explicitly to bypassers
+  alexxautowarn.region.admin: # New permission for region management commands
+    description: Allows access to custom region management commands (create, delete, modify regions).
+    default: op
+  alexxautowarn.region.bypass: # New permission for bypassing region restrictions
+    description: Allows bypassing all custom region restrictions (block placement, chest interaction, item usage).
+    default: op
