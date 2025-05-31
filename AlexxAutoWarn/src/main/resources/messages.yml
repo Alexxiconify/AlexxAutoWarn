@@ -1,0 +1,28 @@
+# Existing messages...
+
+# Region Management Messages
+region-selection-started: "&aYou have started region selection for '{name}'. Use /autowarn pos1 and /autowarn pos2."
+region-selection-prompt-pos1: "&bClick or stand at your first position, then type /autowarn pos1."
+region-selection-prompt-pos2: "&bClick or stand at your second position, then type /autowarn pos2."
+region-pos1-set: "&aPosition 1 set to {location}."
+region-pos2-set: "&aPosition 2 set to {location}."
+region-selection-incomplete: "&cYour region selection is incomplete. Set both pos1 and pos2."
+region-no-active-selection: "&cYou do not have an active region selection. Use /autowarn region select <name> to start."
+region-name-exists: "&cRegion '{name}' already exists. Choose a different name or delete it first."
+region-created: "&aRegion '{name}' created in world '{world}' from {min} to {max}."
+region-deleted: "&aRegion '{name}' has been deleted."
+region-not-found: "&cRegion '{name}' not found."
+region-list-empty: "&7No regions defined yet."
+region-list-header: "&b--- Defined Regions ({count}) ---" # {count} will be added by a future enhancement
+region-list-entry: "&7- {name} &e({world} {min} to {max})"
+region-info-header: "&b--- Region Info: {name} ---"
+region-info-world: "&7  World: &a{world}"
+region-info-coords: "&7  Coords: &a{min} to {max}"
+region-info-banned-blocks: "&7  Banned Block Placement: &c{list}"
+region-info-ban-chest-interaction: "&7  Ban Chest Interaction: &c{status}"
+region-info-banned-items: "&7  Banned Item Usage: &c{list}"
+
+# Restriction Messages
+region-banned-block-placement: "&cYou cannot place {block} in region '{region}'!"
+region-banned-chest-interaction: "&cYou cannot interact with chests in region '{region}'!"
+region-banned-item-usage: "&cYou cannot use {item} in region '{region}'!"

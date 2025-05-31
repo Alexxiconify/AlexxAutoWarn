@@ -378,34 +378,6 @@ public class AlexxAutoWarn extends JavaPlugin implements Listener, CommandExecut
   return null;
  }
 
- /** Helper to get block placer using CoreProtect. */
- private String getBlockPlacer(Block block) {
-  if (coreProtectAPI == null) return null;
-
-  FileConfiguration config = getConfig();
-  int lookupTime = config.getInt("settings.coreprotect.lookup-time-seconds", 600); // Default to 600 seconds (10 minutes)
-
-  List<String[]> lookupResult = null;
-  try {
-   lookupResult = coreProtectAPI.blockLookup(block, (int) (System.currentTimeMillis() / 1000L) - lookupTime);
-  } catch (Exception e) {
-   getLogger().severe(getMessage("plugin-coreprotect-lookup-failed")
-           .replace("{location}", formatLocation(block.getLocation()))
-           .replace("{message}", e.getMessage()));
-   return null;
-  }
-
-  if (lookupResult != null && !lookupResult.isEmpty()) {
-   for (String[] result : lookupResult) {
-    ParseResult parseResult = coreProtectAPI.parseResult(result);
-    if (parseResult.getActionId() == 1) { // ActionId 1 is block placement
-     return parseResult.getPlayer();
-    }
-   }
-  }
-  return null;
- }
-
  /** Processes chest access by non-placers: alerts staff and determines if denied. */
  private boolean processChestAccess(Player player, Block chestBlock) {
   if (player.hasPermission(PERMISSION_BYPASS)) {
