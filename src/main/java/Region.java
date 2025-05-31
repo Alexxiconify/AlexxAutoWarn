@@ -8,22 +8,18 @@ import org.bukkit.configuration.serialization.ConfigurationSerializable;
 import org.bukkit.configuration.serialization.SerializableAs;
 import org.bukkit.util.Vector;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 // This annotation is crucial for Bukkit's ConfigurationSerialization
 @SerializableAs("AlexxAutoWarnRegion")
 public class Region implements ConfigurationSerializable {
 
- private String name;
- private String worldName;
+ private final String name;
+ private final String worldName;
  private World world;
- private Vector min; // The lower corner of the cuboid
- private Vector max; // The upper corner of the cuboid
+ private final Vector min; // The lower corner of the cuboid
+ private final Vector max; // The upper corner of the cuboid
 
  private List<Material> bannedBlockPlacement;
  private boolean banChestInteraction;

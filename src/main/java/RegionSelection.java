@@ -4,8 +4,8 @@ import org.bukkit.Location;
 import org.bukkit.World;
 
 public class RegionSelection {
- private String regionName;
- private World world;
+ private final String regionName;
+ private final World world;
  private Location pos1;
  private Location pos2;
 
