@@ -1,0 +1,21 @@
+main: net.Alexxiconify.alexxAutoWarn.AlexxAutoWarn
+version: 1.0.0 # Make sure this matches your plugin version
+api-version: 1.20 # Adjust this to your Minecraft server's API version (e.g., 1.19, 1.20, 1.21)
+name: AlexxAutoWarn
+commands:
+  autoinform:
+    description: Manages AutoInform zones and settings.
+    usage: /<command> <subcommand>
+    aliases: [ainform,awi]
+    permission: autoinform.admin.set
+    permission-message: You do not have permission to use this command.
+permissions:
+  autoinform.admin.set:
+    description: Allows setting and managing AutoInform zones.
+    default: op
+  autoinform.alert.receive:
+    description: Allows receiving alerts for banned material placement.
+    default: op
+  autoinform.bypass: # NEW PERMISSION
+    description: Allows a player to bypass all AutoInform zone restrictions.
+    default: false # Set to false by default, grant explicitly to bypassers
