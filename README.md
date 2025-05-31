@@ -1,5 +1,5 @@
 AlexxAutoWarn: Smart Zone Monitoring for Minecraft
-AlexxAutoWarn is a Spigot/Paper plugin that helps server admins monitor and control specific material placements within custom zones. It offers flexible rules to deny, alert staff, or allow items, providing granular oversight for your server.
+AlexxAutoWarn is a Spigot/Paper plugin for server admins to monitor and control specific material placements within custom zones. It offers flexible rules to deny, alert staff, or allow items, providing granular oversight.
 
 Table of Contents
 Features
@@ -17,7 +17,7 @@ Support
 License
 
 Features
-Custom Zones: Define rectangular areas for monitoring.
+Custom Zones: Define rectangular monitoring areas.
 
 Global Banned List: A central list of materials to track.
 
@@ -29,7 +29,7 @@ ALERT: Allow placement + alert staff.
 
 ALLOW: Permit placement (even if globally banned).
 
-Default Zone Rules: Set fallback actions for unlisted materials in a zone.
+Default Zone Rules: Set fallback actions for unlisted materials.
 
 Staff Notifications: Configurable in-game alerts.
 
@@ -48,23 +48,23 @@ Description
 
 /autoinform wand
 
-Get the zone selection wand.
+Get zone selection wand.
 
 /autoinform <zone> pos1/pos2
 
-Set zone corners manually.
+Set zone corners.
 
 /autoinform <zone> define
 
-Save/update a zone using selections.
+Define/update zones using selections.
 
 /autoinform <zone> defaultaction <action>
 
-Set zone's default action (DENY, ALERT, ALLOW).
+Set zone's default action.
 
 /autoinform <zone> setaction <material> <action>
 
-Set specific material action (DENY, ALERT, ALLOW) for a zone.
+Set specific material action for a zone.
 
 /autoinform remove <zone>
 
@@ -72,7 +72,7 @@ Delete a zone.
 
 /autoinform info [zone]
 
-Show info for a zone, or list all zones.
+Show zone info, or list all zones.
 
 /autoinform list
 
@@ -80,7 +80,7 @@ List all defined zones.
 
 /autoinform clearwand
 
-Clear your wand selections.
+Clear wand selections.
 
 /autoinform reload
 
@@ -88,11 +88,11 @@ Reload plugin config.
 
 /autoinform banned add/remove <material>
 
-Add/remove material from global banned list.
+Manage global banned list.
 
 /autoinform banned list
 
-List all globally banned materials.
+List banned materials.
 
 Permissions
 Permission Node
@@ -155,7 +155,7 @@ Start/Restart your server.
 
 Edit config.yml in plugins/AlexxAutoWarn/.
 
-Reload plugin with /autoinform reload or restart server.
+Reload plugin with /autoinform reload (or restart server).
 
 Support
 For bugs, feature requests, or contributions:
