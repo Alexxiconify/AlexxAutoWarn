@@ -111,4 +111,4 @@ Submit a pull request.
 
 ## License
 This project is licensed under the MIT License.
-See the [LICENSE](AlexxAutoWarn/blob/main/LICENSE/md) file for details.
+See the [LICENSE](AlexxAutoWarn/blob/main/LICENSE.md) file for details.
