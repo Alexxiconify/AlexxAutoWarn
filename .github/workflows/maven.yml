@@ -38,7 +38,7 @@ jobs:
         distribution: 'temurin'
         cache: maven
     - name: Build with Maven
-      run: mvn -B clean package --file pom.xml
+      run: mvn -B clean package --file */pom.xml
 
     # Upload the built JAR as an artifact so the 'release' job can access it
     - name: Upload plugin JAR
