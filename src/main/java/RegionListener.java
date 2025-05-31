@@ -12,8 +12,6 @@ import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.InventoryHolder;
 
-import java.util.UUID;
-
 public class RegionListener implements Listener {
 
  private final AlexxAutoWarn plugin;
