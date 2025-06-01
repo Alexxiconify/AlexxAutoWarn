@@ -1,24 +1,33 @@
-#file: noinspection SpellCheckingInspection
+# plugin.yml
+# This file defines the core metadata for your Spigot/Paper plugin.
+# The main class of your plugin. This is where your plugin starts.
+main: net.Alexxiconify.alexxAutoWarn.AutoInformEventListener
+# The name of your plugin. This is what will appear in /plugins.
 name: AlexxAutoWarn
-version: '1.0.0-SNAPSHOT'
-main: net.Alexxiconify.alexxAutoWarn.AlexxsAutoWarn.AlexxAutoWarn
-api-version: '1.21'
+# The version of your plugin. Update this for each new release.
+version: 1.0.0-SNAPSHOT
+# A brief description of your plugin's functionality.
+description: Advanced zone monitoring and material control for Spigot/Paper servers.
+# The author(s) of the plugin.
+author: Alexxiconify
+# The API version your plugin targets. This helps ensure compatibility.
+api-version: 1.21
+# Commands provided by your plugin.
 commands:
-  ainformset:
-    description: Manages AutoInform zones and banned materials.
-    usage: /ainformset <subcommand>
-    aliases: [ autoinform, aw ] # Added aliases for convenience
-    permission: autoinform.admin.set
+  autoinform:
+    description: Main command for AlexxAutoWarn plugin.
+    usage: /<command> [subcommand]
+    aliases: [ ainform ] # Alternative names for the command
+    permission: autoinform.admin.set # Default permission for the main command
+    permission-message: You do not have permission to use this command.
+# Permissions used by your plugin.
 permissions:
   autoinform.admin.set:
-    description: Allows access to AutoInform zone and banned material setting commands.
-    default: op
-  autoinform.alert.receive: # Existing permission for staff alerts
-    description: Allows players to receive alerts about banned material placement.
-    default: op
-  alexxautowarn.region.admin: # New permission for region management commands
-    description: Allows access to custom region management commands (create, delete, modify regions).
-    default: op
-  alexxautowarn.region.bypass: # New permission for bypassing region restrictions
-    description: Allows bypassing all custom region restrictions (block placement, chest interaction, item usage).
-    default: op
+    description: Allows access to all /autoinform commands for managing zones and settings.
+    default: op # 'op' means only server operators have this permission by default.
+  autoinform.alert.receive:
+    description: Allows a player to receive in-game alerts when a monitored action occurs.
+    default: op # 'op' means only server operators have this permission by default.
+  autoinform.bypass:
+    description: Allows a player to bypass all AutoInform zone restrictions (no denials or alerts).
+    default: false # 'false' means no one has this permission by default.

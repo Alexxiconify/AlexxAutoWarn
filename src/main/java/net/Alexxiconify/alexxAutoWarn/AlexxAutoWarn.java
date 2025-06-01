@@ -844,7 +844,6 @@ public class AlexxAutoWarn extends JavaPlugin implements Listener, CommandExecut
     break;
   }
  }
-
  /**
   * Enum to differentiate action types for generic processing.
   */
