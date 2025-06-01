@@ -35,7 +35,7 @@ player-deny-setting-updated: "&a{plugin-prefix}Deny placement for zone '{zone_na
 player-console-only-reload: "&c{plugin-prefix}Only console can use '{command_name} reload'. Players use '/{command_name} reload'."
 
 # Staff Alert Message (this is the one you saw in console, but probably not in game)
-staff-alert-message: "{action_color}[AutoInform Alert] &ePlayer &b{player} &eattempted &c{action_status} &eaction with &b{material} &eat &fX:{x} Y:{y} Z:{z} &ein zone &a'{zone_name}'."
+staff-alert-usage: "{action_color}[AutoInform Alert] &ePlayer &b{player} &eattempted &c{action_status} &eaction with &b{material} &eat &fX:{x} Y:{y} Z:{z} &ein zone &a'{zone_name}'."
 
 
 # Region (new system) messages
