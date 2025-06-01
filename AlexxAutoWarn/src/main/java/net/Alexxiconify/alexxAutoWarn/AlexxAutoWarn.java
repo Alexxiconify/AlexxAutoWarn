@@ -10,6 +10,7 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.block.Action;
 import org.bukkit.block.Container; // Added for chest monitoring
+import org.bukkit.block.Block; // Added for BlockPlaceEvent
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -42,14 +43,13 @@ import java.util.UUID;
 import java.util.logging.Level; // Added for logging exceptions
 import java.util.stream.Collectors;
 
-// Removed @SuppressWarnings("ALL") as String Templates are no longer used
 public class AlexxAutoWarn extends JavaPlugin implements Listener, CommandExecutor, TabCompleter {
 
  // --- Plugin Constants ---
  private static final String COMMAND_NAME = "autoinform";
- private static final String PERMISSION_ADMIN_SET = "autoinform.admin.set";
- private static final String PERMISSION_ALERT_RECEIVE = "autoinform.alert.receive";
- private static final String PERMISSION_BYPASS = "autoinform.bypass";
+ private static final String PERMISSION_ADMIN_SET = "autoinform.admin.set"; // Permission for admin commands
+ private static final String PERMISSION_ALERT_RECEIVE = "autoinform.alert.receive"; // Permission to receive staff alerts
+ private static final String PERMISSION_BYPASS = "autoinform.bypass"; // Permission to bypass all restrictions
  private static final String WAND_KEY_STRING = "ainform_wand";
  private static final String WAND_DISPLAY_NAME = ChatColor.GOLD + "" + ChatColor.BOLD + "AutoInform Zone Selector Wand";
  private static final List<String> WAND_LORE = Arrays.asList(
@@ -408,8 +408,8 @@ public class AlexxAutoWarn extends JavaPlugin implements Listener, CommandExecut
    return; // Don't process other interactions if it's the wand
   }
 
-  // Handle chest access monitoring if enabled globally
-  if (monitorChestAccess && coreProtectAPI != null && clickedBlock != null && event.getAction().name().contains("RIGHT_CLICK")) {
+  // Handle chest access monitoring if enabled globally AND player does NOT have bypass permission
+  if (monitorChestAccess && coreProtectAPI != null && clickedBlock != null && event.getAction().name().contains("RIGHT_CLICK") && !player.hasPermission(PERMISSION_BYPASS)) {
    if (clickedBlock.getState() instanceof Container) { // Check if it's a container (chest, shulker, barrel, etc.)
     // Check if the container is within any defined AutoInformZone
     for (AutoInformZone zone : definedZones.values()) {
@@ -442,7 +442,8 @@ public class AlexxAutoWarn extends JavaPlugin implements Listener, CommandExecut
   }
 
   // Handle placement of items that spawn entities (like TNT Minecart) from global banned materials
-  if (handItem != null && bannedMaterials.contains(handItem.getType()) && event.getAction() == Action.RIGHT_CLICK_BLOCK) {
+  // This check also respects the PERMISSION_BYPASS
+  if (handItem != null && bannedMaterials.contains(handItem.getType()) && event.getAction() == Action.RIGHT_CLICK_BLOCK && !player.hasPermission(PERMISSION_BYPASS)) {
    if (handItem.getType() == Material.TNT_MINECART && clickedBlock != null && clickedBlock.getType().name().contains("RAIL")) {
     Location placementLocation = clickedBlock.getLocation().add(0, 1, 0);
     if (processBannedMaterialPlacement(player, placementLocation, Material.TNT_MINECART)) {
@@ -457,6 +458,7 @@ public class AlexxAutoWarn extends JavaPlugin implements Listener, CommandExecut
  public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
   if (!command.getName().equalsIgnoreCase(COMMAND_NAME) && !command.getName().equalsIgnoreCase("ainform")) return false;
 
+  // Console reload command - no permission check for console
   if (!(sender instanceof Player player)) {
    if (args.length == 1 && args[0].equalsIgnoreCase("reload")) {
     handleReloadCommand(sender);
@@ -466,6 +468,7 @@ public class AlexxAutoWarn extends JavaPlugin implements Listener, CommandExecut
    return true;
   }
 
+  // All other commands require admin permission
   if (!player.hasPermission(PERMISSION_ADMIN_SET)) {
    player.sendMessage(getMessage("player-no-permission"));
    return true;
