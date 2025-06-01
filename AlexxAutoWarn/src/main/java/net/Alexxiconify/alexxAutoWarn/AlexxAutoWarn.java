@@ -8,6 +8,8 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
+import org.bukkit.block.Action;
+import org.bukkit.block.Container; // Added for chest monitoring
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -17,7 +19,6 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.player.PlayerBucketEmptyEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -38,6 +39,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.logging.Level; // Added for logging exceptions
 import java.util.stream.Collectors;
 
 // Removed @SuppressWarnings("ALL") as String Templates are no longer used
@@ -54,12 +56,12 @@ public class AlexxAutoWarn extends JavaPlugin implements Listener, CommandExecut
          ChatColor.GRAY + "Left-click: Set Position 1",
          ChatColor.GRAY + "Right-click: Set Position 2"
  );
- // PLUGIN_PREFIX is no longer directly used for messages, as it's handled by getMessage()
- // private static final String PLUGIN_PREFIX = ChatColor.RED + "[AutoInform] " + ChatColor.YELLOW;
 
  // --- Configurable Messages ---
  private final Map<String, String> messages = new HashMap<>();
 
+ // --- Global Settings ---
+ private boolean monitorChestAccess; // New field for chest monitoring
 
  // --- Instance Variables ---
  private CoreProtectAPI coreProtectAPI;
@@ -72,6 +74,8 @@ public class AlexxAutoWarn extends JavaPlugin implements Listener, CommandExecut
 
  @Override
  public void onEnable() {
+  getLogger().info(getMessage("plugin-startup")); // Using message
+
   this.wandKey = new NamespacedKey(this, WAND_KEY_STRING);
 
   saveDefaultConfig(); // Ensure config.yml exists before loading messages
@@ -85,6 +89,14 @@ public class AlexxAutoWarn extends JavaPlugin implements Listener, CommandExecut
    getLogger().info(getMessage("plugin-coreprotect-hooked"));
   }
 
+  // Load global settings
+  this.monitorChestAccess = getConfig().getBoolean("monitor-chest-access", false);
+  if (this.monitorChestAccess) {
+   getLogger().info(getMessage("plugin-monitor-chest-access-enabled"));
+  } else {
+   getLogger().info(getMessage("plugin-monitor-chest-access-disabled"));
+  }
+
   loadZonesFromConfig();
   loadBannedMaterialsFromConfig();
 
@@ -92,7 +104,7 @@ public class AlexxAutoWarn extends JavaPlugin implements Listener, CommandExecut
   Objects.requireNonNull(getCommand(COMMAND_NAME)).setExecutor(this);
   Objects.requireNonNull(getCommand(COMMAND_NAME)).setTabCompleter(this);
 
-  getLogger().info(getMessage("plugin-enabled"));
+  getLogger().info(getMessage("plugin-enabled")); // Using message
   if (definedZones.isEmpty()) {
    getLogger().warning(getMessage("plugin-warning-no-zones-old").replace("{command}", COMMAND_NAME));
   } else {
@@ -103,13 +115,14 @@ public class AlexxAutoWarn extends JavaPlugin implements Listener, CommandExecut
 
  @Override
  public void onDisable() {
-  getLogger().info(getMessage("plugin-disabled"));
+  getLogger().info(getMessage("plugin-shutting-down")); // Using message
   playerZoneSelections.clear();
   playerWandPos1.clear();
   playerWandPos2.clear();
   definedZones.clear();
   bannedMaterials.clear();
   messages.clear();
+  getLogger().info(getMessage("plugin-disabled")); // Using message
  }
 
  /** Loads all custom messages from config.yml. */
@@ -130,6 +143,13 @@ public class AlexxAutoWarn extends JavaPlugin implements Listener, CommandExecut
     String processedMessage = rawMessage.replace("{plugin-prefix}", pluginPrefix);
     messages.put(key, ChatColor.translateAlternateColorCodes('&', processedMessage));
    }
+  } else {
+   getLogger().warning("No 'messages' section found in config.yml. Using default hardcoded fallback messages.");
+   // Fallback to hardcoded messages if section is missing entirely
+   messages.put("player-no-permission", ChatColor.RED + pluginPrefix + "You do not have permission to use this command.");
+   messages.put("player-command-usage", ChatColor.RED + pluginPrefix + "Usage: {usage}");
+   // ... add other critical fallbacks if you want to avoid nulls ...
+   // This is a minimal set, ideally all messages should be in config.yml
   }
  }
 
@@ -181,13 +201,19 @@ public class AlexxAutoWarn extends JavaPlugin implements Listener, CommandExecut
        ZoneAction action = ZoneAction.valueOf(Objects.requireNonNull(materialActionsSection.getString(materialName)).toUpperCase());
        materialActions.put(material, action);
       } catch (IllegalArgumentException e) {
-       getLogger().warning("Invalid material or action type in zone '" + zoneName + "' for material '" + materialName + "'. Skipping."); // This message could also be moved to messages.yml
+       getLogger().warning(getMessage("plugin-invalid-material-zone-config") // New message key
+               .replace("{zone_name}", zoneName)
+               .replace("{material_name}", materialName)
+               .replace("{message}", e.getMessage()));
       }
      }
     }
 
     definedZones.put(zoneName, new AutoInformZone(zoneName, world, corner1, corner2, defaultAction, materialActions));
-    getLogger().info("Loaded zone '" + zoneName + "' in world '" + worldName + "' (Default Action: " + defaultAction + ")."); // This message could also be moved to messages.yml
+    getLogger().info(getMessage("plugin-loaded-zone") // New message key
+            .replace("{zone_name}", zoneName)
+            .replace("{world_name}", worldName)
+            .replace("{default_action}", defaultAction.name()));
    } catch (Exception e) {
     getLogger().severe(getMessage("plugin-error-loading-zone-coords").replace("{zone_name}", zoneName).replace("{message}", e.getMessage()));
    }
@@ -345,9 +371,12 @@ public class AlexxAutoWarn extends JavaPlugin implements Listener, CommandExecut
 
  @EventHandler
  public void onBlockPlace(BlockPlaceEvent event) {
-  if (processBannedMaterialPlacement(event.getPlayer(), event.getBlock().getLocation(), event.getBlock().getType())) {
+  Player player = event.getPlayer();
+  Block placedBlock = event.getBlockPlaced();
+
+  if (processBannedMaterialPlacement(player, placedBlock.getLocation(), placedBlock.getType())) {
    event.setCancelled(true);
-   event.getPlayer().sendMessage(getMessage("player-denied-placement").replace("{material}", event.getBlock().getType().name()));
+   player.sendMessage(getMessage("player-denied-placement").replace("{material}", placedBlock.getType().name()));
   }
  }
 
@@ -355,32 +384,67 @@ public class AlexxAutoWarn extends JavaPlugin implements Listener, CommandExecut
  public void onPlayerInteract(PlayerInteractEvent event) {
   Player player = event.getPlayer();
   ItemStack handItem = event.getItem();
+  Block clickedBlock = event.getClickedBlock(); // Get the clicked block
 
+  // Handle wand interactions first
   if (isWand(handItem)) {
    event.setCancelled(true); // Always cancel wand interactions to prevent accidental block changes
 
    if (event.getAction() == Action.LEFT_CLICK_BLOCK) {
-    if (event.getClickedBlock() != null) {
-     playerWandPos1.put(player.getUniqueId(), event.getClickedBlock().getLocation());
-     player.sendMessage(getMessage("player-wand-pos1-set").replace("{location}", formatLocation(event.getClickedBlock().getLocation())));
+    if (clickedBlock != null) {
+     playerWandPos1.put(player.getUniqueId(), clickedBlock.getLocation());
+     player.sendMessage(getMessage("player-wand-pos1-set").replace("{location}", formatLocation(clickedBlock.getLocation())));
     } else {
      player.sendMessage(getMessage("player-wand-click-block").replace("{pos_num}", "1"));
     }
    } else if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
-    if (event.getClickedBlock() != null) {
-     playerWandPos2.put(player.getUniqueId(), event.getClickedBlock().getLocation());
-     player.sendMessage(getMessage("player-wand-pos2-set").replace("{location}", formatLocation(event.getClickedBlock().getLocation())));
+    if (clickedBlock != null) {
+     playerWandPos2.put(player.getUniqueId(), clickedBlock.getLocation());
+     player.sendMessage(getMessage("player-wand-pos2-set").replace("{location}", formatLocation(clickedBlock.getLocation())));
     } else {
      player.sendMessage(getMessage("player-wand-click-block").replace("{pos_num}", "2"));
     }
    }
-   return;
+   return; // Don't process other interactions if it's the wand
   }
 
-  // Handle placement of items that spawn entities (like TNT Minecart)
+  // Handle chest access monitoring if enabled globally
+  if (monitorChestAccess && coreProtectAPI != null && clickedBlock != null && event.getAction().name().contains("RIGHT_CLICK")) {
+   if (clickedBlock.getState() instanceof Container) { // Check if it's a container (chest, shulker, barrel, etc.)
+    // Check if the container is within any defined AutoInformZone
+    for (AutoInformZone zone : definedZones.values()) {
+     if (zone.contains(clickedBlock.getLocation())) {
+      // Log with CoreProtect
+      try {
+       coreProtectAPI.logContainerTransaction(player.getName(), clickedBlock.getLocation());
+      } catch (Exception e) {
+       getLogger().log(Level.WARNING, "Failed to log container transaction with CoreProtect for player " + player.getName() + " at " + formatLocation(clickedBlock.getLocation()), e);
+      }
+
+      // Send staff alert
+      String staffMessage = getMessage("staff-alert-chest-access")
+              .replace("{player}", player.getName())
+              .replace("{x}", String.valueOf(clickedBlock.getX()))
+              .replace("{y}", String.valueOf(clickedBlock.getY()))
+              .replace("{z}", String.valueOf(clickedBlock.getZ()))
+              .replace("{zone_name}", zone.getName())
+              .replace("{action_color}", ChatColor.YELLOW.toString()); // Chest access is an alert
+
+      Bukkit.getOnlinePlayers().stream()
+              .filter(staff -> staff.hasPermission(PERMISSION_ALERT_RECEIVE))
+              .forEach(staff -> staff.sendMessage(staffMessage));
+
+      // No need to cancel the event, as the request is for monitoring.
+      break; // Only alert once per interaction if in multiple zones
+     }
+    }
+   }
+  }
+
+  // Handle placement of items that spawn entities (like TNT Minecart) from global banned materials
   if (handItem != null && bannedMaterials.contains(handItem.getType()) && event.getAction() == Action.RIGHT_CLICK_BLOCK) {
-   if (handItem.getType() == Material.TNT_MINECART && event.getClickedBlock() != null && event.getClickedBlock().getType().name().contains("RAIL")) {
-    Location placementLocation = event.getClickedBlock().getLocation().add(0, 1, 0);
+   if (handItem.getType() == Material.TNT_MINECART && clickedBlock != null && clickedBlock.getType().name().contains("RAIL")) {
+    Location placementLocation = clickedBlock.getLocation().add(0, 1, 0);
     if (processBannedMaterialPlacement(player, placementLocation, Material.TNT_MINECART)) {
      event.setCancelled(true);
      player.sendMessage(getMessage("player-denied-placement").replace("{material}", Material.TNT_MINECART.name()));
@@ -419,13 +483,14 @@ public class AlexxAutoWarn extends JavaPlugin implements Listener, CommandExecut
    case "pos2": handlePosCommand(player, subCommand, args); break;
    case "define": handleDefineCommand(player, args); break;
    case "remove": handleRemoveCommand(player, args); break;
-   case "info": handleInfoCommand(player); break; // Modified to remove args for info command
+   case "info": handleInfoCommand(player, args); break; // Modified to accept args for specific zone info
    case "list": handleListCommand(player); break;
    case "reload": handleReloadCommand(player); break;
    case "clearwand": handleClearWandCommand(player); break;
    case "banned": handleBannedCommand(player, args); break;
    case "defaultaction": handleDefaultActionCommand(player, args); break;
    case "setaction": handleSetActionCommand(player, args); break;
+   case "togglechestmonitor": handleToggleChestMonitorCommand(player); break; // New command
    default: sendHelpMessage(player); break;
   }
   return true;
@@ -497,7 +562,7 @@ public class AlexxAutoWarn extends JavaPlugin implements Listener, CommandExecut
   player.sendMessage(getMessage("player-define-zone-corners")
           .replace("{corner1_loc}", formatLocation(p1))
           .replace("{corner2_loc}", formatLocation(p2)));
-  player.sendMessage(getMessage("player-define-zone-deny-setting").replace("{default_action}", currentDefaultAction.name()));
+  player.sendMessage(getMessage("player-define-zone-default-action-setting").replace("{default_action}", currentDefaultAction.name()));
 
   playerWandPos1.remove(player.getUniqueId());
   playerWandPos2.remove(player.getUniqueId());
@@ -523,17 +588,40 @@ public class AlexxAutoWarn extends JavaPlugin implements Listener, CommandExecut
   }
  }
 
- private void handleInfoCommand(Player player) { // Removed String[] args
-  if (definedZones.isEmpty()) {
-   player.sendMessage(getMessage("player-no-zones-defined"));
-  } else {
-   player.sendMessage(getMessage("player-all-zones-header"));
-   definedZones.values().forEach(zone ->
-           player.sendMessage(getMessage("player-zone-list-entry")
-                   .replace("{zone_name}", zone.getName())
-                   .replace("{world_name}", zone.getWorld().getName())
-                   .replace("{default_action}", zone.getDefaultAction().name()))
-   );
+ private void handleInfoCommand(Player player, String[] args) {
+  if (args.length == 2) {
+   String zoneInfoName = args[1];
+   AutoInformZone zoneInfo = definedZones.get(zoneInfoName);
+   if (zoneInfo != null) {
+    player.sendMessage(getMessage("player-zone-info-header").replace("{zone_name}", zoneInfo.getName()));
+    player.sendMessage(getMessage("player-zone-info-world").replace("{world_name}", zoneInfo.getWorld().getName()));
+    player.sendMessage(getMessage("player-zone-info-corner1").replace("{corner1_loc}", formatLocation(zoneInfo.getCorner1())));
+    player.sendMessage(getMessage("player-zone-info-corner2").replace("{corner2_loc}", formatLocation(zoneInfo.getCorner2())));
+    player.sendMessage(getMessage("player-zone-info-default-action").replace("{default_action}", zoneInfo.getDefaultAction().name()));
+
+    if (!zoneInfo.getMaterialSpecificActions().isEmpty()) {
+     player.sendMessage(getMessage("player-zone-info-material-actions"));
+     zoneInfo.getMaterialSpecificActions().forEach((material, action) ->
+             player.sendMessage(getMessage("player-zone-info-material-action-entry")
+                     .replace("{material}", material.name())
+                     .replace("{action}", action.name()))
+     );
+    }
+   } else {
+    player.sendMessage(getMessage("player-zone-not-found").replace("{zone_name}", zoneInfoName));
+   }
+  } else { // No zone name specified, list all
+   if (definedZones.isEmpty()) {
+    player.sendMessage(getMessage("player-no-zones-defined"));
+   } else {
+    player.sendMessage(getMessage("player-all-zones-header"));
+    definedZones.values().forEach(zone ->
+            player.sendMessage(getMessage("player-zone-list-entry")
+                    .replace("{zone_name}", zone.getName())
+                    .replace("{world_name}", zone.getWorld().getName())
+                    .replace("{default_action}", zone.getDefaultAction().name()))
+    );
+   }
   }
  }
 
@@ -548,6 +636,14 @@ public class AlexxAutoWarn extends JavaPlugin implements Listener, CommandExecut
 
  private void handleReloadCommand(CommandSender sender) {
   loadMessagesFromConfig(); // Reload messages first
+  // Reload global settings
+  this.monitorChestAccess = getConfig().getBoolean("monitor-chest-access", false);
+  if (this.monitorChestAccess) {
+   getLogger().info(getMessage("plugin-monitor-chest-access-enabled"));
+  } else {
+   getLogger().info(getMessage("plugin-monitor-chest-access-disabled"));
+  }
+
   loadZonesFromConfig();
   loadBannedMaterialsFromConfig();
   sender.sendMessage(getMessage("plugin-config-reloaded"));
@@ -654,7 +750,7 @@ public class AlexxAutoWarn extends JavaPlugin implements Listener, CommandExecut
   );
   definedZones.put(zoneName, updatedZone);
   saveZonesToConfig();
-  player.sendMessage(getMessage("player-deny-setting-updated").replace("{zone_name}", zoneName).replace("{action}", newDefaultAction.name()));
+  player.sendMessage(getMessage("player-default-action-updated").replace("{zone_name}", zoneName).replace("{action}", newDefaultAction.name()));
  }
 
  private void handleSetActionCommand(Player player, String[] args) {
@@ -708,6 +804,20 @@ public class AlexxAutoWarn extends JavaPlugin implements Listener, CommandExecut
           .replace("{action}", action.name()));
  }
 
+ private void handleToggleChestMonitorCommand(Player player) {
+  if (coreProtectAPI == null) {
+   player.sendMessage(getMessage("plugin-toggle-chest-monitor-requires-coreprotect"));
+   return;
+  }
+
+  this.monitorChestAccess = !this.monitorChestAccess; // Toggle the boolean
+  getConfig().set("monitor-chest-access", this.monitorChestAccess); // Save to config
+  saveConfig(); // Persist the change
+
+  player.sendMessage(getMessage("plugin-toggle-chest-monitor-success")
+          .replace("{status}", String.valueOf(this.monitorChestAccess)));
+ }
+
 
  @Override
  public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command cmd, @NotNull String alias, @NotNull String[] args) {
@@ -720,7 +830,7 @@ public class AlexxAutoWarn extends JavaPlugin implements Listener, CommandExecut
   }
 
   if (args.length == 1) {
-   return Arrays.asList("wand", "pos1", "pos2", "define", "remove", "info", "list", "reload", "clearwand", "banned", "defaultaction", "setaction").stream()
+   return Arrays.asList("wand", "pos1", "pos2", "define", "remove", "info", "list", "reload", "clearwand", "banned", "defaultaction", "setaction", "togglechestmonitor").stream()
            .filter(s -> s.startsWith(args[0].toLowerCase()))
            .collect(Collectors.toList());
   } else if (args.length == 2) {
@@ -765,14 +875,15 @@ public class AlexxAutoWarn extends JavaPlugin implements Listener, CommandExecut
   player.sendMessage(getMessage("main-help-pos1").replace("{command}", COMMAND_NAME));
   player.sendMessage(getMessage("main-help-pos2").replace("{command}", COMMAND_NAME));
   player.sendMessage(getMessage("main-help-define").replace("{command}", COMMAND_NAME));
-  player.sendMessage(getMessage("main-help-deny").replace("{command}", COMMAND_NAME)); // This message is for the old 'deny' command, not 'defaultaction'
+  player.sendMessage(getMessage("main-help-defaultaction").replace("{command}", COMMAND_NAME));
+  player.sendMessage(getMessage("main-help-setaction").replace("{command}", COMMAND_NAME));
   player.sendMessage(getMessage("main-help-remove").replace("{command}", COMMAND_NAME));
   player.sendMessage(getMessage("main-help-info").replace("{command}", COMMAND_NAME));
   player.sendMessage(getMessage("main-help-list").replace("{command}", COMMAND_NAME));
   player.sendMessage(getMessage("main-help-clearwand").replace("{command}", COMMAND_NAME));
   player.sendMessage(getMessage("main-help-reload").replace("{command}", COMMAND_NAME));
   player.sendMessage(getMessage("main-help-banned").replace("{command}", COMMAND_NAME));
-  player.sendMessage(getMessage("main-help-region").replace("{command}", COMMAND_NAME)); // This is for the new region system, but the code doesn't have it yet.
+  player.sendMessage(getMessage("main-help-togglechestmonitor").replace("{command}", COMMAND_NAME)); // New help entry
   player.sendMessage(getMessage("main-help-note"));
  }
 
