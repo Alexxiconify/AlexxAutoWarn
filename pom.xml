@@ -31,10 +31,48 @@
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>3.3.1</version> <!-- Explicitly define the resources plugin -->
+                <executions>
+                    <execution>
+                        <id>copy-resources</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${basedir}/target/classes</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>src/main/resources</directory>
+                                    <filtering>true</elements>
+                                    <includes>
+                                        <include>plugin.yml</include>
+                                        <include>config.yml</include>
+                                        <include>messages.yml</include>
+                                    </includes>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
                 <version>3.5.3</version>
                 <configuration>
-                    <createDependencyReducedPom>true</createDependencyReducedPom>
+                    <createDependencyReducedPom>false</createDependencyReducedPom>
+                    <excludeScope>provided</excludeScope>
+                    <filters>
+                        <filter>
+                            <artifact>net.coreprotect:coreprotect</artifact>
+                            <excludes>
+                                <exclude>plugin.yml</exclude>
+                                <exclude>META-INF/MANIFEST.MF</exclude>
+                            </excludes>
+                        </filter>
+                    </filters>
                 </configuration>
                 <executions>
                     <execution>
@@ -46,17 +84,14 @@
                 </executions>
             </plugin>
         </plugins>
+        <!-- The <resources> section is usually sufficient, but explicitly defining
+             maven-resources-plugin can sometimes resolve stubborn issues.
+             I'm keeping the <resources> section here as a standard practice,
+             but the explicit plugin above takes precedence for includes. -->
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
                 <filtering>true</filtering>
-                <!-- This ensures all files in src/main/resources are copied to the root of the JAR -->
-                <includes>
-                    <include>plugin.yml</include>
-                    <include>config.yml</include>
-                    <include>messages.yml</include>
-                    <!-- Add any other top-level resource files here -->
-                </includes>
             </resource>
         </resources>
     </build>
@@ -86,7 +121,7 @@
         <dependency>
             <groupId>io.papermc.paper</groupId>
             <artifactId>paper-api</artifactId>
-            <version>1.21.4-R0.1-SNAPSHOT</version> <!-- Ensure this matches your target server version -->
+            <version>1.21.4-R0.1-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
