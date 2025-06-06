@@ -46,7 +46,6 @@
                         <filter>
                             <artifact>net.coreprotect:coreprotect</artifact>
                             <excludes>
-                                <exclude>plugin.yml</exclude>
                                 <exclude>META-INF/MANIFEST.MF</exclude>
                             </excludes>
                         </filter>
