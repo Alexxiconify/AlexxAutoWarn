@@ -35,21 +35,7 @@
                 <version>3.5.3</version>
                 <configuration>
                     <createDependencyReducedPom>false</createDependencyReducedPom>
-                    <!-- IMPORTANT: Exclude dependencies with 'provided' scope from being shaded.
-                         This is crucial for keeping your plugin JAR small, as Bukkit/Paper API
-                         and CoreProtect are provided by the Minecraft server environment. -->
                     <excludeScope>provided</excludeScope>
-                    <filters>
-                        <!-- These filters ensure specific files from shaded dependencies are excluded.
-                             The excludeScope should prevent their inclusion in the first place,
-                             but filters act as a failsafe for known conflicts. -->
-                        <filter>
-                            <artifact>net.coreprotect:coreprotect</artifact>
-                            <excludes>
-                                <exclude>META-INF/MANIFEST.MF</exclude>
-                            </excludes>
-                        </filter>
-                    </filters>
                 </configuration>
                 <executions>
                     <execution>
