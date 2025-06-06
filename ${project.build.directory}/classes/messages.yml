@@ -1,0 +1,111 @@
+# Customizable messages for the AlexxAutoWarn plugin.
+
+# General Plugin Prefix - applied to almost all messages for consistent branding
+plugin-prefix: "&c[AutoInform] &e"
+
+# --- General Plugin & CoreProtect Messages ---
+plugin-startup: "Plugin starting..."
+plugin-enabled: "Plugin enabled!"
+plugin-shutting-down: "Plugin shutting down..."
+plugin-disabled: "Plugin disabled!"
+plugin-config-reloaded: "Configuration reloaded."
+plugin-coreprotect-not-found: "&cCoreProtect not found! Logging features will be disabled."
+plugin-coreprotect-found: "CoreProtect found! Logging enabled."
+plugin-no-zones-in-config: "No 'zones' section found in config.yml. No zones loaded."
+plugin-invalid-zone-config: "&cInvalid configuration for zone '{zone_name}'. Skipping."
+plugin-world-not-found: "&cWorld '{world_name}' for zone '{zone_name}' not found! This zone will not be active."
+plugin-zones-loaded: "Loaded {count} zones."
+plugin-no-zones-defined: "No zones are currently defined. Use &f/{command} define <name>&e to create one."
+plugin-banned-materials-loaded: "Loaded {count} globally banned materials."
+plugin-no-banned-materials: "No materials are currently globally banned."
+plugin-current-banned-materials: "Globally banned materials: &f{materials}"
+
+# --- Command-Related Messages ---
+error-no-permission: "&cYou do not have permission to use this command."
+error-player-only-command: "&cThis command can only be run by a player."
+error-unknown-subcommand: "&cUnknown subcommand. Use &f/{command}&c for help."
+error-invalid-material: "&cInvalid material specified: &f{material}&c."
+error-invalid-action: "&cInvalid action specified: &f{action}&c. Use DENY, ALERT, or ALLOW."
+error-invalid-material-or-action: "&cInvalid material '&f{material}&c' or action '&f{action}&c'."
+error-zone-not-found: "&cZone '&f{zone_name}&c' not found."
+error-usage-pos: "&cUsage: &f/{command} {position} <zone_name>"
+error-usage-define: "&cUsage: &f/{command} define <zone_name>"
+error-usage-defaultaction: "&cUsage: &f/{command} defaultaction <zone_name> <DENY|ALERT|ALLOW>"
+error-usage-setaction: "&cUsage: &f/{command} setaction <zone_name> <material> <DENY|ALERT|ALLOW>"
+error-usage-remove: "&cUsage: &f/{command} remove <zone_name>"
+error-usage-banned: "&cUsage: &f/{command} banned <add|remove|list>"
+error-usage-banned-add: "&cUsage: &f/{command} banned add <material>"
+error-usage-banned-remove: "&cUsage: &f/{command} banned remove <material>"
+error-define-no-selection: "&cYou need to set both pos1 and pos2 for zone '&f{zone_name}&c' first."
+error-define-different-worlds: "&cPos1 and Pos2 must be in the same world!"
+error-loading-config: "&cFailed to load configuration. Please check console for errors."
+error-loading-messages: "&cFailed to load messages.yml. Plugin messages may be default."
+
+# --- Zone Config Loading Specific Errors (more detailed for console) ---
+zone-config-missing-world: "&cZone '{zone_name}' in config.yml is missing 'world' property. Skipping."
+zone-config-missing-corners: "&cZone '{zone_name}' in config.yml is missing 'corner1' or 'corner2' coordinates. Skipping."
+zone-config-missing-section: "&cZone '{zone_name}': Missing configuration section '&f{section_name}&c'. Skipping."
+zone-config-incomplete-coordinates: "&cZone '{zone_name}': Incomplete coordinates in '&f{section_name}&c'. Requires x, y, z. Skipping."
+zone-config-invalid-coordinates: "&cZone '{zone_name}': Invalid coordinates in '&f{section_name}&c'. Error: {error}. Skipping."
+zone-config-invalid-material-action: "&cZone '{zone_name}': Invalid material '&f{material_key}&c' or action in 'material-actions'. Error: {error}. Skipping."
+plugin-invalid-zone-config-error: "&cFailed to parse configuration for zone '&f{zone_name}&c'. Error: {error}."
+plugin-error-loading-zone: "&cAn unexpected error occurred while loading zone '&f{zone_name}&c'. Error: {error}."
+config-invalid-banned-material: "&cInvalid material '&f{material}&c' found in global banned-materials list. Skipping."
+
+
+# --- Wand Messages ---
+wand-given: "&aYou have been given the &6AutoInform Wand&a!"
+wand-pos1-selected: "&aPos1 set at: &f{location}&a. (Right-Click block)"
+wand-pos2-selected: "&aPos2 set at: &f{location}&a. (Left-Click block)"
+wand-selections-cleared: "&aYour wand selections have been cleared."
+wand-selection-cleared-for-zone: "&aWand selections for zone '&f{zone_name}&a' cleared."
+
+# --- Command Success Messages ---
+pos-set: "&aSet &f{position}&a for zone '&f{zone_name}&a' to your current location: &f{location}&a."
+zone-defined: "&aZone '&f{zone_name}&a' has been defined/updated successfully!"
+zone-removed: "&aZone '&f{zone_name}&a' has been removed."
+default-action-set: "&aDefault action for zone '&f{zone_name}&a' set to &f{action}&a."
+material-action-set: "&aMaterial action for &f{material}&a in zone '&f{zone_name}&a' set to &f{action}&a."
+banned-material-added: "&aMaterial &f{material}&a added to globally banned list."
+banned-material-removed: "&aMaterial &f{material}&a removed from globally banned list."
+banned-material-already-added: "&cMaterial &f{material}&c is already in the globally banned list."
+banned-material-not-found: "&cMaterial &f{material}&c not found in the globally banned list."
+zone-loaded: "Loaded zone: {zone_name}" # For console logging
+
+# --- Info Command Messages ---
+info-header-all: "&b--- AutoInform Zones ---"
+info-header-single: "&b--- Info for Zone: &f{zone_name}&b ---"
+info-name: "&bName: &f{zone_name}"
+info-world: "&bWorld: &f{world}"
+info-corner1: "&bCorner 1: &f{corner1}"
+info-corner2: "&bCorner 2: &f{corner2}"
+info-default-action: "&bDefault Action: &f{action}"
+info-material-actions-header: "&bMaterial Specific Actions:"
+info-material-action-entry: "  &f- {material}: {action}"
+info-no-material-actions: "&bNo material specific actions defined for this zone."
+info-list-entry: "&f- {zone_name} &7(World: {world}, C1: {corner1}, C2: {corner2}, Default: {default_action})"
+
+# --- List Command Messages ---
+list-header: "&b--- AutoInform Defined Zones ---"
+list-entry: "&f- {zone_name}"
+
+# --- Action Messages (In-game alerts and player feedback) ---
+action-denied: "&cYou are not allowed to place &f{material}&c at this location! (&f{x}, {y}, {z}&c)"
+action-alert: "&6[AutoInform Alert] &ePlayer &f{player}&e attempted to place &f{material}&e in zone '&f{zone_name}&e' at {world}:&f{x}, {y}, {z}&e."
+alert-container-access: "&6[AutoInform Alert] &ePlayer &f{player}&e accessed &f{material}&e in zone '&f{zone_name}&e' at {world}:&f{x}, {y}, {z}&e."
+
+
+# --- Help Messages (Accessed via /autoinform or invalid command) ---
+main-help-header: "&b--- AutoInform Setter Help ---"
+main-help-wand: "{plugin-prefix}/{command} wand &f- Get the selection wand."
+main-help-pos1: "{plugin-prefix}/{command} <zone_name> pos1 &f- Set first zone corner (manual)."
+main-help-pos2: "{plugin-prefix}/{command} <zone_name> pos2 &f- Set second zone corner (manual)."
+main-help-define: "{plugin-prefix}/{command} <zone_name> define &f- Define/update <zone_name> using wand or manual selections."
+main-help-defaultaction: "{plugin-prefix}/{command} <zone_name> defaultaction <DENY|ALERT|ALLOW> &f- Set default action for a zone."
+main-help-setaction: "{plugin-prefix}/{command} <zone_name> setaction <material> <DENY|ALERT|ALLOW> &f- Set specific material action for a zone."
+main-help-remove: "{plugin-prefix}/{command} remove <zone_name> &f- Remove a defined zone."
+main-help-info: "{plugin-prefix}/{command} info [zone_name] &f- Show info for a specific zone or all zones."
+main-help-list: "{plugin-prefix}/{command} list &f- List all defined zones."
+main-help-clearwand: "{plugin-prefix}/{command} clearwand &f- Clear your wand selections."
+main-help-reload: "{plugin-prefix}/{command} reload &f- Reload all zones and banned materials from config."
+main-help-banned: "{plugin-prefix}/{command} banned <add|remove|list> &f- Manage globally banned materials."
