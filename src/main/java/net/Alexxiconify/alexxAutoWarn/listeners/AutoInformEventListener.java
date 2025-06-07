@@ -34,8 +34,8 @@ import java.util.logging.Level;
 public class AutoInformEventListener implements Listener {
 
  private final AlexxAutoWarn plugin;
- private final ZoneManager zoneManager; // Made final and assigned in constructor
- private final MessageUtil messageUtil; // Made final and assigned in constructor
+ private final ZoneManager zoneManager;
+ private final MessageUtil messageUtil;
  private final NamespacedKey wandKey;
  private final CoreProtectAPI coreProtectAPI;
 
@@ -48,8 +48,8 @@ public class AutoInformEventListener implements Listener {
   */
  public AutoInformEventListener(AlexxAutoWarn plugin, ZoneManager zoneManager, MessageUtil messageUtil) {
   this.plugin = plugin;
-  this.zoneManager = zoneManager; // Assign zoneManager
-  this.messageUtil = messageUtil; // Assign messageUtil
+  this.zoneManager = zoneManager;
+  this.messageUtil = messageUtil;
   this.wandKey = new NamespacedKey(plugin, "autoinform_wand");
   this.coreProtectAPI = plugin.getCoreProtectAPI();
  }
@@ -73,7 +73,12 @@ public class AutoInformEventListener implements Listener {
 
   // Check globally banned materials first
   if (zoneManager.isGloballyBanned(material)) {
-   handleAction(player, material, location, ZoneAction.DENY, event, "globally-banned", "{material}", material.name());
+   handleAction(player, material, location, ZoneAction.DENY, event, "action",
+           "{player}", player.getName(),
+           "{material}", material.name(),
+           "{zone_name}", "globally-banned-area",
+           "{world}", location.getWorld().getName(),
+           "{x}", location.getX(), "{y}", location.getY(), "{z}", location.getZ());
    return;
   }
 
@@ -98,8 +103,8 @@ public class AutoInformEventListener implements Listener {
    return;
   }
 
-  Material material = event.getBucket(); // Material of the bucket (e.g., LAVA_BUCKET, WATER_BUCKET)
-  Location location = event.getBlockClicked().getLocation(); // Location where the liquid will be placed
+  Material material = event.getBucket();
+  Location location = event.getBlockClicked().getLocation();
 
   // Map bucket material to placed material
   Material placedMaterial;
@@ -108,12 +113,17 @@ public class AutoInformEventListener implements Listener {
   } else if (material == Material.WATER_BUCKET) {
    placedMaterial = Material.WATER;
   } else {
-   return; // Not a bucket we're interested in
+   return;
   }
 
   // Check globally banned materials first
   if (zoneManager.isGloballyBanned(placedMaterial)) {
-   handleAction(player, placedMaterial, location, ZoneAction.DENY, event, "globally-banned", "{material}", placedMaterial.name());
+   handleAction(player, placedMaterial, location, ZoneAction.DENY, event, "action",
+           "{player}", player.getName(),
+           "{material}", placedMaterial.name(),
+           "{zone_name}", "globally-banned-area",
+           "{world}", location.getWorld().getName(),
+           "{x}", location.getX(), "{y}", location.getY(), "{z}", location.getZ());
    return;
   }
 
@@ -136,58 +146,57 @@ public class AutoInformEventListener implements Listener {
 
   // Check for wand usage
   if (handItem != null && handItem.hasItemMeta() && handItem.getItemMeta().getPersistentDataContainer().has(wandKey, PersistentDataType.BYTE)) {
-   // Player is holding the wand
    Block clickedBlock = event.getClickedBlock();
    if (clickedBlock != null) {
     Location location = clickedBlock.getLocation();
-    // Use a temporary zone name for wand selections until the player defines the zone
-    String tempZoneName = "wand_selection_" + player.getUniqueId().toString().substring(0, 8); // Unique per player
+    String locationString = String.format("%s,%.0f,%.0f,%.0f", location.getWorld().getName(), location.getX(), location.getY(), location.getZ());
 
     if (event.getAction() == Action.LEFT_CLICK_BLOCK) {
-     // Pass the actual Location object, and the temporary zone name.
-     plugin.getCommandExecutor().setPlayerSelection(player, tempZoneName, "pos1", location);
-     messageUtil.sendMessage(player, "command-define-pos1-set", "{location}", plugin.getCommandExecutor().serializeLocation(location));
-     messageUtil.log(Level.FINE, "debug-pos-saved", "{player}", player.getName(), "{position}", "Pos1", "{zone_name}", tempZoneName, "{location_string}", plugin.getCommandExecutor().serializeLocation(location));
+     plugin.getCommandExecutor().setPlayerSelection(player, "pos1", locationString);
+     messageUtil.sendMessage(player, "command-pos1-selected", "{location}", locationString);
+     messageUtil.log(Level.FINE, "debug-pos-saved", "{player}", player.getName(), "{position}", "Pos1", "{zone_name}", "N/A (wand)", "{location_string}", locationString);
     } else if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
-     // Pass the actual Location object, and the temporary zone name.
-     plugin.getCommandExecutor().setPlayerSelection(player, tempZoneName, "pos2", location);
-     messageUtil.sendMessage(player, "command-define-pos2-set", "{location}", plugin.getCommandExecutor().serializeLocation(location));
-     messageUtil.log(Level.FINE, "debug-pos-saved", "{player}", player.getName(), "{position}", "Pos2", "{zone_name}", tempZoneName, "{location_string}", plugin.getCommandExecutor().serializeLocation(location));
+     plugin.getCommandExecutor().setPlayerSelection(player, "pos2", locationString);
+     messageUtil.sendMessage(player, "command-pos2-selected", "{location}", locationString);
+     messageUtil.log(Level.FINE, "debug-pos-saved", "{player}", player.getName(), "{position}", "Pos2", "{zone_name}", "N/A (wand)", "{location_string}", locationString);
     }
-    event.setCancelled(true); // Cancel the interaction to prevent block breaking/placement
+    event.setCancelled(true);
    }
-   return; // Stop processing if it's the wand
+   return;
   }
 
-  // Handle container access within zones
-  if (player.hasPermission("alexxautowarn.bypass")) {
-   return; // Bypass if player has bypass permission
+  // --- Container Access Monitoring ---
+  if (!plugin.isMonitorChestAccess()) {
+   return;
   }
 
   if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
    Block clickedBlock = event.getClickedBlock();
    if (clickedBlock != null && clickedBlock.getState() instanceof Container) {
+    if (player.hasPermission("alexxautowarn.bypass")) {
+     return;
+    }
+
     Location location = clickedBlock.getLocation();
-    Material material = clickedBlock.getType(); // Material of the container itself
+    Material material = clickedBlock.getType();
 
     AutoInformZone zone = zoneManager.getZoneAtLocation(location);
     if (zone != null) {
      ZoneAction action = zone.getMaterialAction(material);
-     // Only alert for container access if action is ALERT (DENY/ALLOW don't apply to access)
-     if (action == ZoneAction.ALERT) {
-      messageUtil.sendAlert(player, "alert-container-access",
+     if (action == ZoneAction.DENY) {
+      handleAction(player, material, location, ZoneAction.DENY, event, "action-denied-container-access",
               "{player}", player.getName(),
               "{material}", material.name(),
               "{zone_name}", zone.getName(),
               "{world}", location.getWorld().getName(),
-              "{x}", String.valueOf(location.getBlockX()),
-              "{y}", String.valueOf(location.getBlockY()),
-              "{z}", String.valueOf(location.getBlockZ()));
-
-      // Log container access with CoreProtect
-      if (coreProtectAPI != null) {
-       coreProtectAPI.logContainerTransaction(player.getName(), location); // Corrected method
-      }
+              "{x}", location.getX(), "{y}", location.getY(), "{z}", location.getZ());
+     } else if (action == ZoneAction.ALERT) {
+      handleAction(player, material, location, ZoneAction.ALERT, event, "alert-container-access",
+              "{player}", player.getName(),
+              "{material}", material.name(),
+              "{zone_name}", zone.getName(),
+              "{world}", location.getWorld().getName(),
+              "{x}", location.getX(), "{y}", location.getY(), "{z}", location.getZ());
      }
     }
    }
@@ -195,87 +204,37 @@ public class AutoInformEventListener implements Listener {
  }
 
  /**
-  * Helper method to determine the action for a material within a zone and handle it.
+  * Determines and handles the appropriate action for a material within a specific zone.
   *
   * @param player   The player performing the action.
-  * @param material The material involved.
+  * @param material The material involved in the action.
   * @param location The location of the action.
-  * @param zone     The AutoInformZone the action is in.
+  * @param zone     The zone where the action occurred.
   * @param event    The Cancellable event.
   */
  private void handleMaterialAction(Player player, Material material, Location location, AutoInformZone zone, Cancellable event) {
-  String zoneName = zone.getName();
-  ZoneAction action = zone.getMaterialAction(material); // Get specific action, falls back to default
+  ZoneAction action = zone.getMaterialAction(material);
 
-  switch (action) {
-   case DENY:
-    event.setCancelled(true);
-    messageUtil.sendMessage(player, "action-denied",
-            "{material}", material.name(),
-            "{zone_name}", zoneName,
-            "{world}", location.getWorld().getName(),
-            "{x}", String.valueOf(location.getBlockX()),
-            "{y}", String.valueOf(location.getBlockY()),
-            "{z}", String.valueOf(location.getBlockZ()));
+  Object[] placeholders = new Object[]{
+          "{player}", player.getName(),
+          "{material}", material.name(),
+          "{zone_name}", zone.getName(),
+          "{world}", location.getWorld().getName(),
+          "{x}", location.getX(), "{y}", location.getY(), "{z}", location.getZ()
+  };
 
-    // Log denied action with CoreProtect (as a removal that didn't happen)
-    if (coreProtectAPI != null) {
-     coreProtectAPI.logPlacement(player.getName(), location, material, null); // Log as attempt, can't cancel CP log
-    }
-    messageUtil.log(Level.INFO, "action-denied-console",
-            "{player}", player.getName(),
-            "{material}", material.name(),
-            "{zone_name}", zoneName,
-            "{world}", location.getWorld().getName(),
-            "{x}", String.valueOf(location.getBlockX()),
-            "{y}", String.valueOf(location.getBlockY()),
-            "{z}", String.valueOf(location.getBlockZ()));
-    break;
-   case ALERT:
-    messageUtil.sendAlert(player, "action-alert",
-            "{player}", player.getName(),
-            "{material}", material.name(),
-            "{zone_name}", zoneName,
-            "{world}", location.getWorld().getName(),
-            "{x}", String.valueOf(location.getBlockX()),
-            "{y}", String.valueOf(location.getBlockY()),
-            "{z}", String.valueOf(location.getBlockZ()));
-    if (coreProtectAPI != null) {
-     coreProtectAPI.logPlacement(player.getName(), location, material, location.getBlock().getBlockData()); // Corrected signature
-    }
-    messageUtil.log(Level.INFO, "action-alert-console",
-            "{player}", player.getName(),
-            "{material}", material.name(),
-            "{zone_name}", zoneName,
-            "{world}", location.getWorld().getName(),
-            "{x}", String.valueOf(location.getBlockX()),
-            "{y}", String.valueOf(location.getBlockY()),
-            "{z}", String.valueOf(location.getBlockZ()));
-    break;
-   case ALLOW:
-    // No action needed, the event proceeds as normal.
-    messageUtil.log(Level.FINE, "action-allowed-console",
-            "{player}", player.getName(),
-            "{material}", material.name(),
-            "{zone_name}", zoneName,
-            "{world}", location.getWorld().getName(),
-            "{x}", String.valueOf(location.getBlockX()),
-            "{y}", String.valueOf(location.getBlockY()),
-            "{z}", String.valueOf(location.getBlockZ()));
-    break;
-  }
+  handleAction(player, material, location, action, event, "action", placeholders);
  }
 
  /**
-  * Helper method to handle actions based on a determined ZoneAction.
-  * This is used for globally banned materials as well as zone-specific actions.
+  * Executes the specified action (DENY, ALERT, ALLOW) and logs the result.
   *
-  * @param player The player performing the action.
-  * @param material The material involved.
-  * @param location The location of the action.
-  * @param action The ZoneAction to perform (DENY, ALERT, ALLOW).
-  * @param event The Cancellable event.
-  * @param messageKey The base key for messages in messages.yml (e.g., "globally-banned").
+  * @param player       The player involved.
+  * @param material     The material involved.
+  * @param location     The location of the event.
+  * @param action       The ZoneAction to perform (DENY, ALERT, ALLOW).
+  * @param event        The Cancellable event.
+  * @param messageKey   The base key for messages in messages.yml (e.g., "action").
   * @param placeholders Optional key-value pairs for message replacement.
   */
  private void handleAction(Player player, Material material, Location location, ZoneAction action, Cancellable event, String messageKey, Object... placeholders) {
@@ -289,21 +248,31 @@ public class AutoInformEventListener implements Listener {
     consoleMessageKey = messageKey + "-denied-console";
     messageUtil.sendMessage(player, fullMessageKey, placeholders);
 
-    // Log denied action with CoreProtect
     if (coreProtectAPI != null) {
-     coreProtectAPI.logPlacement(player.getName(), location, material, null); // Log as attempt, can't cancel CP log
+     coreProtectAPI.logPlacement(player.getName(), location, material, null);
     }
     messageUtil.log(Level.INFO, consoleMessageKey, placeholders);
     break;
-   case ALERT: // ALERT and ALLOW actions are generally not expected for globally banned items unless specifically designed.
-    // If it were an ALERT, you'd send an alert message and log.
-    // For now, globally banned only results in DENY or implicit ALLOW if not banned.
+   case ALERT:
+    fullMessageKey = messageKey + "-alert";
+    consoleMessageKey = messageKey + "-alert-console";
+    messageUtil.sendMessage(player, fullMessageKey, placeholders);
+
+    if (coreProtectAPI != null) {
+     coreProtectAPI.logPlacement(player.getName(), location, material, null);
+    }
+    messageUtil.log(Level.INFO, consoleMessageKey, placeholders);
     break;
    case ALLOW:
-    // No action needed, the event proceeds as normal.
+    fullMessageKey = messageKey + "-allowed";
+    consoleMessageKey = messageKey + "-allowed-console";
+    if (plugin.getConfig().getBoolean("debug-log-allowed-actions", false)) {
+     if (coreProtectAPI != null) {
+      coreProtectAPI.logPlacement(player.getName(), location, material, null);
+     }
+     messageUtil.log(Level.INFO, consoleMessageKey, placeholders);
+    }
     break;
-   default:
-    throw new IllegalStateException("Unexpected value: " + action);
   }
  }
 }

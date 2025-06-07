@@ -11,6 +11,7 @@ import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.command.*;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -30,106 +31,112 @@ import java.util.stream.Collectors;
 /**
  * Main class for the AlexxAutoWarn plugin.
  * Handles plugin lifecycle, configuration loading, CoreProtect integration,
- * and initializes managers, listeners, and command executors.
+ * command and event registration, and provides utility methods.
  */
 public class AlexxAutoWarn extends JavaPlugin implements CommandExecutor, TabCompleter {
 
+ // Configuration constants for the wand
+ private static final Material WAND_MATERIAL = Material.BLAZE_ROD; // Default material
  private MessageUtil messageUtil;
  private ZoneManager zoneManager;
- // Constants for the wand item
- private static final String WAND_DISPLAY_NAME = ChatColor.GOLD + "" + ChatColor.BOLD + "Zone Selection Wand";
- private static final List<String> WAND_LORE = Arrays.asList(
-         ChatColor.GRAY + "Left-Click: " + ChatColor.WHITE + "Set Pos1",
-         ChatColor.GRAY + "Right-Click: " + ChatColor.WHITE + "Set Pos2"
- );
- private AutoInformCommandExecutor autoInformCommandExecutor; // Store a reference to the executor
+ private static final String WAND_DISPLAY_NAME = ChatColor.RESET + "" + ChatColor.GOLD + "AutoInform Wand"; // Display name
+ private static final List<String> WAND_LORE = Arrays.asList(ChatColor.GRAY + "Left-Click to set Pos1", ChatColor.GRAY + "Right-Click to set Pos2"); // Lore
  private CoreProtectAPI coreProtectAPI;
- private NamespacedKey wandKey; // Make this field accessible for other classes if needed
+ private FileConfiguration config;
+ private AutoInformCommandExecutor commandExecutor;
+ private AutoInformEventListener eventListener;
+ // NamespacedKey for identifying the custom wand item
+ private NamespacedKey wandKey;
 
  @Override
  public void onEnable() {
-  // --- Plugin Initialization Start ---
-  // Log startup message
-  getLogger().log(Level.INFO, "AlexxAutoWarn is starting...");
+  // Plugin startup logic
+  getLogger().log(Level.INFO, "Plugin starting...");
 
-  // Save default config.yml and messages.yml if they don't exist
-  saveDefaultConfig();
-  saveResource("messages.yml", false);
+  // Load configuration
+  saveDefaultConfig(); // Creates config.yml if it doesn't exist
+  this.config = getConfig();
 
-  // Initialize MessageUtil first as it's a dependency for others
-  // Corrected path to MessageUtil as it's in 'utils'
+  // Initialize utility and manager classes
   this.messageUtil = new MessageUtil(this);
-  messageUtil.log(Level.INFO, "plugin-startup"); // Use messageUtil for logging
+  this.zoneManager = new ZoneManager(this, messageUtil);
+
+  // Load messages for messageUtil after config is loaded
+  messageUtil.loadMessages();
 
   // Initialize CoreProtectAPI
   setupCoreProtect();
 
-  // Initialize Managers
-  this.zoneManager = new ZoneManager(this, messageUtil);
-  zoneManager.loadZones(); // Load zones from config
-  zoneManager.loadGloballyBannedMaterials(); // Load globally banned materials
-
-  // Initialize Command Executor and register it
-  this.autoInformCommandExecutor = new AutoInformCommandExecutor(this, zoneManager, messageUtil);
-  PluginCommand command = getCommand("autoinform");
-  if (command != null) {
-   command.setExecutor(autoInformCommandExecutor);
-   command.setTabCompleter(autoInformCommandExecutor);
-  } else {
-   getLogger().log(Level.SEVERE, "Could not get command 'autoinform'. Is it defined in plugin.yml?");
-  }
-
-
-  // Initialize Event Listener and register it
-  getServer().getPluginManager().registerEvents(new AutoInformEventListener(this, zoneManager, messageUtil), this);
-
   // Initialize NamespacedKey for the wand
   this.wandKey = new NamespacedKey(this, "autoinform_wand");
 
-  messageUtil.log(Level.INFO, "plugin-enabled"); // Plugin enabled message
-  // --- Plugin Initialization End ---
+  // Initialize command executor and event listener
+  this.commandExecutor = new AutoInformCommandExecutor(this, zoneManager, messageUtil);
+  this.eventListener = new AutoInformEventListener(this, zoneManager, messageUtil);
+
+  // Register commands and tab completer
+  PluginCommand command = getCommand("autoinform");
+  if (command != null) {
+   command.setExecutor(commandExecutor);
+   command.setTabCompleter(commandExecutor); // AutoInformCommandExecutor also implements TabCompleter
+   getLogger().log(Level.INFO, "Command 'autoinform' registered.");
+  } else {
+   getLogger().log(Level.SEVERE, "Failed to register command 'autoinform'. Is it defined in plugin.yml?");
+  }
+
+  // Register event listener
+  Bukkit.getPluginManager().registerEvents(eventListener, this);
+  getLogger().log(Level.INFO, "Event listener registered.");
+
+  // Load zones after all components are initialized
+  zoneManager.loadZones();
+
+  getLogger().log(Level.INFO, "Plugin enabled!");
  }
 
  @Override
  public void onDisable() {
-  messageUtil.log(Level.INFO, "plugin-shutting-down"); // Plugin shutting down message
-  // Save any pending data if necessary
-  zoneManager.saveZones(); // Ensure zones are saved on disable
-  zoneManager.saveGloballyBannedMaterials(); // Ensure banned materials are saved
-  messageUtil.log(Level.INFO, "plugin-disabled"); // Plugin disabled message
+  // Plugin shutdown logic
+  getLogger().log(Level.INFO, "Plugin shutting down...");
+
+  // Save zones to config
+  zoneManager.saveZones();
+
+  getLogger().log(Level.INFO, "Plugin disabled!");
  }
 
  /**
-  * Attempts to set up CoreProtect API integration.
+  * Reloads the plugin's configuration and associated managers.
+  */
+ public void reloadPluginConfig() {
+  reloadConfig(); // Reloads the config.yml from disk
+  this.config = getConfig(); // Update the config object
+  messageUtil.loadMessages(); // Reload messages in MessageUtil
+  zoneManager.loadZones(); // Reload zones from the updated config
+  getLogger().log(Level.INFO, "Configuration and zones reloaded.");
+ }
+
+ /**
+  * Sets up CoreProtect API if the plugin is available.
   */
  private void setupCoreProtect() {
   Plugin coreProtectPlugin = Bukkit.getPluginManager().getPlugin("CoreProtect");
   if (coreProtectPlugin instanceof CoreProtect) {
-   CoreProtectAPI api = ((CoreProtect) coreProtectPlugin).getAPI();
-   if (api.isEnabled() && api.APIVersion() >= 9) { // Check API version
-    this.coreProtectAPI = api;
-    messageUtil.log(Level.INFO, "plugin-coreprotect-found");
+   coreProtectAPI = ((CoreProtect) coreProtectPlugin).getAPI();
+   if (coreProtectAPI.isEnabled()) {
+    getLogger().log(Level.INFO, "CoreProtect found! Logging enabled.");
    } else {
-    messageUtil.log(Level.WARNING, "plugin-coreprotect-api-disabled-or-outdated");
+    getLogger().log(Level.WARNING, "CoreProtect found, but API is not enabled. Logging features will be disabled.");
+    coreProtectAPI = null;
    }
   } else {
-   messageUtil.log(Level.WARNING, "plugin-coreprotect-not-found");
+   getLogger().log(Level.WARNING, "CoreProtect not found! Logging features will be disabled.");
+   coreProtectAPI = null;
   }
  }
 
  /**
-  * Reloads the plugin's configuration and re-initializes managers.
-  */
- public void reloadPluginConfig() {
-  reloadConfig(); // Reloads the config.yml file
-  messageUtil.loadMessages(); // Reloads messages.yml
-  zoneManager.loadZones(); // Reloads zones from config
-  zoneManager.loadGloballyBannedMaterials(); // Reloads globally banned materials
-  messageUtil.log(Level.INFO, "plugin-config-reloaded");
- }
-
- /**
-  * Gets the CoreProtectAPI instance.
+  * Retrieves the CoreProtectAPI instance.
   *
   * @return The CoreProtectAPI instance, or null if not available.
   */
@@ -139,16 +146,7 @@ public class AlexxAutoWarn extends JavaPlugin implements CommandExecutor, TabCom
  }
 
  /**
-  * Gets the AutoInformCommandExecutor instance.
-  *
-  * @return The AutoInformCommandExecutor instance.
-  */
- public AutoInformCommandExecutor getCommandExecutor() {
-  return autoInformCommandExecutor;
- }
-
- /**
-  * Provides the MessageUtil instance.
+  * Retrieves the MessageUtil instance.
   *
   * @return The MessageUtil instance.
   */
@@ -157,7 +155,7 @@ public class AlexxAutoWarn extends JavaPlugin implements CommandExecutor, TabCom
  }
 
  /**
-  * Provides the ZoneManager instance.
+  * Retrieves the ZoneManager instance.
   *
   * @return The ZoneManager instance.
   */
@@ -166,21 +164,30 @@ public class AlexxAutoWarn extends JavaPlugin implements CommandExecutor, TabCom
  }
 
  /**
-  * Provides the NamespacedKey for the wand.
+  * Retrieves the AutoInformCommandExecutor instance.
   *
-  * @return The NamespacedKey for the wand.
+  * @return The AutoInformCommandExecutor instance.
   */
- public NamespacedKey getWandKey() {
-  return wandKey;
+ public AutoInformCommandExecutor getCommandExecutor() {
+  return commandExecutor;
  }
 
  /**
-  * Gives the selection wand to the player.
+  * Checks if chest access monitoring is enabled in the config.
+  *
+  * @return true if monitor-chest-access is true, false otherwise.
+  */
+ public boolean isMonitorChestAccess() {
+  return getConfig().getBoolean("monitor-chest-access", false);
+ }
+
+ /**
+  * Gives the player the custom AutoInform wand item.
   *
   * @param player The player to give the wand to.
   */
  public void giveSelectionWand(Player player) {
-  ItemStack wand = new ItemStack(Material.BLAZE_ROD);
+  ItemStack wand = new ItemStack(WAND_MATERIAL);
   ItemMeta meta = wand.getItemMeta();
   if (meta != null) {
    meta.setDisplayName(WAND_DISPLAY_NAME);

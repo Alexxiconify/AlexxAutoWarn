@@ -15,7 +15,7 @@ import java.util.Objects;
  * and specific actions for individual materials within the zone.
  */
 public class AutoInformZone {
- private final String name;
+ private String name;
  private World world;
  private Location corner1;
  private Location corner2;
@@ -34,12 +34,11 @@ public class AutoInformZone {
  public AutoInformZone(@NotNull String name, @NotNull Location corner1, @NotNull Location corner2,
                        @NotNull ZoneAction defaultAction, @NotNull Map<Material, ZoneAction> materialSpecificActions) {
   this.name = name;
-  this.world = corner1.getWorld(); // World is taken from corner1
+  this.world = corner1.getWorld(); // Assume both corners are in the same world
   this.corner1 = corner1;
   this.corner2 = corner2;
   this.defaultAction = defaultAction;
-  // Create a new HashMap to ensure the passed map is not modified externally
-  this.materialSpecificActions = new HashMap<>(materialSpecificActions);
+  this.materialSpecificActions = new HashMap<>(materialSpecificActions); // Create a mutable copy
  }
 
  // --- Getters ---
@@ -65,74 +64,68 @@ public class AutoInformZone {
  }
 
  /**
-  * Gets an unmodifiable map of material-specific actions.
-  *
-  * @return A map of materials to their specific actions.
+  * Returns an unmodifiable map of material-specific actions.
   */
- public Map<Material, net.Alexxiconify.alexxAutoWarn.objects.ZoneAction> getMaterialSpecificActions() {
+ public Map<Material, ZoneAction> getMaterialSpecificActions() {
   return Collections.unmodifiableMap(materialSpecificActions);
  }
 
  /**
-  * Retrieves the action for a specific material within this zone.
-  * If no specific action is defined for the material, the zone's default action is returned.
+  * Gets the specific action for a given material within this zone.
+  * If no specific action is defined, the default action for the zone is returned.
   *
   * @param material The material to check.
-  * @return The ZoneAction for the given material, or the default action if not specifically defined.
+  * @return The ZoneAction for the material, or the default action if not specifically defined.
   */
- @NotNull
  public ZoneAction getMaterialAction(@NotNull Material material) {
   return materialSpecificActions.getOrDefault(material, defaultAction);
  }
 
+ // --- Setters (for updating zones after creation) ---
 
- // --- Setters for mutable properties ---
+ public void setName(@NotNull String name) {
+  this.name = name;
+ }
 
- public void setDefaultAction(net.Alexxiconify.alexxAutoWarn.objects.ZoneAction defaultAction) {
+ public void setCorner1(@NotNull Location corner1) {
+  this.corner1 = corner1;
+  // Ensure world is updated if corner1 is in a different world (though typically zones stay in one world)
+  this.world = corner1.getWorld();
+ }
+
+ public void setCorner2(@NotNull Location corner2) {
+  this.corner2 = corner2;
+  // Ensure world is updated if corner2 is in a different world
+  this.world = corner2.getWorld();
+ }
+
+ public void setDefaultAction(@NotNull ZoneAction defaultAction) {
   this.defaultAction = defaultAction;
  }
 
  /**
   * Sets a specific action for a material within this zone.
   *
-  * @param material The material to set the action for.
-  * @param action   The action to apply to the material.
+  * @param material The material.
+  * @param action   The action to set for the material.
   */
- public void setMaterialAction(@NotNull Material material, net.Alexxiconify.alexxAutoWarn.objects.ZoneAction action) {
-  this.materialSpecificActions.put(material, action);
+ public void setMaterialAction(@NotNull Material material, @NotNull ZoneAction action) {
+  materialSpecificActions.put(material, action);
  }
 
  /**
-  * Removes a specific material action, reverting to the default action for that material.
+  * Removes a material-specific action from this zone.
   *
-  * @param material The material to remove the specific action for.
-  * @return The previously set ZoneAction for the material, or null if none was set.
+  * @param material The material whose action to remove.
+  * @return true if the action was removed, false if it didn't exist.
   */
- public ZoneAction removeMaterialAction(@NotNull Material material) {
-  return this.materialSpecificActions.remove(material);
+ public boolean removeMaterialAction(@NotNull Material material) {
+  return materialSpecificActions.remove(material) != null;
  }
 
- /**
-  * Sets the first corner of the zone.
-  *
-  * @param corner1 The new first corner location.
-  */
- public void setCorner1(@NotNull Location corner1) {
-  this.corner1 = corner1;
-  this.world = corner1.getWorld(); // Update world reference if corner1 changes
- }
 
  /**
-  * Sets the second corner of the zone.
-  * @param corner2 The new second corner location.
-  */
- public void setCorner2(@NotNull Location corner2) {
-  this.corner2 = corner2;
- }
-
- /**
-  * Checks if the given location is within this zone's boundaries.
-  * This method considers the min/max coordinates for the bounding box.
+  * Checks if a given location is within the bounds of this zone's bounding box.
   *
   * @param loc The location to check.
   * @return true if the location is within the zone, false otherwise.
@@ -166,14 +159,11 @@ public class AutoInformZone {
   if (this == o) return true;
   if (o == null || getClass() != o.getClass()) return false;
   AutoInformZone that = (AutoInformZone) o;
-  return name.equals(that.name) &&
-          world.equals(that.world) &&
-          corner1.equals(that.corner1) &&
-          corner2.equals(that.corner2); // Only compare defining properties
+  return name.equals(that.name); // Zone names are unique identifiers
  }
 
  @Override
  public int hashCode() {
-  return Objects.hash(name, world, corner1, corner2);
+  return Objects.hash(name);
  }
 }
