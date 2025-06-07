@@ -32,7 +32,7 @@ public class AutoInformZone {
   * @param materialSpecificActions A map of materials to their specific actions within this zone.
   */
  public AutoInformZone(@NotNull String name, @NotNull Location corner1, @NotNull Location corner2,
-                       @NotNull ZoneAction defaultAction, @NotNull Map<Material, ZoneAction> materialSpecificActions) {
+                       net.Alexxiconify.alexxAutoWarn.objects.ZoneAction defaultAction, @NotNull Map<Material, ZoneAction> materialSpecificActions) {
   this.name = name;
   // Ensure both corners are in the same world
   if (!corner1.getWorld().equals(corner2.getWorld())) {
@@ -54,20 +54,20 @@ public class AutoInformZone {
   return world;
  }
 
- public @NotNull Location getCorner1() {
+ public @NotNull Location getCorner1(Location pos1) {
   return corner1;
  }
 
- public @NotNull Location getCorner2() {
+ public @NotNull Location getCorner2(Location pos2) {
   return corner2;
  }
 
- public @NotNull ZoneAction getDefaultAction() {
+ public net.Alexxiconify.alexxAutoWarn.objects.ZoneAction getDefaultAction() {
   return defaultAction;
  }
 
  // Setter for defaultAction to allow updates
- public void setDefaultAction(@NotNull ZoneAction defaultAction) {
+ public void setDefaultAction(net.Alexxiconify.alexxAutoWarn.objects.ZoneAction defaultAction) {
   this.defaultAction = defaultAction;
  }
 
@@ -117,19 +117,17 @@ public class AutoInformZone {
 
  @Override
  public boolean equals(Object o) {
-  if (this == o) return true;
-  if (o == null || getClass() != o.getClass()) return false;
-  AutoInformZone that = (AutoInformZone) o;
-  return name.equals(that.name) &&
-          world.equals(that.world) &&
-          corner1.equals(that.corner1) &&
-          corner2.equals(that.corner2) &&
-          defaultAction == that.defaultAction &&
-          materialSpecificActions.equals(that.materialSpecificActions);
+  return false;
  }
 
  @Override
  public int hashCode() {
   return Objects.hash(name, world, corner1, corner2, defaultAction, materialSpecificActions);
+ }
+
+ public void setDefaultAction(Material material, net.Alexxiconify.alexxAutoWarn.objects.ZoneAction action) {
+ }
+
+ public net.Alexxiconify.alexxAutoWarn.objects.ZoneAction getDefaultAction(Material material) {
  }
 }

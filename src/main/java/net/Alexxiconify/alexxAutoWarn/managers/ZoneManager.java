@@ -1,214 +1,227 @@
 package net.Alexxiconify.alexxAutoWarn.managers;
 
-import MessageUtil;
 import net.Alexxiconify.alexxAutoWarn.AlexxAutoWarn;
 import net.Alexxiconify.alexxAutoWarn.objects.AutoInformZone;
 import net.Alexxiconify.alexxAutoWarn.objects.ZoneAction;
+import net.Alexxiconify.alexxAutoWarn.utils.MessageUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import org.bukkit.entity.Player;
 
+import javax.annotation.Nullable;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 /**
- * Manages the creation, storage, loading, and persistence of AutoInform zones.
- * It also handles the global list of banned materials.
+ * Manages the loading, storage, and retrieval of AutoInform zones.
+ * This class is responsible for interacting with the plugin's configuration file
+ * to persist zone data and provide efficient lookup. It operates within the Bukkit/Paper API context.
  */
 public class ZoneManager {
 
  private final AlexxAutoWarn plugin;
  private final MessageUtil messageUtil;
- private final Map<String, AutoInformZone> definedZones; // ZoneName -> AutoInformZone
+
+ // Map to store active zones, keyed by their name for quick lookup
+ private final Map<String, AutoInformZone> zones;
+
+ // Stores temporary player selections for zone creation (pos1, pos2)
+ private final PlayerSelectionManager playerSelections;
+
+ // Set of materials that are globally banned (denied outside any specific zone)
  private final Set<Material> globallyBannedMaterials;
+ private Location pos1;
+ private Location pos2;
 
  /**
   * Constructor for ZoneManager.
   *
   * @param plugin The main plugin instance.
+  * @param messageUtil The MessageUtil instance for messaging and logging.
   */
- public ZoneManager(AlexxAutoWarn plugin) {
+ public ZoneManager(AlexxAutoWarn plugin, MessageUtil messageUtil) {
   this.plugin = plugin;
-  this.messageUtil = plugin.getMessageUtil(); // Access the MessageUtil from the plugin instance
-  this.definedZones = new HashMap<>();
-  this.globallyBannedMaterials = new HashSet<>();
+  this.messageUtil = messageUtil;
+  this.zones = new ConcurrentHashMap<>(); // Use ConcurrentHashMap for thread safety
+  this.playerSelections = new PlayerSelectionManager();
+  this.globallyBannedMaterials = Collections.synchronizedSet(new HashSet<>()); // Thread-safe set
  }
 
  /**
-  * Defines or updates an AutoInform zone in memory and saves it to the config.
-  * This version now takes a default action when defining a new zone.
-  *
-  * @param name          The name of the zone.
-  * @param corner1       The first corner location.
-  * @param corner2       The second corner location.
-  * @param defaultAction The default action for the zone.
+  * Loads zones from the plugin's config.yml file.
+  * This method is called on plugin enable and on reload.
   */
- public void defineZone(@NotNull String name, @NotNull Location corner1, @NotNull Location corner2, @NotNull ZoneAction defaultAction) {
-  // If the zone already exists, merge with its current material-specific actions
-  AutoInformZone existingZone = definedZones.get(name.toLowerCase());
-  Map<Material, ZoneAction> materialActions = (existingZone != null) ? new HashMap<>(existingZone.getMaterialSpecificActions()) : new HashMap<>();
-
-  // Create a new AutoInformZone object (AutoInformZone constructor now handles world extraction)
-  AutoInformZone newZone = new AutoInformZone(name, corner1, corner2, defaultAction, materialActions);
-  definedZones.put(name.toLowerCase(), newZone); // Add or update in memory, use lowercase for key
-  saveZoneToConfig(newZone); // Persist to config.yml
-  messageUtil.log(Level.INFO, "zone-defined", "{zone_name}", name); // Log success
- }
-
-
- /**
-  * Removes a zone from memory and the config.
-  *
-  * @param name The name of the zone to remove.
-  * @return true if the zone was removed, false if not found.
-  */
- public boolean removeZone(@NotNull String name) {
-  if (definedZones.remove(name.toLowerCase()) != null) { // Remove from memory, use lowercase key
-   FileConfiguration config = plugin.getConfig();
-   ConfigurationSection zonesSection = config.getConfigurationSection("zones");
-   if (zonesSection != null) {
-    zonesSection.set(name, null); // Remove from config (case-sensitive here for YAML key)
-    plugin.saveConfig(); // Save changes to config.yml
-    messageUtil.log(Level.INFO, "zone-removed", "{zone_name}", name); // Log success
-    return true;
-   }
-  }
-  return false;
- }
-
- /**
-  * Sets the default action for a specific zone.
-  *
-  * @param zoneName The name of the zone.
-  * @param action   The new default action.
-  * @return true if the zone exists and action was set, false otherwise.
-  */
- public boolean setZoneDefaultAction(@NotNull String zoneName, @NotNull ZoneAction action) {
-  AutoInformZone zone = definedZones.get(zoneName.toLowerCase()); // Use lowercase key
-  if (zone != null) {
-   // Create a new zone object with the updated default action (AutoInformZone is immutable for world/corners)
-   AutoInformZone updatedZone = new AutoInformZone(
-           zone.getName(),
-           zone.getCorner1(),
-           zone.getCorner2(),
-           action, // Updated default action
-           zone.getMaterialSpecificActions() // Keep existing material actions
-   );
-   definedZones.put(zoneName.toLowerCase(), updatedZone); // Replace old zone with updated one in map
-   saveZoneToConfig(updatedZone); // Persist change to config.yml
-   messageUtil.log(Level.INFO, "default-action-set", "{zone_name}", zoneName, "{action}", action.name());
-   return true;
-  }
-  return false;
- }
-
- /**
-  * Sets a material-specific action for a zone.
-  *
-  * @param zoneName The name of the zone.
-  * @param material The material.
-  * @param action   The action for the material.
-  * @return true if the zone exists and action was set, false otherwise.
-  */
- public boolean setZoneMaterialAction(@NotNull String zoneName, @NotNull Material material, @NotNull ZoneAction action) {
-  AutoInformZone zone = definedZones.get(zoneName.toLowerCase()); // Use lowercase key
-  if (zone != null) {
-   // Create a mutable copy of material actions, update it, then create a new immutable zone
-   Map<Material, ZoneAction> updatedMaterialActions = new HashMap<>(zone.getMaterialSpecificActions());
-   updatedMaterialActions.put(material, action);
-
-   AutoInformZone updatedZone = new AutoInformZone(
-           zone.getName(),
-           zone.getCorner1(),
-           zone.getCorner2(),
-           zone.getDefaultAction(), // Keep existing default action
-           updatedMaterialActions // Updated material actions
-   );
-   definedZones.put(zoneName.toLowerCase(), updatedZone); // Replace old zone with updated one in map
-   saveZoneToConfig(updatedZone); // Persist change to config.yml
-   messageUtil.log(Level.INFO, "material-action-set", "{zone_name}", zoneName, "{material}", material.name(), "{action}", action.name());
-   return true;
-  }
-  return false;
- }
-
- /**
-  * Removes a material-specific action from a zone.
-  *
-  * @param zoneName The name of the zone.
-  * @param material The material whose action to remove.
-  * @return true if the action was removed, false if the zone or material action was not found.
-  */
- public boolean removeZoneMaterialAction(@NotNull String zoneName, @NotNull Material material) {
-  AutoInformZone zone = definedZones.get(zoneName.toLowerCase()); // Use lowercase key
-  if (zone != null) {
-   Map<Material, ZoneAction> updatedMaterialActions = new HashMap<>(zone.getMaterialSpecificActions());
-   if (updatedMaterialActions.remove(material) != null) {
-    // Create a new zone object with the updated material actions
-    AutoInformZone updatedZone = new AutoInformZone(
-            zone.getName(),
-            zone.getCorner1(),
-            zone.getCorner2(),
-            zone.getDefaultAction(),
-            updatedMaterialActions
-    );
-    definedZones.put(zoneName.toLowerCase(), updatedZone);
-    saveZoneToConfig(updatedZone);
-    messageUtil.log(Level.INFO, "material-action-removed-console", "{zone_name}", zoneName, "{material}", material.name());
-    return true;
-   }
-  }
-  return false;
- }
-
-
- /**
-  * Saves a single zone's configuration to the config.yml file.
-  * This method is called after any modification to a zone.
-  *
-  * @param zone The AutoInformZone object to save.
-  */
- private void saveZoneToConfig(@NotNull AutoInformZone zone) {
+ public void loadZones() {
+  zones.clear(); // Clear existing zones before reloading
   FileConfiguration config = plugin.getConfig();
   ConfigurationSection zonesSection = config.getConfigurationSection("zones");
+
   if (zonesSection == null) {
-   zonesSection = config.createSection("zones"); // Create if it doesn't exist
+   messageUtil.log(Level.INFO, "plugin-no-zones-in-config");
+   return;
   }
 
-  ConfigurationSection zoneConfig = zonesSection.createSection(zone.getName()); // Use original case for YAML key
-  zoneConfig.set("world", zone.getWorld().getName());
-  zoneConfig.set("corner1.x", zone.getCorner1().getX());
-  zoneConfig.set("corner1.y", zone.getCorner1().getY());
-  zoneConfig.set("corner1.z", zone.getCorner1().getZ());
-  zoneConfig.set("corner2.x", zone.getCorner2().getX());
-  zoneConfig.set("corner2.y", zone.getCorner2().getY());
-  zoneConfig.set("corner2.z", zone.getCorner2().getZ());
-  zoneConfig.set("default-material-action", zone.getDefaultAction().name());
+  for (String zoneName : zonesSection.getKeys(false)) {
+   ConfigurationSection zoneConfig = zonesSection.getConfigurationSection(zoneName);
+   if (zoneConfig == null) {
+    messageUtil.log(Level.WARNING, "plugin-invalid-zone-config", "{zone_name}", zoneName);
+    continue;
+   }
 
-  Map<String, String> materialActionsMap = zone.getMaterialSpecificActions().entrySet().stream()
-          .collect(Collectors.toMap(e -> e.getKey().name(), e -> e.getValue().name()));
-  zoneConfig.set("material-actions", materialActionsMap);
+   try {
+    String worldName = zoneConfig.getString("world");
+    World world = Bukkit.getWorld(worldName);
+    if (world == null) {
+     messageUtil.log(Level.WARNING, "plugin-world-not-found", "{world_name}", worldName, "{zone_name}", zoneName);
+     continue;
+    }
 
-  plugin.saveConfig(); // Save changes to config.yml
-  messageUtil.log(Level.FINE, "debug-zone-saved-to-config", "{zone_name}", zone.getName()); // Debug log
+    Location corner1 = parseLocation(zoneConfig.getString("corner1"), world);
+    Location corner2 = parseLocation(zoneConfig.getString("corner2"), world);
+
+    if (corner1 == null || corner2 == null) {
+     messageUtil.log(Level.WARNING, "plugin-invalid-zone-config", "{zone_name}", zoneName);
+     continue;
+    }
+
+    ZoneAction defaultAction = ZoneAction.valueOf(zoneConfig.getString("default-material-action", "ALLOW").toUpperCase());
+
+    Map<Material, ZoneAction> materialActions = new HashMap<>();
+    ConfigurationSection materialActionsSection = zoneConfig.getConfigurationSection("material-actions");
+    if (materialActionsSection != null) {
+     for (String matKey : materialActionsSection.getKeys(false)) {
+      try {
+       Material material = Material.valueOf(matKey.toUpperCase());
+       ZoneAction action = ZoneAction.valueOf(materialActionsSection.getString(matKey).toUpperCase());
+       materialActions.put(material, action);
+      } catch (IllegalArgumentException e) {
+       messageUtil.log(Level.WARNING, "plugin-invalid-material-action", "{material_key}", matKey, "{zone_name}", zoneName, e);
+      }
+     }
+    }
+
+    AutoInformZone zone = new AutoInformZone(zoneName, corner1, corner2, defaultAction, materialActions);
+    zones.put(zoneName.toLowerCase(), zone); // Store in lowercase for case-insensitive lookup
+
+   } catch (Exception e) {
+    messageUtil.log(Level.SEVERE, "plugin-error-loading-zone", "{zone_name}", zoneName, e);
+   }
+  }
+  messageUtil.log(Level.INFO, "plugin-zones-loaded", "{count}", String.valueOf(zones.size()));
  }
 
  /**
-  * Finds the AutoInformZone that contains the given location.
+  * Parses a location string (e.g., "x,y,z") into a Bukkit Location object.
+  * World must be provided separately as it's not part of the string.
+  *
+  * @param locString The location string.
+  * @param world The world this location belongs to.
+  * @return The Location object, or null if parsing fails.
+  */
+ private Location parseLocation(String locString, World world) {
+  if (locString == null) return null;
+  try {
+   String[] parts = locString.split(",");
+   if (parts.length == 3) {
+    double x = Double.parseDouble(parts[0]);
+    double y = Double.parseDouble(parts[1]);
+    double z = Double.parseDouble(parts[2]);
+    return new Location(world, x, y, z);
+   }
+  } catch (NumberFormatException e) {
+   messageUtil.log(Level.WARNING, "plugin-invalid-location-format", "{location_string}", locString, e);
+  }
+  return null;
+ }
+
+ /**
+  * Saves all currently loaded zones back to the plugin's config.yml file.
+  */
+ public void saveZones() {
+  FileConfiguration config = plugin.getConfig();
+  config.set("zones", null); // Clear existing zones section to write fresh
+
+  if (zones.isEmpty()) {
+   plugin.saveConfig();
+   return;
+  }
+
+  ConfigurationSection zonesSection = config.createSection("zones");
+  for (AutoInformZone zone : zones.values()) {
+   ConfigurationSection zoneConfig = zonesSection.createSection(zone.getName());
+   zoneConfig.set("world", zone.getWorld().getName());
+   // This line needs LocationUtil which might be missing. If so, manual conversion is needed.
+   zoneConfig.set("corner1", net.Alexxiconify.alexxAutoWarn.utils.LocationUtil.toCommaString(zone.getCorner1(pos1)));
+   zoneConfig.set("corner2", net.Alexxiconify.alexxAutoWarn.utils.LocationUtil.toCommaString(zone.getCorner2(pos2)));
+   zoneConfig.set("default-material-action", zone.getDefaultAction().name());
+
+   if (!zone.getMaterialSpecificActions().isEmpty()) {
+    ConfigurationSection materialActionsSection = zoneConfig.createSection("material-actions");
+    zone.getMaterialSpecificActions().forEach((material, action) ->
+            materialActionsSection.set(material.name(), action.name()));
+   }
+  }
+  plugin.saveConfig();
+  messageUtil.log(Level.FINE, "debug-zones-saved", "{count}", String.valueOf(zones.size()));
+ }
+
+
+ /**
+  * Adds a new zone to the manager and saves it to config.
+  *
+  * @param zone The AutoInformZone object to add.
+  * @return True if the zone was added, false if a zone with the same name already exists.
+  */
+ public boolean addZone(AutoInformZone zone) {
+  if (zones.containsKey(zone.getName().toLowerCase())) {
+   return false;
+  }
+  zones.put(zone.getName().toLowerCase(), zone);
+  saveZones(); // Save immediately after adding
+  messageUtil.sendMessage(playerSelections.getClass(), "zone-added", "{zone_name}", zone.getName());
+  return true;
+ }
+
+ /**
+  * Removes a zone from the manager and saves the change to config.
+  *
+  * @param zoneName The name of the zone to remove.
+  * @return True if the zone was removed, false if it did not exist.
+  */
+ public boolean removeZone(String zoneName) {
+  if (zones.remove(zoneName.toLowerCase()) != null) {
+   saveZones(); // Save immediately after removing
+   messageUtil.sendMessage(playerSelections.getClass(), "zone-removed", "{zone_name}", zoneName);
+   return true;
+  }
+  return false;
+ }
+
+ /**
+  * Retrieves a zone by its name.
+  *
+  * @param zoneName The name of the zone.
+  * @return The AutoInformZone object, or null if not found.
+  */
+ public AutoInformZone getZone(String zoneName) {
+  return zones.get(zoneName.toLowerCase());
+ }
+
+ /**
+  * Retrieves the zone that contains the given location.
+  * If multiple zones overlap, the first one found is returned.
   *
   * @param location The location to check.
   * @return The AutoInformZone containing the location, or null if no zone contains it.
   */
- @Nullable
- public AutoInformZone getZoneAtLocation(@NotNull Location location) {
-  // Iterate through all zones and check if the location is within their bounds
-  for (AutoInformZone zone : definedZones.values()) {
+ public AutoInformZone getZoneAtLocation(Location location) {
+  for (AutoInformZone zone : zones.values()) {
    if (zone.contains(location)) {
     return zone;
    }
@@ -217,50 +230,53 @@ public class ZoneManager {
  }
 
  /**
-  * Clears all loaded zones from memory. Used during plugin disable or reload.
+  * Gets an unmodifiable collection of all defined zones.
+  *
+  * @return A Collection of AutoInformZone objects.
   */
- public void clearZones() {
-  definedZones.clear();
+ public Collection<AutoInformZone> getAllZones() {
+  return Collections.unmodifiableCollection(zones.values());
+ }
+
+ /**
+  * Retrieves the PlayerSelectionManager instance.
+  *
+  * @return The PlayerSelectionManager instance.
+  */
+ public PlayerSelectionManager getPlayerSelections() {
+  return playerSelections;
+ }
+
+ /**
+  * Loads globally banned materials from the config.yml.
+  */
+ public void loadGloballyBannedMaterials() {
   globallyBannedMaterials.clear();
-  messageUtil.log(Level.FINE, "debug-cleared-zones-and-banned-materials"); // Debug log
+  FileConfiguration config = plugin.getConfig();
+  List<String> bannedMaterialsList = config.getStringList("banned-materials");
+
+  for (String materialName : bannedMaterialsList) {
+   try {
+    Material material = Material.valueOf(materialName.toUpperCase());
+    globallyBannedMaterials.add(material);
+   } catch (IllegalArgumentException e) {
+    messageUtil.log(Level.WARNING, "plugin-invalid-banned-material", "{material_name}", materialName, e);
+   }
+  }
+  if (globallyBannedMaterials.isEmpty()) {
+   messageUtil.log(Level.INFO, "plugin-no-banned-materials");
+  } else {
+   messageUtil.log(Level.INFO, "plugin-banned-materials-loaded", "{count}", String.valueOf(globallyBannedMaterials.size()));
+  }
  }
 
  /**
-  * Gets an unmodifiable set of all currently loaded zone names.
-  *
-  * @return A Set of zone names.
-  */
- public @NotNull Set<String> getZoneNames() {
-  return Collections.unmodifiableSet(definedZones.keySet());
- }
-
- /**
-  * Gets a specific zone by name.
-  *
-  * @param name The name of the zone.
-  * @return The AutoInformZone object, or null if not found.
-  */
- @Nullable
- public AutoInformZone getZone(@NotNull String name) {
-  return definedZones.get(name.toLowerCase()); // Retrieve using lowercase key
- }
-
- /**
-  * Gets an unmodifiable map of all defined zones.
-  *
-  * @return A Map of defined zones.
-  */
- public @NotNull Map<String, AutoInformZone> getDefinedZones() {
-  return Collections.unmodifiableMap(definedZones);
- }
-
- /**
-  * Checks if a material is in the globally banned list.
+  * Checks if a material is globally banned.
   *
   * @param material The material to check.
   * @return true if the material is globally banned, false otherwise.
   */
- public boolean isGloballyBanned(@NotNull Material material) {
+ public boolean isGloballyBanned(Material material) {
   return globallyBannedMaterials.contains(material);
  }
 
@@ -270,10 +286,9 @@ public class ZoneManager {
   * @param material The material to add.
   * @return true if added, false if already present.
   */
- public boolean addGloballyBannedMaterial(@NotNull Material material) {
+ public boolean addGloballyBannedMaterial(Material material) {
   if (globallyBannedMaterials.add(material)) {
    saveGloballyBannedMaterials();
-   messageUtil.log(Level.INFO, "banned-material-added", "{material}", material.name());
    return true;
   }
   return false;
@@ -285,10 +300,9 @@ public class ZoneManager {
   * @param material The material to remove.
   * @return true if removed, false if not present.
   */
- public boolean removeGloballyBannedMaterial(@NotNull Material material) {
+ public boolean removeGloballyBannedMaterial(Material material) {
   if (globallyBannedMaterials.remove(material)) {
    saveGloballyBannedMaterials();
-   messageUtil.log(Level.INFO, "banned-material-removed", "{material}", material.name());
    return true;
   }
   return false;
@@ -299,158 +313,9 @@ public class ZoneManager {
   *
   * @return A Set of globally banned materials.
   */
- public @NotNull Set<Material> getGloballyBannedMaterials() {
+ public Set<Material> getGloballyBannedMaterials() {
   return Collections.unmodifiableSet(globallyBannedMaterials);
  }
-
- /**
-  * Loads all zone configurations from the plugin's config.yml file.
-  * Clears existing zones and reloads them.
-  */
- public void loadZonesFromConfig() {
-  definedZones.clear(); // Clear existing zones before reloading
-  globallyBannedMaterials.clear(); // Clear banned materials too
-
-  FileConfiguration config = plugin.getConfig();
-
-  // Load globally banned materials (if they are still part of config.yml)
-  loadGloballyBannedMaterialsFromConfig(config); // Renamed for clarity
-
-  // Load zones section
-  ConfigurationSection zonesSection = config.getConfigurationSection("zones");
-  if (zonesSection == null) {
-   messageUtil.log(Level.INFO, "plugin-no-zones-in-config");
-   return;
-  }
-
-  // Iterate through each zone defined in the config
-  for (String zoneName : zonesSection.getKeys(false)) {
-   ConfigurationSection zoneConfig = zonesSection.getConfigurationSection(zoneName);
-   if (zoneConfig == null) {
-    messageUtil.log(Level.WARNING, "plugin-invalid-zone-config", "{zone_name}", zoneName);
-    continue;
-   }
-
-   try {
-    // Get world
-    String worldName = zoneConfig.getString("world");
-    if (worldName == null || worldName.isEmpty()) {
-     messageUtil.log(Level.WARNING, "zone-config-missing-world", "{zone_name}", zoneName);
-     continue;
-    }
-    World world = Bukkit.getWorld(worldName);
-    if (world == null) {
-     messageUtil.log(Level.WARNING, "plugin-world-not-found", "{world_name}", worldName, "{zone_name}", zoneName);
-     continue;
-    }
-
-    // Get corner locations
-    Location corner1 = parseLocation(zoneConfig.getConfigurationSection("corner1"), world, "corner1", zoneName);
-    Location corner2 = parseLocation(zoneConfig.getConfigurationSection("corner2"), world, "corner2", zoneName);
-
-    if (corner1 == null || corner2 == null) {
-     messageUtil.log(Level.WARNING, "zone-config-missing-corners", "{zone_name}", zoneName);
-     continue;
-    }
-
-    // Get default material action
-    String defaultActionString = zoneConfig.getString("default-material-action", "ALERT"); // Default to ALERT if not specified
-    ZoneAction defaultAction = ZoneAction.valueOf(defaultActionString.toUpperCase());
-
-    // Get material-specific actions
-    Map<Material, ZoneAction> materialActions = new HashMap<>();
-    ConfigurationSection materialActionsSection = zoneConfig.getConfigurationSection("material-actions");
-    if (materialActionsSection != null) {
-     for (String materialKey : materialActionsSection.getKeys(false)) {
-      try {
-       Material material = Material.valueOf(materialKey.toUpperCase());
-       String actionString = materialActionsSection.getString(materialKey);
-       if (actionString != null) {
-        ZoneAction action = ZoneAction.valueOf(actionString.toUpperCase());
-        materialActions.put(material, action);
-       }
-      } catch (IllegalArgumentException e) {
-       messageUtil.log(Level.WARNING, "zone-config-invalid-material-action",
-               "{zone_name}", zoneName, "{material_key}", materialKey, "{error}", e.getMessage());
-      }
-     }
-    }
-
-    // Create and store the AutoInformZone object
-    AutoInformZone zone = new AutoInformZone(zoneName, corner1, corner2, defaultAction, materialActions);
-    definedZones.put(zoneName.toLowerCase(), zone); // Store with lowercase key
-    messageUtil.log(Level.INFO, "zone-loaded", "{zone_name}", zoneName);
-
-   } catch (IllegalArgumentException e) {
-    // Log with the exception
-    messageUtil.log(Level.SEVERE, "plugin-invalid-zone-config-error",
-            "{zone_name}", zoneName, "{error}", e.getMessage(), e);
-   } catch (Exception e) {
-    // Catch-all for any other unexpected exceptions during zone loading
-    messageUtil.log(Level.SEVERE, "plugin-error-loading-zone",
-            "{zone_name}", zoneName, "{error}", e.getMessage(), e);
-   }
-  }
-  messageUtil.log(Level.INFO, "plugin-zones-loaded", "{count}", String.valueOf(definedZones.size()));
- }
-
-
- /**
-  * Parses a location from a ConfigurationSection.
-  *
-  * @param section     The ConfigurationSection containing x, y, z coordinates.
-  * @param world       The world the location belongs to.
-  * @param sectionName The name of the section (for logging purposes).
-  * @param zoneName    The name of the zone (for logging purposes).
-  * @return A Location object, or null if parsing fails.
-  */
- private Location parseLocation(ConfigurationSection section, World world, String sectionName, String zoneName) {
-  if (section == null) {
-   messageUtil.log(Level.WARNING, "zone-config-missing-section", "{section_name}", sectionName, "{zone_name}", zoneName);
-   return null;
-  }
-  if (!section.contains("x") || !section.contains("y") || !section.contains("z")) {
-   messageUtil.log(Level.WARNING, "zone-config-incomplete-coordinates", "{section_name}", sectionName, "{zone_name}", zoneName);
-   return null;
-  }
-  try {
-   double x = section.getDouble("x");
-   double y = section.getDouble("y");
-   double z = section.getDouble("z");
-   return new Location(world, x, y, z);
-  } catch (Exception e) {
-   // Log with the exception
-   messageUtil.log(Level.SEVERE, "zone-config-invalid-coordinates",
-           "{section_name}", sectionName, "{zone_name}", zoneName, "{error}", e.getMessage(), e);
-   return null;
-  }
- }
-
- /**
-  * Loads globally banned materials from the config.yml.
-  *
-  * @param config The plugin's FileConfiguration.
-  */
- private void loadGloballyBannedMaterialsFromConfig(FileConfiguration config) {
-  // Clear existing banned materials to ensure a fresh load
-  globallyBannedMaterials.clear();
-
-  // Get the list of banned materials from the config
-  List<String> materialNames = config.getStringList("globally-banned-materials"); // Explicitly using List<String>
-  if (materialNames != null) {
-   for (String materialName : materialNames) {
-    try {
-     Material material = Material.valueOf(materialName.toUpperCase());
-     globallyBannedMaterials.add(material);
-    } catch (IllegalArgumentException e) {
-     // Log a warning if an invalid material name is found in the config
-     messageUtil.log(Level.WARNING, "config-invalid-banned-material", "{material}", materialName);
-    }
-   }
-  }
-  messageUtil.log(Level.INFO, "plugin-banned-materials-loaded", "{count}", String.valueOf(globallyBannedMaterials.size()));
- }
-
 
  /**
   * Saves the current list of globally banned materials to the config.yml.
@@ -458,10 +323,70 @@ public class ZoneManager {
  public void saveGloballyBannedMaterials() {
   FileConfiguration config = plugin.getConfig();
   // Convert the set of Material enums to a list of String names
-  config.set("globally-banned-materials", globallyBannedMaterials.stream()
+  config.set("banned-materials", globallyBannedMaterials.stream()
           .map(Enum::name)
-          .collect(Collectors.toList())); // Changed to Collectors.toList() for simplicity
+          .collect(Collectors.toList()));
   plugin.saveConfig();
-  messageUtil.log(Level.INFO, "plugin-banned-materials-saved", "{count}", String.valueOf(globallyBannedMaterials.size()));
+  messageUtil.log(Level.FINE, "debug-banned-materials-saved", "{count}", String.valueOf(globallyBannedMaterials.size()));
+ }
+
+
+ /**
+  * Inner class to manage player-specific selections (pos1, pos2) in memory.
+  * This avoids saving incomplete selections to config.
+  */
+ public static class PlayerSelectionManager {
+  // Map: Player UUID -> Map: "pos1" / "pos2" -> Location
+  private final Map<UUID, Map<String, Location>> playerSelections = new ConcurrentHashMap<>();
+
+  /**
+   * Sets a selection point for a player.
+   *
+   * @param player   The player.
+   * @param type     "pos1" or "pos2".
+   * @param location The selected location.
+   */
+  public void setSelection(Player player, String type, Location location) {
+   playerSelections
+           .computeIfAbsent(player.getUniqueId(), k -> new ConcurrentHashMap<>())
+           .put(type, location);
+  }
+
+  /**
+   * Gets a selection point for a player.
+   *
+   * @param player The player.
+   * @param type   "pos1" or "pos2".
+   * @return The Location, or null if not set.
+   */
+  @Nullable
+  public Location getSelection(Player player, String type) {
+   return playerSelections.getOrDefault(player.getUniqueId(), Collections.emptyMap()).get(type);
+  }
+
+  /**
+   * Clears all selections for a specific player.
+   *
+   * @param player The player whose selections to clear.
+   */
+  public void clearSelections(Player player) {
+   playerSelections.remove(player.getUniqueId());
+  }
+
+  /**
+   * Clears a specific selection point for a player.
+   *
+   * @param player The player.
+   * @param type   "pos1" or "pos2".
+   */
+  public void clearSelection(Player player, String type) {
+   Map<String, Location> selections = playerSelections.get(player.getUniqueId());
+   if (selections != null) {
+    selections.remove(type);
+    if (selections.isEmpty()) {
+     playerSelections.remove(player.getUniqueId());
+    }
+   }
+  }
  }
 }

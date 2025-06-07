@@ -1,11 +1,12 @@
 package net.Alexxiconify.alexxAutoWarn.commands;
 
-import MessageUtil;
 import net.Alexxiconify.alexxAutoWarn.AlexxAutoWarn;
 import net.Alexxiconify.alexxAutoWarn.managers.ZoneManager;
 import net.Alexxiconify.alexxAutoWarn.objects.AutoInformZone;
 import net.Alexxiconify.alexxAutoWarn.objects.ZoneAction;
-import org.bukkit.Bukkit;
+import net.Alexxiconify.alexxAutoWarn.utils.LocationUtil;
+import net.Alexxiconify.alexxAutoWarn.utils.MessageUtil;
+import net.Alexxiconify.alexxAutoWarn.utils.StringUtil;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -14,9 +15,9 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
-import org.bukkit.persistence.PersistentDataType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import sun.tools.jconsole.inspector.Utils;
 
 import java.util.*;
 import java.util.logging.Level;
@@ -27,940 +28,489 @@ import java.util.stream.Collectors;
  * Handles all commands for the AlexxAutoWarn plugin.
  * Implements CommandExecutor for command execution and TabCompleter for tab completion.
  */
-@SuppressWarnings("ALL") // Suppress all warnings for brevity during iterative debugging
 public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter {
 
  private final AlexxAutoWarn plugin;
  private final ZoneManager zoneManager;
  private final MessageUtil messageUtil;
- // Regex pattern for validating material names
- private static final Pattern MATERIAL_PATTERN = Pattern.compile("^[A-Z_]+$");
+ // Pattern to validate zone names: Alphanumeric, hyphens, and underscores allowed
+ private static final Pattern ZONE_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_-]+$");
+ private final NamespacedKey wandKey; // Added for wand check
+ private Object playerSelections; // Changed to Object to resolve the identifier issue
+ private Location pos1;
+ private Location pos2;
+ private Player player;
+ private String[] args;
 
- // NamespacedKey for storing wand selection data on player's persistent data container
- private final NamespacedKey wandSelectionKey;
-
- /**
-  * Constructor for AutoInformCommandExecutor.
-  *
-  * @param plugin The main plugin instance.
-  */
  public AutoInformCommandExecutor(AlexxAutoWarn plugin) {
   this.plugin = plugin;
   this.zoneManager = plugin.getZoneManager();
   this.messageUtil = plugin.getMessageUtil();
-  // Initialize NamespacedKey for wand selections, updated to match plugin name consistently
-  this.wandSelectionKey = new NamespacedKey(plugin, "alexxautowarn_wand_selections");
+  this.wandKey = new NamespacedKey(plugin, "autoinform_wand");
  }
 
- /**
-  * Executes the given command.
-  *
-  * @param sender The sender of the command (Player, ConsoleSender, etc.)
-  * @param command The command that was executed.
-  * @param label The alias of the command used.
-  * @param args The arguments passed to the command.
-  * @return true if the command was handled successfully, false otherwise.
-  */
  @Override
  public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-  // Ensure the sender has the base permission to use any 'alexxautowarn' command
-  if (!sender.hasPermission("alexxautowarn.admin.set")) {
-   messageUtil.sendMessage(sender, "error-no-permission");
+  Utils playerSelections;
+  if (!(sender instanceof Player player)) {
+   messageUtil.sendMessage(playerSelections.getClass(), "command-player-only");
    return true;
   }
 
-  if (args.length == 0 || args[0].equalsIgnoreCase("help")) {
-   sendHelpMessage(sender, label); // Pass label to help message
+  if (!player.hasPermission("alexxautowarn.admin.set")) {
+   messageUtil.sendMessage(playerSelections.getClass(), "error-no-permission");
+   return true;
+  }
+
+  if (args.length < 1) {
+   sendHelpMessage(player);
    return true;
   }
 
   String subCommand = args[0].toLowerCase();
 
-  // Commands that require a player sender
-  if (!(sender instanceof Player) && !(subCommand.equalsIgnoreCase("reload") || subCommand.equalsIgnoreCase("debug") || subCommand.equalsIgnoreCase("list") || subCommand.equalsIgnoreCase("info") || subCommand.equalsIgnoreCase("banned"))) {
-   messageUtil.sendMessage(sender, "error-player-only-command");
-   return true;
-  }
-
-  // Player instance, will be null if sender is console but command allows console.
-  Player player = (sender instanceof Player) ? (Player) sender : null;
-
   switch (subCommand) {
    case "wand":
-    handleWandCommand(player, label);
+    handleWandCommand(player);
     break;
    case "pos1":
    case "pos2":
-    handlePosCommand(player, args, subCommand, label);
+    handleSetPositionCommand(player, args);
     break;
    case "define":
-    handleDefineCommand(player, args, label);
+    handleDefineCommand(player, args);
     break;
    case "defaultaction":
-    handleDefaultActionCommand(sender, args, label);
+    handleDefaultActionCommand(player, args);
     break;
    case "setaction":
-    handleSetActionCommand(sender, args, label);
+    handleSetActionCommand(player, args);
     break;
    case "remove":
-    handleRemoveCommand(sender, args, label);
+    handleRemoveCommand(player, args);
     break;
    case "info":
-    handleInfoCommand(sender, args);
+    handleInfoCommand(player, args);
     break;
    case "list":
-    handleListCommand(sender);
+    handleListCommand(player);
     break;
    case "clearwand":
-    handleClearWandCommand(player, label);
+    handleClearWandCommand(player);
     break;
    case "reload":
-    handleReloadCommand(sender);
+    handleReloadCommand(player);
     break;
    case "banned":
-    handleBannedCommand(sender, args, label);
+    handleBannedMaterialsCommand(player, args);
     break;
-   case "togglechestmonitor":
-    handleToggleChestMonitorCommand(sender);
-    break;
-   case "debug":
-    handleDebugCommand(sender);
+   case "debug": // Removed from main command, handled by MessageUtil internally
+    messageUtil.sendMessage(playerSelections.getClass(), "command-debug-removed");
     break;
    default:
-    messageUtil.sendMessage(sender, "error-unknown-subcommand", "{command}", label);
-    sendHelpMessage(sender, label); // Show help for unknown command
+    sendHelpMessage(player);
     break;
   }
   return true;
  }
 
- /**
-  * Provides tab completions for the command.
-  *
-  * @param sender The sender of the command.
-  * @param command The command that was executed.
-  * @param label The alias of the command used.
-  * @param args The arguments passed to the command.
-  * @return A list of possible tab completions.
-  */
- @Override
- public @NotNull List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
-  // Base permission check for admin commands
-  if (!sender.hasPermission("alexxautowarn.admin.set")) {
-   return Collections.emptyList();
-  }
-
-  List<String> completions = new ArrayList<>();
-  if (args.length == 1) {
-   // First argument: subcommands
-   if (sender.hasPermission("alexxautowarn.command.wand")) completions.add("wand");
-   if (sender.hasPermission("alexxautowarn.command.pos1")) completions.add("pos1");
-   if (sender.hasPermission("alexxautowarn.command.pos2")) completions.add("pos2");
-   if (sender.hasPermission("alexxautowarn.command.define")) completions.add("define");
-   if (sender.hasPermission("alexxautowarn.command.defaultaction")) completions.add("defaultaction");
-   if (sender.hasPermission("alexxautowarn.command.setaction")) completions.add("setaction");
-   if (sender.hasPermission("alexxautowarn.command.remove")) completions.add("remove");
-   if (sender.hasPermission("alexxautowarn.command.info")) completions.add("info");
-   if (sender.hasPermission("alexxautowarn.command.list")) completions.add("list");
-   if (sender.hasPermission("alexxautowarn.command.clearwand")) completions.add("clearwand");
-   if (sender.hasPermission("alexxautowarn.command.reload")) completions.add("reload");
-   if (sender.hasPermission("alexxautowarn.command.banned")) completions.add("banned");
-   if (sender.hasPermission("alexxautowarn.command.togglechestmonitor")) completions.add("togglechestmonitor");
-   if (sender.hasPermission("alexxautowarn.command.debug")) completions.add("debug");
-   completions.add("help");
-
-   return completions.stream()
-           .filter(s -> s.toLowerCase().startsWith(args[0].toLowerCase()))
-           .collect(Collectors.toList());
-
-  } else {
-   String subCommand = args[0].toLowerCase();
-   // All commands below this require either specific permissions or are general (info/list/banned list)
-   if (!(sender instanceof Player) && (subCommand.equalsIgnoreCase("wand") || subCommand.equalsIgnoreCase("pos1") || subCommand.equalsIgnoreCase("pos2") || subCommand.equalsIgnoreCase("define") || subCommand.equalsIgnoreCase("clearwand"))) {
-    // These commands explicitly require a player to execute (e.g. location based)
-    return Collections.emptyList();
-   }
-
-   switch (subCommand) {
-    case "define":
-     if (args.length == 3) { // Expecting default action for define
-      return Arrays.stream(ZoneAction.values())
-              .map(Enum::name)
-              .filter(s -> s.toLowerCase().startsWith(args[2].toLowerCase()))
-              .collect(Collectors.toList());
-     }
-     break;
-    case "defaultaction":
-    case "setaction":
-    case "remove":
-    case "info":
-     if (args.length == 2) { // Second argument is zone name for these commands
-      return zoneManager.getZoneNames().stream()
-              .filter(name -> name.toLowerCase().startsWith(args[1].toLowerCase()))
-              .collect(Collectors.toList());
-     }
-     if (subCommand.equals("defaultaction")) {
-      if (args.length == 3) { // Third argument is ZoneAction
-       return Arrays.stream(ZoneAction.values())
-               .map(Enum::name)
-               .filter(s -> s.toLowerCase().startsWith(args[2].toLowerCase()))
-               .collect(Collectors.toList());
-      }
-     }
-     if (subCommand.equals("setaction")) {
-      if (args.length == 3) { // Third argument is Material
-       return Arrays.stream(Material.values())
-               .map(Enum::name)
-               .filter(name -> name.toLowerCase().startsWith(args[2].toLowerCase()))
-               .collect(Collectors.toList());
-      } else if (args.length == 4) { // Fourth argument is ZoneAction
-       return Arrays.stream(ZoneAction.values())
-               .map(Enum::name)
-               .filter(s -> s.toLowerCase().startsWith(args[3].toLowerCase()))
-               .collect(Collectors.toList());
-      }
-     }
-     if (subCommand.equals("remove") && args.length == 3) {
-      // Third arg for remove material action from zone (optional)
-      AutoInformZone zone = zoneManager.getZone(args[1]);
-      if (zone != null) {
-       return zone.getMaterialSpecificActions().keySet().stream()
-               .map(Enum::name)
-               .filter(name -> name.toLowerCase().startsWith(args[2].toLowerCase()))
-               .collect(Collectors.toList());
-      }
-     }
-     break;
-    case "banned":
-     if (args.length == 2) { // Second argument for 'banned' is sub-action (add, remove, list)
-      return Arrays.asList("add", "remove", "list").stream()
-              .filter(s -> s.toLowerCase().startsWith(args[1].toLowerCase()))
-              .collect(Collectors.toList());
-     } else if (args.length == 3 && (args[1].equalsIgnoreCase("add") || args[1].equalsIgnoreCase("remove"))) {
-      // Third argument for 'banned add/remove' is material name
-      return Arrays.stream(Material.values())
-              .map(Enum::name)
-              .filter(name -> name.toLowerCase().startsWith(args[2].toLowerCase()))
-              .collect(Collectors.toList());
-     }
-     break;
-   }
-  }
-  return Collections.emptyList(); // No completions if no match
+ private void sendHelpMessage(Player player) {
+  messageUtil.sendMessage(playerSelections.getClass(), "main-help-header");
+  messageUtil.sendMessage(playerSelections.getClass(), "main-help-wand", "{command}", "autoinform");
+  messageUtil.sendMessage(playerSelections.getClass(), "main-help-pos1", "{command}", "autoinform");
+  messageUtil.sendMessage(playerSelections.getClass(), "main-help-pos2", "{command}", "autoinform");
+  messageUtil.sendMessage(player, "main-help-define", "{command}", "autoinform");
+  messageUtil.sendMessage(player, "main-help-defaultaction", "{command}", "autoinform");
+  messageUtil.sendMessage(playerSelections.getClass(), "main-help-setaction", "{command}", "autoinform");
+  messageUtil.sendMessage(player, "main-help-remove", "{command}", "autoinform");
+  messageUtil.sendMessage(player, "main-help-info", "{command}", "autoinform");
+  messageUtil.sendMessage(playerSelections.getClass(), "main-help-list", "{command}", "autoinform");
+  messageUtil.sendMessage(playerSelections.getClass(), "main-help-clearwand", "{command}", "autoinform");
+  messageUtil.sendMessage(playerSelections.getClass(), "main-help-reload", "{command}", "autoinform");
+  messageUtil.sendMessage(playerSelections.getClass(), "main-help-banned", "{command}", "autoinform");
  }
 
-
- /**
-  * Handles the '/alexxautowarn wand' command. Gives the player the selection wand.
-  *
-  * @param player The command sender, cast to Player.
-  * @param label The alias of the command used.
-  */
- private void handleWandCommand(Player player, String label) {
-  // Player check already done in onCommand
-  plugin.giveAutoInformWand(player);
+ private void handleWandCommand(Player player) {
+  plugin.giveWand(player);
   messageUtil.sendMessage(player, "wand-given");
+  messageUtil.log(Level.INFO, "command-wand-given-console", "{player}", player.getName());
  }
 
- /**
-  * Handles the '/alexxautowarn pos1/pos2 <zone_name>' commands. Manually sets zone corners.
-  *
-  * @param player The command sender, cast to Player.
-  * @param args The command arguments.
-  * @param subCommand The specific subcommand ("pos1" or "pos2").
-  * @param label The alias of the command used.
-  */
- private void handlePosCommand(Player player, String[] args, String subCommand, String label) {
-  // Player check already done in onCommand
+ private void handleSetPositionCommand(Player player, String[] args) {
+  this.player = player;
+  this.args = args;
   if (args.length < 2) {
-   messageUtil.sendMessage(player, "error-usage-pos", "{command}", label, "{position}", subCommand);
+   messageUtil.sendMessage(player, "command-pos-usage");
+   return;
+  }
+  String zoneName = args[1];
+  if (!ZONE_NAME_PATTERN.matcher(zoneName).matches()) {
+   messageUtil.sendMessage(player, "error-invalid-zone-name");
+   return;
+  }
+  if (args.length < 5) {
+   messageUtil.sendMessage(playerSelections.getClass(), "command-pos-coords-missing");
    return;
   }
 
-  String zoneName = args[1];
-  Location playerLocation = player.getLocation();
+  try {
+   double x = Double.parseDouble(args[2]);
+   double y = Double.parseDouble(args[3]);
+   double z = Double.parseDouble(args[4]);
+   Location location = new Location(player.getWorld(), x, y, z);
+   String posType = args[0].toLowerCase(); // "pos1" or "pos2"
 
-  // Retrieve selections from player's persistent data container
-  String selectionsJson = player.getPersistentDataContainer().get(wandSelectionKey, PersistentDataType.STRING);
-  PlayerSelections selections = PlayerSelections.fromJson(selectionsJson, plugin); // Pass plugin reference
+   zoneManager.getPlayerSelections().setSelection(player, posType, location);
+   messageUtil.sendMessage(playerSelections.getClass(), "command-pos-set",
+           "{position}", posType,
+           "{location}", LocationUtil.toBlockString(location));
 
-  String locationString = String.format("%s,%.2f,%.2f,%.2f",
-          playerLocation.getWorld().getName(),
-          playerLocation.getX(),
-          playerLocation.getY(),
-          playerLocation.getZ());
+   messageUtil.log(Level.FINE, "debug-pos-saved",
+           "{player}", player.getName(),
+           "{position}", posType,
+           "{zone_name}", zoneName, // Pass zoneName for debug context
+           "{location_string}", LocationUtil.toBlockString(location));
 
-  selections.addSelection(zoneName, subCommand.equals("pos1") ? "pos1" : "pos2", locationString);
-
-  player.getPersistentDataContainer().set(wandSelectionKey, PersistentDataType.STRING, selections.toJson());
-  messageUtil.log(Level.FINE, "debug-pos-saved",
-          "{player}", player.getName(),
-          "{zone_name}", zoneName,
-          "{position}", subCommand,
-          "{location_string}", locationString,
-          "{current_json}", selections.toJson());
-
-  messageUtil.sendMessage(player, "pos-set",
-          "{zone_name}", zoneName,
-          "{position}", subCommand.toUpperCase(),
-          "{location}", String.format("%.0f, %.0f, %.0f", playerLocation.getX(), playerLocation.getY(), playerLocation.getZ()));
+  } catch (NumberFormatException e) {
+   messageUtil.sendMessage(player, "error-invalid-coordinates");
+  }
  }
 
- /**
-  * Handles the '/alexxautowarn define <zone_name> <default_action>' command. Defines or updates a zone.
-  * This command now also takes a default action when defining.
-  *
-  * @param player The command sender, cast to Player.
-  * @param args The command arguments.
-  * @param label The alias of the command used.
-  */
- private void handleDefineCommand(Player player, String[] args, String label) {
-  // Player check already done in onCommand
-  if (args.length < 3) { // Expecting /define <zone_name> <default_action>
-   messageUtil.sendMessage(player, "error-usage-define", "{command}", label);
+
+ private void handleDefineCommand(Player player, String[] args) {
+  this.player = player;
+  this.args = args;
+  if (args.length < 2) {
+   messageUtil.sendMessage(playerSelections.getClass(), "command-define-usage");
    return;
   }
 
   String zoneName = args[1];
-  String defaultActionString = args[2].toUpperCase();
-
-  ZoneAction defaultAction;
-  try {
-   defaultAction = ZoneAction.valueOf(defaultActionString);
-  } catch (IllegalArgumentException e) {
-   messageUtil.sendMessage(player, "error-invalid-action", "{action}", defaultActionString);
+  if (!ZONE_NAME_PATTERN.matcher(zoneName).matches()) {
+   messageUtil.sendMessage(player, "error-invalid-zone-name");
    return;
   }
 
-  // Retrieve selections from player's persistent data container
-  String selectionsJson = player.getPersistentDataContainer().get(wandSelectionKey, PersistentDataType.STRING);
-  messageUtil.log(Level.FINE, "debug-define-start",
-          "{player}", player.getName(),
-          "{zone_name}", zoneName,
-          "{raw_json}", (selectionsJson != null ? selectionsJson : "null"));
+  // Get positions from player's selections
+  Location pos1 = zoneManager.getPlayerSelections().getSelection(player, "pos1");
+  Location pos2 = zoneManager.getPlayerSelections().getSelection(player, "pos2");
 
-  PlayerSelections selections = PlayerSelections.fromJson(selectionsJson, plugin); // Pass plugin reference
+  messageUtil.log(Level.FINE, "debug-define-start", "{player}", player.getName(), "{zone_name}", zoneName,
+          "{raw_json}", "{ \"pos1\": \"" + (pos1 != null ? LocationUtil.toBlockString(pos1) : "null") + "\", \"pos2\": \"" + (pos2 != null ? LocationUtil.toBlockString(pos2) : "null") + "\" }");
 
-  Location pos1 = selections.getSelection(zoneName, "pos1", plugin);
-  Location pos2 = selections.getSelection(zoneName, "pos2", plugin);
-
-  messageUtil.log(Level.FINE, "debug-define-selections",
-          "{player}", player.getName(),
-          "{zone_name}", zoneName,
-          "{pos1_status}", (pos1 != null ? "SET" : "NOT_SET"),
-          "{pos2_status}", (pos2 != null ? "SET" : "NOT_SET"));
 
   if (pos1 == null || pos2 == null) {
-   messageUtil.sendMessage(player, "error-define-no-selection", "{zone_name}", zoneName);
+   messageUtil.sendMessage(playerSelections.getClass(), "command-define-selections-missing");
+   messageUtil.log(Level.FINE, "debug-define-selections", "{zone_name}", zoneName,
+           "{pos1_status}", (pos1 == null ? "NOT_SET" : "SET"),
+           "{pos2_status}", (pos2 == null ? "NOT_SET" : "SET"));
    return;
   }
 
   if (!pos1.getWorld().equals(pos2.getWorld())) {
-   messageUtil.sendMessage(player, "error-define-different-worlds");
+   messageUtil.sendMessage(playerSelections.getClass(), "error-worlds-not-match");
    return;
   }
 
-  // Define/update the zone in ZoneManager and save to config
-  zoneManager.defineZone(zoneName, pos1, pos2, defaultAction); // Pass the defaultAction argument
-  messageUtil.sendMessage(player, "zone-defined", "{zone_name}", zoneName);
+  ZoneAction defaultAction = ZoneAction.ALLOW; // Default to ALLOW if not specified
+  if (args.length >= 3) {
+   try {
+    defaultAction = ZoneAction.valueOf(args[2].toUpperCase());
+   } catch (IllegalArgumentException e) {
+    messageUtil.sendMessage(player, "error-invalid-default-action", "{action}", args[2]);
+    return;
+   }
+  }
 
-  // Clear selections for this zone after definition
-  selections.clearZoneSelections(zoneName);
-  player.getPersistentDataContainer().set(wandSelectionKey, PersistentDataType.STRING, selections.toJson());
-  messageUtil.sendMessage(player, "wand-selection-cleared-for-zone", "{zone_name}", zoneName);
-  messageUtil.log(Level.FINE, "debug-define-end", "{player}", player.getName(), "{zone_name}", zoneName);
+  AutoInformZone existingZone = zoneManager.getZone(zoneName);
+  if (existingZone != null) {
+   // Update existing zone
+   existingZone.getCorner1(pos1);
+   existingZone.getCorner2(pos2);
+   existingZone.setDefaultAction(defaultAction);
+   zoneManager.saveZones(); // Save changes to config
+   messageUtil.sendMessage(playerSelections.getClass(), "zone-updated", "{zone_name}", zoneName);
+   messageUtil.log(Level.INFO, "command-zone-updated-console", "{player}", player.getName(), "{zone_name}", zoneName);
+  } else {
+   // Create new zone
+   AutoInformZone newZone = new AutoInformZone(zoneName, pos1, pos2, defaultAction, new HashMap<>());
+   zoneManager.addZone(newZone);
+   messageUtil.sendMessage(player, "zone-defined", "{zone_name}", zoneName);
+   messageUtil.log(Level.INFO, "command-zone-defined-console", "{player}", player.getName(), "{zone_name}", zoneName);
+  }
+
+  // Clear player's selections after defining a zone
+  zoneManager.getPlayerSelections().clearSelections(player);
+  messageUtil.sendMessage(player, "command-selections-cleared");
  }
 
- /**
-  * Handles the '/alexxautowarn defaultaction <zone_name> <action>' command.
-  * Sets the default action for a zone.
-  *
-  * @param sender The command sender.
-  * @param args The command arguments.
-  * @param label The alias of the command used.
-  */
- private void handleDefaultActionCommand(CommandSender sender, String[] args, String label) {
+ private void handleDefaultActionCommand(Player player, String[] args) {
   if (args.length < 3) {
-   messageUtil.sendMessage(sender, "error-usage-defaultaction", "{command}", label);
+   messageUtil.sendMessage(playerSelections.getClass(), "command-defaultaction-usage");
    return;
   }
-
   String zoneName = args[1];
   String actionString = args[2].toUpperCase();
 
-  try {
-   ZoneAction action = ZoneAction.valueOf(actionString);
-   if (!zoneManager.setZoneDefaultAction(zoneName, action)) {
-    messageUtil.sendMessage(sender, "error-zone-not-found", "{zone_name}", zoneName);
-    return;
-   }
-   messageUtil.sendMessage(sender, "default-action-set", "{zone_name}", zoneName, "{action}", action.name());
-  } catch (IllegalArgumentException e) {
-   messageUtil.sendMessage(sender, "error-invalid-action", "{action}", actionString);
-  }
- }
-
- /**
-  * Handles the '/alexxautowarn setaction <zone_name> <material> <action>' command.
-  * Sets a material-specific action for a zone.
-  *
-  * @param sender The command sender.
-  * @param args The command arguments.
-  * @param label The alias of the command used.
-  */
- private void handleSetActionCommand(CommandSender sender, String[] args, String label) {
-  if (args.length < 4) {
-   messageUtil.sendMessage(sender, "error-usage-setaction", "{command}", label);
+  if (!ZONE_NAME_PATTERN.matcher(zoneName).matches()) {
+   messageUtil.sendMessage(playerSelections.getClass(), "error-invalid-zone-name");
    return;
   }
 
+  AutoInformZone zone = zoneManager.getZone(zoneName);
+  if (zone == null) {
+   messageUtil.sendMessage(player, "error-zone-not-found", "{zone_name}", zoneName);
+   return;
+  }
+
+  try {
+   ZoneAction newAction = ZoneAction.valueOf(actionString);
+   zone.setDefaultAction(newAction);
+   zoneManager.saveZones(); // Save changes to config
+   messageUtil.sendMessage(playerSelections.getClass(), "zone-defaultaction-set", "{zone_name}", zoneName, "{action}", newAction.name());
+   messageUtil.log(Level.INFO, "command-zone-defaultaction-console", "{player}", player.getName(), "{zone_name}", zoneName, "{action}", newAction.name());
+  } catch (IllegalArgumentException e) {
+   messageUtil.sendMessage(player, "error-invalid-action-type", "{action}", actionString);
+  }
+ }
+
+ private void handleSetActionCommand(Player player, String[] args) {
+  if (args.length < 4) {
+   messageUtil.sendMessage(player, "command-setaction-usage");
+   return;
+  }
   String zoneName = args[1];
-  String materialString = args[2].toUpperCase();
+  String materialName = args[2].toUpperCase();
   String actionString = args[3].toUpperCase();
 
+  if (!ZONE_NAME_PATTERN.matcher(zoneName).matches()) {
+   messageUtil.sendMessage(playerSelections.getClass(), "error-invalid-zone-name");
+   return;
+  }
+
+  AutoInformZone zone = zoneManager.getZone(zoneName);
+  if (zone == null) {
+   messageUtil.sendMessage(player, "error-zone-not-found", "{zone_name}", zoneName);
+   return;
+  }
+
   try {
-   Material material = Material.valueOf(materialString);
+   Material material = Material.valueOf(materialName);
    ZoneAction action = ZoneAction.valueOf(actionString);
 
-   if (!zoneManager.setZoneMaterialAction(zoneName, material, action)) {
-    messageUtil.sendMessage(sender, "error-zone-not-found", "{zone_name}", zoneName);
-    return;
-   }
-   messageUtil.sendMessage(sender, "material-action-set", "{zone_name}", zoneName, "{material}", material.name(), "{action}", action.name());
+   zone.setDefaultAction(material, action);
+   zoneManager.saveZones(); // Save changes to config
+   messageUtil.sendMessage(player, "zone-setaction-set", "{zone_name}", zoneName, "{material}", material.name(), "{action}", action.name());
+   messageUtil.log(Level.INFO, "command-zone-setaction-console", "{player}", player.getName(), "{zone_name}", zoneName, "{material}", material.name(), "{action}", action.name());
   } catch (IllegalArgumentException e) {
-   messageUtil.sendMessage(sender, "error-invalid-material-or-action", "{material}", materialString, "{action}", actionString);
+   messageUtil.sendMessage(playerSelections.getClass(), "error-invalid-material-or-action", "{material}", materialName, "{action}", actionString);
   }
  }
 
- /**
-  * Handles the '/alexxautowarn remove <zone_name> [material]' command.
-  * Can remove an entire zone or a material-specific action from a zone.
-  *
-  * @param sender The command sender.
-  * @param args The command arguments.
-  * @param label The alias of the command used.
-  */
- private void handleRemoveCommand(CommandSender sender, String[] args, String label) {
+ private void handleRemoveCommand(Player player, String[] args) {
   if (args.length < 2) {
-   messageUtil.sendMessage(sender, "error-usage-remove", "{command}", label);
+   messageUtil.sendMessage(playerSelections.getClass(), "command-remove-usage");
+   return;
+  }
+  String zoneName = args[1];
+  if (!ZONE_NAME_PATTERN.matcher(zoneName).matches()) {
+   messageUtil.sendMessage(playerSelections.getClass(), "error-invalid-zone-name");
    return;
   }
 
-  String zoneName = args[1];
-
-  if (args.length == 2) {
-   // Remove the entire zone
-   if (zoneManager.removeZone(zoneName)) {
-    messageUtil.sendMessage(sender, "zone-removed", "{zone_name}", zoneName);
-   } else {
-    messageUtil.sendMessage(sender, "error-zone-not-found", "{zone_name}", zoneName);
-   }
-  } else if (args.length == 3) {
-   // Remove a material-specific action from a zone
-   String materialString = args[2].toUpperCase();
-   try {
-    Material material = Material.valueOf(materialString);
-    if (zoneManager.removeZoneMaterialAction(zoneName, material)) {
-     messageUtil.sendMessage(sender, "material-action-removed", "{zone_name}", zoneName, "{material}", material.name());
-    } else {
-     messageUtil.sendMessage(sender, "error-material-action-not-found", "{zone_name}", zoneName, "{material}", material.name());
-    }
-   } catch (IllegalArgumentException e) {
-    messageUtil.sendMessage(sender, "error-invalid-material", "{material}", materialString);
-   }
+  if (zoneManager.removeZone(zoneName)) {
+   messageUtil.sendMessage(player, "zone-removed-success", "{zone_name}", zoneName);
+   messageUtil.log(Level.INFO, "command-zone-removed-console", "{player}", player.getName(), "{zone_name}", zoneName);
   } else {
-   messageUtil.sendMessage(sender, "error-usage-remove", "{command}", label);
+   messageUtil.sendMessage(playerSelections.getClass(), "error-zone-not-found", "{zone_name}", zoneName);
   }
  }
 
-
- /**
-  * Handles the '/alexxautowarn info [zone_name]' command. Displays information about a zone.
-  *
-  * @param sender The command sender.
-  */
- private void handleInfoCommand(CommandSender sender, String[] args) {
-  if (args.length == 1) {
-   // No zone name specified, show info about all zones
-   Set<String> zoneNames = zoneManager.getZoneNames();
-   if (zoneNames.isEmpty()) {
-    messageUtil.sendMessage(sender, "plugin-no-zones-defined");
+ private void handleInfoCommand(Player player, String[] args) {
+  if (args.length < 2) { // Display info for all zones
+   if (zoneManager.getAllZones().isEmpty()) {
+    messageUtil.sendMessage(player, "plugin-no-zones-defined", "{command}", "autoinform");
     return;
    }
-   messageUtil.sendMessage(sender, "info-header-all", "{count}", String.valueOf(zoneNames.size())); // Added count placeholder
-   for (String name : zoneNames) {
-    AutoInformZone zone = zoneManager.getZone(name);
-    if (zone != null) {
-     messageUtil.sendMessage(sender, "info-list-entry",
-             "{zone_name}", zone.getName(),
-             "{world}", zone.getWorld().getName(),
-             "{corner1}", String.format("%.0f,%.0f,%.0f", zone.getCorner1().getX(), zone.getCorner1().getY(), zone.getCorner1().getZ()),
-             "{corner2}", String.format("%.0f,%.0f,%.0f", zone.getCorner2().getX(), zone.getCorner2().getY(), zone.getCorner2().getZ()),
-             "{default_action}", zone.getDefaultAction().name());
-    }
+   messageUtil.sendMessage(player, "info-all-zones-header");
+   for (AutoInformZone zone : zoneManager.getAllZones()) {
+    sendZoneInfo(player, zone);
    }
-  } else {
-   // Specific zone info requested
+  } else { // Display info for specific zone
    String zoneName = args[1];
+   if (!ZONE_NAME_PATTERN.matcher(zoneName).matches()) {
+    messageUtil.sendMessage(playerSelections.getClass(), "error-invalid-zone-name");
+    return;
+   }
+
    AutoInformZone zone = zoneManager.getZone(zoneName);
    if (zone == null) {
-    messageUtil.sendMessage(sender, "error-zone-not-found", "{zone_name}", zoneName);
-    return;
-   }
-   messageUtil.sendMessage(sender, "info-header-single", "{zone_name}", zone.getName());
-   messageUtil.sendMessage(sender, "info-name", "{zone_name}", zone.getName());
-   messageUtil.sendMessage(sender, "info-world", "{world}", zone.getWorld().getName());
-   messageUtil.sendMessage(sender, "info-corner1", "{corner1}", String.format("%.2f,%.2f,%.2f", zone.getCorner1().getX(), zone.getCorner1().getY(), zone.getCorner1().getZ()));
-   messageUtil.sendMessage(sender, "info-corner2", "{corner2}", String.format("%.2f,%.2f,%.2f", zone.getCorner2().getX(), zone.getCorner2().getY(), zone.getCorner2().getZ()));
-   messageUtil.sendMessage(sender, "info-default-action", "{action}", zone.getDefaultAction().name());
-   if (!zone.getMaterialSpecificActions().isEmpty()) {
-    messageUtil.sendMessage(sender, "info-material-actions-header");
-    zone.getMaterialSpecificActions().forEach((material, action) ->
-            messageUtil.sendMessage(sender, "info-material-action-entry", "{material}", material.name(), "{action}", action.name()));
+    messageUtil.sendMessage(playerSelections.getClass(), "error-zone-not-found", "{zone_name}", zoneName);
    } else {
-    messageUtil.sendMessage(sender, "info-no-material-actions");
+    sendZoneInfo(player, zone);
    }
   }
  }
 
- /**
-  * Handles the '/alexxautowarn list' command. Lists all defined zones.
-  *
-  * @param sender The command sender.
-  */
- private void handleListCommand(CommandSender sender) {
-  Set<String> zoneNames = zoneManager.getZoneNames();
-  if (zoneNames.isEmpty()) {
-   messageUtil.sendMessage(sender, "plugin-no-zones-defined");
-  } else {
-   messageUtil.sendMessage(sender, "list-header", "{count}", String.valueOf(zoneNames.size())); // Added count
-   zoneNames.forEach(name -> messageUtil.sendMessage(sender, "list-entry", "{zone_name}", name));
-  }
+ private void sendZoneInfo(Player player, AutoInformZone zone) {
+  messageUtil.sendMessage(playerSelections.getClass(), "info-zone-header", "{zone_name}", zone.getName());
+  messageUtil.sendMessage(playerSelections.getClass(), "info-name", "{zone_name}", zone.getName());
+  messageUtil.sendMessage(playerSelections.getClass(), "info-world", "{world}", zone.getWorld().getName());
+  messageUtil.sendMessage(playerSelections.getClass(), "info-corner1", "{corner1}", LocationUtil.toBlockString(zone.getCorner1(pos1)));
+  messageUtil.sendMessage(playerSelections.getClass(), "info-corner2", "{corner2}", LocationUtil.toBlockString(zone.getCorner2(pos2)));
+  messageUtil.sendMessage(playerSelections.getClass(), "info-default-action", "{action}", zone.getDefaultAction().name());
 
-  Set<Material> globallyBanned = zoneManager.getGloballyBannedMaterials();
-  if (!globallyBanned.isEmpty()) {
-   messageUtil.sendMessage(sender, "command-list-global-banned-header");
-   messageUtil.sendMessage(sender, "command-list-global-banned-entry",
-           "{materials}", globallyBanned.stream().map(Enum::name).collect(Collectors.joining(", ")));
+  if (zone.getMaterialSpecificActions().isEmpty()) {
+   messageUtil.sendMessage(player, "info-no-material-actions");
   } else {
-   messageUtil.sendMessage(sender, "command-list-no-global-banned");
+   messageUtil.sendMessage(playerSelections.getClass(), "info-material-actions-header");
+   for (Map.Entry<Material, ZoneAction> entry : zone.getMaterialSpecificActions().entrySet()) {
+    Material material = entry.getKey();
+    ZoneAction action = entry.getValue();
+    messageUtil.sendMessage(player, "info-material-action-entry", "{material}", material.name(), "{action}", action.name());
+   }
   }
  }
 
- /**
-  * Handles the '/alexxautowarn clearwand' command. Clears player's wand selections.
-  *
-  * @param player The command sender, cast to Player.
-  * @param label The alias of the command used.
-  */
- private void handleClearWandCommand(Player player, String label) {
-  // Player check already done in onCommand
-  player.getPersistentDataContainer().remove(wandSelectionKey);
-  messageUtil.sendMessage(player, "wand-selections-cleared");
+ private void handleListCommand(Player player) {
+  Collection<AutoInformZone> zones = zoneManager.getAllZones();
+  if (zones.isEmpty()) {
+   messageUtil.sendMessage(player, "plugin-no-zones-defined", "{command}", "autoinform");
+  } else {
+   messageUtil.sendMessage(playerSelections.getClass(), "list-header", "{count}", String.valueOf(zones.size()));
+   for (AutoInformZone zone : zones) {
+    messageUtil.sendMessage(player, "list-entry", "{zone_name}", zone.getName());
+   }
+  }
  }
 
- /**
-  * Handles the '/alexxautowarn reload' command. Reloads configuration.
-  *
-  * @param sender The command sender.
-  */
- private void handleReloadCommand(CommandSender sender) {
-  plugin.reloadConfig();
-  messageUtil.loadMessages(); // Load messages first as other managers might use them
-  zoneManager.loadZonesFromConfig();
-  messageUtil.sendMessage(sender, "plugin-config-reloaded");
+ private void handleClearWandCommand(Player player) {
+  zoneManager.getPlayerSelections().clearSelections(player);
+  messageUtil.sendMessage(playerSelections.getClass(), "command-selections-cleared");
+  messageUtil.log(Level.INFO, "command-selections-cleared-console", "{player}", player.getName());
  }
 
- /**
-  * Handles the '/alexxautowarn banned <add|remove|list> [material]' command.
-  * Manages the global list of banned materials.
-  *
-  * @param sender The command sender.
-  * @param args The command arguments.
-  * @param label The alias of the command used.
-  */
- private void handleBannedCommand(CommandSender sender, String[] args, String label) {
+ private void handleReloadCommand(Player player) {
+  plugin.reloadConfigInternal(); // Call the public reload method on the main plugin class
+  messageUtil.sendMessage(player, "command-reload-success");
+  messageUtil.log(Level.INFO, "command-reload-success-console", "{player}", player.getName());
+ }
+
+ private void handleBannedMaterialsCommand(Player player, String[] args) {
   if (args.length < 2) {
-   messageUtil.sendMessage(sender, "error-usage-banned", "{command}", label);
+   messageUtil.sendMessage(playerSelections.getClass(), "command-banned-usage");
    return;
   }
 
-  String action = args[1].toLowerCase();
-  Set<Material> bannedMaterials = zoneManager.getGloballyBannedMaterials();
-
-  switch (action) {
+  String subCommand = args[1].toLowerCase();
+  switch (subCommand) {
    case "add":
     if (args.length < 3) {
-     messageUtil.sendMessage(sender, "error-usage-banned-add", "{command}", label);
+     messageUtil.sendMessage(playerSelections.getClass(), "command-banned-add-usage");
      return;
     }
     try {
      Material material = Material.valueOf(args[2].toUpperCase());
      if (zoneManager.addGloballyBannedMaterial(material)) {
-      messageUtil.sendMessage(sender, "banned-material-added", "{material}", material.name());
+      messageUtil.sendMessage(playerSelections.getClass(), "command-banned-add-success", "{material}", material.name());
+      messageUtil.log(Level.INFO, "command-banned-add-console", "{player}", player.getName(), "{material}", material.name());
      } else {
-      messageUtil.sendMessage(sender, "banned-material-already-added", "{material}", material.name());
+      messageUtil.sendMessage(playerSelections.getClass(), "command-banned-already-banned", "{material}", material.name());
      }
     } catch (IllegalArgumentException e) {
-     messageUtil.sendMessage(sender, "error-invalid-material", "{material}", args[2]);
+     messageUtil.sendMessage(playerSelections.getClass(), "error-invalid-material", "{material}", args[2]);
     }
     break;
    case "remove":
     if (args.length < 3) {
-     messageUtil.sendMessage(sender, "error-usage-banned-remove", "{command}", label);
+     messageUtil.sendMessage(player, "command-banned-remove-usage");
      return;
     }
     try {
      Material material = Material.valueOf(args[2].toUpperCase());
      if (zoneManager.removeGloballyBannedMaterial(material)) {
-      messageUtil.sendMessage(sender, "banned-material-removed", "{material}", material.name());
+      messageUtil.sendMessage(playerSelections.getClass(), "command-banned-remove-success", "{material}", material.name());
+      messageUtil.log(Level.INFO, "command-banned-remove-console", "{player}", player.getName(), "{material}", material.name());
      } else {
-      messageUtil.sendMessage(sender, "banned-material-not-found", "{material}", material.name());
+      messageUtil.sendMessage(playerSelections.getClass(), "command-banned-not-banned", "{material}", material.name());
      }
     } catch (IllegalArgumentException e) {
-     messageUtil.sendMessage(sender, "error-invalid-material", "{material}", args[2]);
+     messageUtil.sendMessage(player, "error-invalid-material", "{material}", args[2]);
     }
     break;
    case "list":
+    Set<Material> bannedMaterials = zoneManager.getGloballyBannedMaterials();
     if (bannedMaterials.isEmpty()) {
-     messageUtil.sendMessage(sender, "plugin-no-banned-materials");
+     messageUtil.sendMessage(playerSelections.getClass(), "plugin-no-banned-materials");
     } else {
-     messageUtil.sendMessage(sender, "plugin-current-banned-materials",
-             "{materials}", bannedMaterials.stream().map(Enum::name).collect(Collectors.joining(", ")));
+     messageUtil.sendMessage(player, "plugin-current-banned-materials", "{materials}",
+             bannedMaterials.stream().map(Enum::name).collect(Collectors.joining(", ")));
     }
     break;
    default:
-    messageUtil.sendMessage(sender, "error-usage-banned", "{command}", label);
+    messageUtil.sendMessage(playerSelections.getClass(), "command-banned-usage");
     break;
   }
  }
 
- /**
-  * Handles the 'togglechestmonitor' command. Toggles the global chest monitoring setting.
-  * Syntax: /alexxautowarn togglechestmonitor
-  *
-  * @param sender The sender of the command.
-  */
- private void handleToggleChestMonitorCommand(CommandSender sender) {
-  boolean currentState = plugin.isMonitorChestAccess();
-  plugin.setMonitorChestAccess(!currentState);
-  messageUtil.sendMessage(sender, "command-togglechestmonitor-success",
-          "{state}", plugin.isMonitorChestAccess() ? "enabled" : "disabled");
- }
 
- /**
-  * Handles the 'debug' command. Toggles debug logging level.
-  * Syntax: /alexxautowarn debug
-  *
-  * @param sender The sender of the command.
-  */
- private void handleDebugCommand(CommandSender sender) {
-  Level currentLevel = plugin.getLogger().getLevel();
-  Level newLevel;
-  if (currentLevel == Level.FINE || currentLevel == Level.FINER || currentLevel == Level.FINEST) {
-   newLevel = Level.INFO;
-   messageUtil.sendMessage(sender, "command-debug-off");
-  } else {
-   newLevel = Level.FINE;
-   messageUtil.sendMessage(sender, "command-debug-on");
-  }
-  plugin.getLogger().setLevel(newLevel);
- }
-
- /**
-  * Sends the main help message to the sender.
-  *
-  * @param sender The recipient of the help message.
-  * @param commandLabel The alias of the command used (e.g., "autoinform").
-  */
- private void sendHelpMessage(CommandSender sender, String commandLabel) {
-  messageUtil.sendMessage(sender, "main-help-header", "{command}", commandLabel);
-  // All help messages now pass the commandLabel for consistent usage display
-  // Permissions for help messages are handled in onTabComplete or implicitly by admin.set
-  messageUtil.sendMessage(sender, "main-help-wand", "{command}", commandLabel);
-  messageUtil.sendMessage(sender, "main-help-pos1", "{command}", commandLabel);
-  messageUtil.sendMessage(sender, "main-help-pos2", "{command}", commandLabel);
-  messageUtil.sendMessage(sender, "main-help-define", "{command}", commandLabel);
-  messageUtil.sendMessage(sender, "main-help-defaultaction", "{command}", commandLabel);
-  messageUtil.sendMessage(sender, "main-help-setaction", "{command}", commandLabel);
-  messageUtil.sendMessage(sender, "main-help-remove", "{command}", commandLabel);
-  messageUtil.sendMessage(sender, "main-help-info", "{command}", commandLabel);
-  messageUtil.sendMessage(sender, "main-help-list", "{command}", commandLabel);
-  messageUtil.sendMessage(sender, "main-help-clearwand", "{command}", commandLabel);
-  messageUtil.sendMessage(sender, "main-help-reload", "{command}", commandLabel);
-  messageUtil.sendMessage(sender, "main-help-banned", "{command}", commandLabel);
-  messageUtil.sendMessage(sender, "main-help-togglechestmonitor", "{command}", commandLabel);
-  messageUtil.sendMessage(sender, "main-help-debug", "{command}", commandLabel);
- }
-
-
- /**
-  * Inner class to manage player's wand selections using JSON for persistent data.
-  */
- private static class PlayerSelections {
-  // Map: ZoneName (lowercase) -> Map: "pos1" or "pos2" -> LocationString (e.g., "world,X.Y,Z")
-  private final Map<String, Map<String, String>> selections;
-  private final AlexxAutoWarn plugin; // Added plugin field
-
-  public PlayerSelections(AlexxAutoWarn plugin) {
-   this.selections = new HashMap<>();
-   this.plugin = plugin;
+ @Override
+ public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
+  if (!(sender instanceof Player)) {
+   return Collections.emptyList();
   }
 
-  /**
-   * Parses a JSON string into a PlayerSelections object.
-   *
-   * @param json The JSON string representation of selections.
-   * @param plugin The main plugin instance (used for logging errors).
-   * @return A PlayerSelections object, or an empty one if JSON is null or invalid.
-   */
-  public static PlayerSelections fromJson(@Nullable String json, AlexxAutoWarn plugin) {
-   PlayerSelections playerSelections = new PlayerSelections(plugin);
-   if (json == null || json.isEmpty() || json.equals("{}")) {
-    plugin.getLogger().log(Level.FINEST, "PlayerSelections.fromJson: Provided JSON is null, empty or {}. Returning empty selections.");
-    return playerSelections;
+  List<String> completions = new ArrayList<>();
+
+  if (args.length == 1) {
+   // Top-level commands
+   List<String> subCommands = Arrays.asList("wand", "pos1", "pos2", "define", "defaultaction", "setaction", "remove", "info", "list", "clearwand", "reload", "banned");
+   StringUtil.copyPartialMatches(args[0], subCommands, completions);
+  } else if (args.length == 2) {
+   String subCommand = args[0].toLowerCase();
+   switch (subCommand) {
+    case "pos1":
+    case "pos2":
+    case "define":
+    case "defaultaction":
+    case "setaction":
+    case "remove":
+    case "info":
+     // Suggest existing zone names
+     StringUtil.copyPartialMatches(args[1], zoneManager.getAllZones().stream().map(AutoInformZone::getName).collect(Collectors.toList()), completions);
+     break;
+    case "banned":
+     List<String> bannedSubCommands = Arrays.asList("add", "remove", "list");
+     StringUtil.copyPartialMatches(args[1], bannedSubCommands, completions);
+     break;
    }
-
-   try {
-    // Remove outer braces
-    String content = json.trim();
-    if (content.startsWith("{") && content.endsWith("}")) {
-     content = content.substring(1, content.length() - 1).trim();
-    } else {
-     plugin.getLogger().log(Level.WARNING, "PlayerSelections.fromJson: JSON does not start/end with curly braces: " + json);
-     return playerSelections;
+  } else if (args.length == 3) {
+   String subCommand = args[0].toLowerCase();
+   if ("banned".equals(subCommand)) {
+    String bannedAction = args[1].toLowerCase();
+    if ("add".equals(bannedAction)) {
+     // Suggest all materials for 'banned add'
+     StringUtil.copyPartialMatches(args[2], Arrays.stream(Material.values()).map(Enum::name).collect(Collectors.toList()), completions);
+    } else if ("remove".equals(bannedAction)) {
+     // Suggest only currently banned materials for 'banned remove'
+     StringUtil.copyPartialMatches(args[2], zoneManager.getGloballyBannedMaterials().stream().map(Enum::name).collect(Collectors.toList()), completions);
     }
-
-    if (content.isEmpty()) {
-     return playerSelections;
-    }
-
-    // Split by top-level commas. This regex handles commas inside quoted strings.
-    String[] zoneEntries = content.split(",(?=([^\"]*\"[^\"]*\")*[^\"]*$)");
-
-    for (String zoneEntry : zoneEntries) {
-     zoneEntry = zoneEntry.trim();
-     if (zoneEntry.isEmpty()) continue;
-
-     int firstColon = zoneEntry.indexOf(':');
-     if (firstColon == -1) {
-      plugin.getLogger().log(Level.WARNING, "PlayerSelections.fromJson: Malformed zone entry (no colon): " + zoneEntry);
-      continue;
-     }
-
-     String zoneNameKey = zoneEntry.substring(0, firstColon).trim();
-     if (!zoneNameKey.startsWith("\"") || !zoneNameKey.endsWith("\"")) {
-      plugin.getLogger().log(Level.WARNING, "PlayerSelections.fromJson: Zone name key not quoted: " + zoneNameKey);
-      continue;
-     }
-     String zoneName = zoneNameKey.substring(1, zoneNameKey.length() - 1);
-
-     String zoneValuePart = zoneEntry.substring(firstColon + 1).trim();
-     if (!zoneValuePart.startsWith("{") || !zoneValuePart.endsWith("}")) {
-      plugin.getLogger().log(Level.WARNING, "PlayerSelections.fromJson: Zone value part not curly braced: " + zoneValuePart);
-      continue;
-     }
-
-     String selectionContent = zoneValuePart.substring(1, zoneValuePart.length() - 1).trim();
-     Map<String, String> zoneSelections = new HashMap<>();
-
-     if (!selectionContent.isEmpty()) {
-      String[] posEntries = selectionContent.split(",(?=([^\"]*\"[^\"]*\")*[^\"]*$)");
-      for (String posEntry : posEntries) {
-       posEntry = posEntry.trim();
-       if (posEntry.isEmpty()) continue;
-
-       int posColon = posEntry.indexOf(':');
-       if (posColon == -1) {
-        plugin.getLogger().log(Level.WARNING, "PlayerSelections.fromJson: Malformed position entry (no colon): " + posEntry);
-        continue;
-       }
-
-       String posKey = posEntry.substring(0, posColon).trim();
-       if (!posKey.startsWith("\"") || !posKey.endsWith("\"")) {
-        plugin.getLogger().log(Level.WARNING, "PlayerSelections.fromJson: Position key not quoted: " + posKey);
-        continue;
-       }
-       String posType = posKey.substring(1, posKey.length() - 1);
-
-       String locValue = posEntry.substring(posColon + 1).trim();
-       if (!locValue.startsWith("\"") || !locValue.endsWith("\"")) {
-        plugin.getLogger().log(Level.WARNING, "PlayerSelections.fromJson: Location value not quoted: " + locValue);
-        continue;
-       }
-       String locationString = locValue.substring(1, locValue.length() - 1);
-
-       zoneSelections.put(posType, locationString);
-      }
-     }
-     playerSelections.selections.put(zoneName, zoneSelections);
-    }
-   } catch (Exception e) {
-    plugin.getLogger().log(Level.WARNING, "PlayerSelections.fromJson: Failed to parse player selections JSON: " + json, e);
-    return new PlayerSelections(plugin); // Return empty on error
+   } else if ("defaultaction".equals(subCommand)) {
+    // Suggest ZoneAction values
+    StringUtil.copyPartialMatches(args[2], Arrays.stream(ZoneAction.values()).map(Enum::name).collect(Collectors.toList()), completions);
+   } else if ("setaction".equals(subCommand)) {
+    // Suggest all materials for 'setaction'
+    StringUtil.copyPartialMatches(args[2], Arrays.stream(Material.values()).map(Enum::name).collect(Collectors.toList()), completions);
    }
-   return playerSelections;
-  }
-
-
-  /**
-   * Converts the PlayerSelections object to a JSON string.
-   * Explicitly quotes keys and values to ensure valid JSON.
-   *
-   * @return JSON string representation.
-   */
-  public String toJson() {
-   StringBuilder sb = new StringBuilder();
-   sb.append("{");
-   boolean firstZone = true;
-   for (Map.Entry<String, Map<String, String>> zoneEntry : selections.entrySet()) {
-    if (!firstZone) {
-     sb.append(",");
-    }
-    sb.append("\"").append(escapeJson(zoneEntry.getKey())).append("\":{"); // Escape zone name key
-    boolean firstPos = true;
-    for (Map.Entry<String, String> posEntry : zoneEntry.getValue().entrySet()) {
-     if (!firstPos) {
-      sb.append(",");
-     }
-     sb.append("\"").append(escapeJson(posEntry.getKey())).append("\":\"").append(escapeJson(posEntry.getValue())).append("\""); // Escape pos key and location string value
-     firstPos = false;
-    }
-    sb.append("}");
-    firstZone = false;
-   }
-   sb.append("}");
-   return sb.toString();
-  }
-
-  /**
-   * Escapes a string for JSON output.
-   *
-   * @param text The text to escape.
-   * @return The escaped text.
-   */
-  private String escapeJson(String text) {
-   if (text == null || text.isEmpty()) {
-    return "";
-   }
-   StringBuilder sb = new StringBuilder();
-   for (char c : text.toCharArray()) {
-    switch (c) {
-     case '"':
-      sb.append("\\\"");
-      break;
-     case '\\':
-      sb.append("\\\\");
-      break;
-     case '\b':
-      sb.append("\\b");
-      break;
-     case '\f':
-      sb.append("\\f");
-      break;
-     case '\n':
-      sb.append("\\n");
-      break;
-     case '\r':
-      sb.append("\\r");
-      break;
-     case '\t':
-      sb.append("\\t");
-      break;
-     default:
-      if (c < '\u0020' || c > '\u007e') { // Handle control characters and non-ASCII
-       sb.append(String.format("\\u%04x", (int) c));
-      } else {
-       sb.append(c);
-      }
-      break;
-    }
-   }
-   return sb.toString();
-  }
-
-  /**
-   * Adds a selection (pos1 or pos2) for a given zone.
-   *
-   * @param zoneName The name of the zone.
-   * @param type The type of selection ("pos1" or "pos2").
-   * @param locationString The location string (e.g., "world,X.Y,Z").
-   */
-  public void addSelection(String zoneName, String type, String locationString) {
-   selections.computeIfAbsent(zoneName.toLowerCase(), k -> new HashMap<>()).put(type, locationString);
-  }
-
-  /**
-   * Retrieves a selection for a given zone and type.
-   *
-   * @param zoneName The name of the zone.
-   * @param type The type of selection ("pos1" or "pos2").
-   * @param plugin The main plugin instance for world lookup.
-   * @return The Location object, or null if not found or world is invalid.
-   */
-  @Nullable
-  public Location getSelection(String zoneName, String type, AlexxAutoWarn plugin) {
-   Map<String, String> zoneSelections = selections.get(zoneName.toLowerCase());
-   if (zoneSelections == null) {
-    plugin.getLogger().log(Level.FINEST, "PlayerSelections.getSelection: No selections found for zone '" + zoneName + "'.");
-    return null;
-   }
-
-   String locationString = zoneSelections.get(type);
-   if (locationString == null) {
-    plugin.getLogger().log(Level.FINEST, "PlayerSelections.getSelection: No '" + type + "' selection found for zone '" + zoneName + "'.");
-    return null;
-   }
-
-   try {
-    String[] parts = locationString.split(",");
-    if (parts.length != 4) {
-     plugin.getLogger().log(Level.WARNING, "PlayerSelections.getSelection: Invalid location string format for zone '" + zoneName + "', type '" + type + "': " + locationString);
-     return null;
-    }
-
-    String worldName = parts[0];
-    double x = Double.parseDouble(parts[1]);
-    double y = Double.parseDouble(parts[2]);
-    double z = Double.parseDouble(parts[3]);
-
-    org.bukkit.World world = Bukkit.getWorld(worldName);
-    if (world == null) {
-     plugin.getLogger().log(Level.WARNING, "PlayerSelections.getSelection: World '" + worldName + "' not found for wand selection of zone '" + zoneName + "'.");
-     return null;
-    }
-    return new Location(world, x, y, z);
-   } catch (NumberFormatException | NullPointerException e) {
-    plugin.getLogger().log(Level.WARNING, "PlayerSelections.getSelection: Error parsing location string for zone '" + zoneName + "', type '" + type + "': " + locationString, e);
-    return null;
+  } else if (args.length == 4) {
+   String subCommand = args[0].toLowerCase();
+   if ("setaction".equals(subCommand)) {
+    // Suggest ZoneAction values for 'setaction'
+    StringUtil.copyPartialMatches(args[3], Arrays.stream(ZoneAction.values()).map(Enum::name).collect(Collectors.toList()), completions);
    }
   }
 
-  /**
-   * Clears all selections for a specific zone.
-   * @param zoneName The name of the zone whose selections should be cleared.
-   */
-  public void clearZoneSelections(String zoneName) {
-   selections.remove(zoneName.toLowerCase());
-  }
- }
-
- /**
-  * Utility class for string operations, specifically for tab completion.
-  * Copied from org.bukkit.command.defaults.StringUtil.
-  */
- private static class StringUtil {
-  public static <T extends Collection<? super String>> T copyPartialMatches(@NotNull final String token, @NotNull final Iterable<String> completions, @NotNull final T collection) {
-   for (String completion : completions) {
-    if (startsWithIgnoreCase(completion, token)) {
-     collection.add(completion);
-    }
-   }
-   return collection;
-  }
-
-  public static boolean startsWithIgnoreCase(@NotNull final String string, @NotNull final String prefix) {
-   return string.length() >= prefix.length() && string.regionMatches(true, 0, prefix, 0, prefix.length());
-  }
+  Collections.sort(completions);
+  return completions;
  }
 }

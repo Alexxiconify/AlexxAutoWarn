@@ -19,6 +19,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -179,5 +180,13 @@ public final class AlexxAutoWarn extends JavaPlugin implements CommandExecutor, 
   // This is handled by AutoInformCommandExecutor, but JavaPlugin requires this method if it implements TabCompleter.
   // It should delegate or simply return an empty list as the actual tab completer is set.
   return Collections.emptyList();
+ }
+
+ public @org.jspecify.annotations.Nullable InputStream getResource() {
+  return resource;
+ }
+
+ public void setResource(InputStream resource) {
+  this.resource = resource;
  }
 }

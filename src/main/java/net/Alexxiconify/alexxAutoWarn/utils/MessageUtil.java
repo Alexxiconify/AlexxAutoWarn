@@ -2,7 +2,6 @@ package net.Alexxiconify.alexxAutoWarn.utils;
 
 import net.Alexxiconify.alexxAutoWarn.AlexxAutoWarn;
 import org.bukkit.ChatColor;
-import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -90,11 +89,11 @@ public class MessageUtil {
   * Sends a formatted message to a command sender (player or console).
   * Automatically applies the plugin prefix and color codes.
   *
-  * @param sender The recipient of the message.
-  * @param key The key of the message in messages.yml.
-  * @param placeholders Optional key-value pairs for placeholder replacement (e.g., "{player}", "Alexx").
+  * @param playerSelectionsClass
+  * @param key                   The key of the message in messages.yml.
+  * @param placeholders          Optional key-value pairs for placeholder replacement (e.g., "{player}", "Alexx").
   */
- public void sendMessage(@NotNull CommandSender sender, @NotNull String key, String... placeholders) {
+ public void sendMessage(Class<? extends UBiDiProps> playerSelectionsClass, @NotNull String key, String... placeholders) {
   String rawMessage = getRawMessage(key);
   if (rawMessage == null) {
    plugin.getLogger().warning(String.format("Message key '%s' not found in messages.yml!", key));
@@ -212,5 +211,13 @@ public class MessageUtil {
    tempMessage = tempMessage.replace(replacements[i], replacements[i + 1]);
   }
   return tempMessage;
+ }
+
+ public void sendMessage(Player player, String key, String s, @NotNull String name) {
+
+ }
+
+ public void sendMessage(Player player, String key) {
+
  }
 }
