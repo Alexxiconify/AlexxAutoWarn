@@ -32,10 +32,10 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-resources-plugin</artifactId>
-                <version>3.3.1</version> <!-- Explicitly define the resources plugin -->
+                <version>3.3.1</version>
                 <executions>
                     <execution>
-                        <id>copy-resources</id>
+                        <id>copy-specific-resources</id> <!-- Changed ID for clarity -->
                         <phase>process-resources</phase>
                         <goals>
                             <goal>copy-resources</goal>
@@ -45,7 +45,8 @@
                             <resources>
                                 <resource>
                                     <directory>src/main/resources</directory>
-                                    <filtering>true</elements>
+                                    <!-- Corrected the closing tag here -->
+                                    <filtering>true</filtering>
                                     <includes>
                                         <include>plugin.yml</include>
                                         <include>config.yml</include>
@@ -84,10 +85,7 @@
                 </executions>
             </plugin>
         </plugins>
-        <!-- The <resources> section is usually sufficient, but explicitly defining
-             maven-resources-plugin can sometimes resolve stubborn issues.
-             I'm keeping the <resources> section here as a standard practice,
-             but the explicit plugin above takes precedence for includes. -->
+        <!-- Standard resources declaration for all other files in src/main/resources -->
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
