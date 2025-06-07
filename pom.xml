@@ -64,12 +64,17 @@
                 <version>3.5.3</version>
                 <configuration>
                     <createDependencyReducedPom>false</createDependencyReducedPom>
-                    <excludeScope>provided</excludeScope>
+                    <!-- Corrected exclusion of 'provided' scope dependencies -->
+                    <artifactSet>
+                        <excludes>
+                            <!-- Exclude all dependencies with 'provided' scope -->
+                            <exclude>*:*:*:provided</exclude>
+                        </excludes>
+                    </artifactSet>
                     <filters>
                         <filter>
                             <artifact>net.coreprotect:coreprotect</artifact>
                             <excludes>
-                                <exclude>plugin.yml</exclude>
                                 <exclude>META-INF/MANIFEST.MF</exclude>
                             </excludes>
                         </filter>
