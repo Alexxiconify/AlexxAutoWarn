@@ -107,3 +107,7 @@ main-help-reload: "&f/{command} reload &f- Reload all zones and banned materials
 main-help-banned: "&f/{command} banned <add|remove|list> &f- Manage globally banned materials."
 main-help-togglechestmonitor: "&f/{command} togglechestmonitor &f- Toggle chest access monitoring." # Added
 main-help-debug: "&f/{command} debug &f- Toggle debug logging output." # Added
+# --- Debug Messages ---
+debug-pos-saved: "DEBUG: Player {player} saved {position} for zone '{zone_name}' at {location_string}. Current JSON: {current_json}"
+debug-define-start: "DEBUG: Define command initiated by {player} for zone '{zone_name}'. Raw selections JSON: {raw_json}"
+debug-define-selections: "DEBUG: Define for zone '{zone_name}'. Pos1 status: {pos1_status}, Pos2 status: {pos2_status}"
