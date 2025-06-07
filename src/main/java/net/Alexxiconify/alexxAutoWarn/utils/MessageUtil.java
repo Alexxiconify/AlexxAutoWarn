@@ -1,4 +1,4 @@
-package net.Alexxiconify.alexxAutoWarn.utils; // CHANGE THIS LINE from 'util' to 'utils'
+package net.Alexxiconify.alexxAutoWarn.utils; // Corrected package to .utils
 
 import net.Alexxiconify.alexxAutoWarn.AlexxAutoWarn;
 import org.bukkit.Bukkit;
@@ -6,11 +6,11 @@ import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.logging.Level;
 
 /**
@@ -18,6 +18,7 @@ import java.util.logging.Level;
  * Loads messages from messages.yml and provides methods for sending formatted messages
  * to players, console, and broadcasting alerts.
  */
+@SuppressWarnings("ALL")
 public class MessageUtil {
 
  private final AlexxAutoWarn plugin;
@@ -35,16 +36,6 @@ public class MessageUtil {
  }
 
  /**
-  * Translates '&' color codes to Minecraft ChatColor.
-  *
-  * @param message The message string with '&' color codes.
-  * @return The message string with ChatColor applied.
-  */
- public static String colorize(String message) {
-  return ChatColor.translateAlternateColorCodes('&', message);
- }
-
- /**
   * Loads messages from the messages.yml file.
   * This method should be called on plugin enabled and reload.
   */
@@ -55,126 +46,119 @@ public class MessageUtil {
    plugin.saveResource("messages.yml", false);
   }
 
-  // Load the messages.yml file
-  FileConfiguration messagesConfig = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(messagesFile);
-
-  // Cache all messages for faster access
-  cachedMessages.clear();
-  Set<String> keys = messagesConfig.getKeys(true); // Get all keys, including nested ones
-  for (String key : keys) {
-   String message = messagesConfig.getString(key);
-   if (message != null) {
-    cachedMessages.put(key, message);
+  FileConfiguration messagesConfig = plugin.getConfig().options().copyDefaults(true).configuration(); // Use the plugin's config to load messages.yml
+  try {
+   messagesConfig.load(messagesFile);
+   cachedMessages.clear(); // Clear existing messages
+   for (String key : messagesConfig.getKeys(true)) {
+    cachedMessages.put(key, messagesConfig.getString(key));
    }
+   this.pluginPrefix = colorize(cachedMessages.getOrDefault("plugin-prefix", "&c[AutoInform] &e"));
+   plugin.getLogger().log(Level.INFO, "Messages loaded from messages.yml. Prefix: " + ChatColor.stripColor(pluginPrefix));
+  } catch (Exception e) {
+   plugin.getLogger().log(Level.SEVERE, "Could not load messages from messages.yml", e);
+   // Fallback to default prefix if loading fails
+   this.pluginPrefix = ChatColor.RED + "[AutoInform] " + ChatColor.YELLOW;
   }
-
-  // Get and cache the plugin prefix
-  this.pluginPrefix = getRawMessage("plugin-prefix");
-  if (this.pluginPrefix == null) {
-   // Updated fallback prefix to match plugin name
-   this.pluginPrefix = "&c[AlexxAutoWarn] &e";
-   plugin.getLogger().warning("Plugin prefix not found in messages.yml. Using default.");
-  }
-
-  // Log config reload message
-  plugin.getLogger().log(Level.INFO, colorize(pluginPrefix + getRawMessage("plugin-config-reloaded")));
  }
 
  /**
-  * Gets a raw message string from the cache, without a prefix or color translation.
+  * Translates color codes in a string.
   *
-  * @param key The key of the message.
-  * @return The raw message string, or null if not found.
+  * @param message The message to colorize.
+  * @return The colorized message.
   */
- private String getRawMessage(String key) {
-  return cachedMessages.get(key);
+ private String colorize(String message) {
+  return ChatColor.translateAlternateColorCodes('&', message);
  }
 
  /**
   * Sends a formatted message to a command sender (player or console).
-  * Automatically applies the plugin prefix and color codes.
+  * The message is retrieved from messages.yml based on the key.
+  * Placeholders in the message are replaced dynamically.
   *
   * @param sender The recipient of the message.
   * @param key The key of the message in messages.yml.
-  * @param placeholders Optional key-value pairs for placeholder replacement (e.g., "{player}", "Alexx").
+  * @param placeholdersAndOptionalThrowable Optional alternating key-value pairs for placeholders,
+  * followed by an optional Throwable at the very end.
   */
- public void sendMessage(CommandSender sender, String key, Object... placeholders) { // Changed to Object... for varargs
-  String message = getRawMessage(key);
+ public void sendMessage(@NotNull CommandSender sender, @NotNull String key, Object... placeholdersAndOptionalThrowable) {
+  String message = cachedMessages.get(key);
   if (message == null) {
    plugin.getLogger().warning(String.format("Message key '%s' not found in messages.yml!", key));
-   message = String.format("&cError: Message key '%s' not found.", key); // Fallback message
+   message = String.format("&cError: Message key '%s' not found.", key);
   }
 
   // Apply placeholders
-  if (placeholders.length % 2 == 0) { // Ensure even number of placeholder arguments
-   for (int i = 0; i < placeholders.length; i += 2) {
-    message = message.replace(String.valueOf(placeholders[i]), String.valueOf(placeholders[i + 1]));
+  if (placeholdersAndOptionalThrowable.length % 2 == 0) { // Check for even number (key-value pairs)
+   for (int i = 0; i < placeholdersAndOptionalThrowable.length; i += 2) {
+    // Ensure both key and value exist
+    if (i + 1 < placeholdersAndOptionalThrowable.length) {
+     message = message.replace(String.valueOf(placeholdersAndOptionalThrowable[i]), String.valueOf(placeholdersAndOptionalThrowable[i + 1]));
+    }
    }
   } else {
    plugin.getLogger().warning(String.format("Invalid number of placeholders for message key '%s'. Must be key-value pairs.", key));
   }
 
-  // Add plugin prefix unless the message already starts with '{plugin-prefix}' or is a help header
-  // Help with headers manage their own {plugin-prefix} explicitly for formatting flexibility
-  if (!key.startsWith("main-help-") && !message.startsWith("{plugin-prefix}")) {
-   message = pluginPrefix + message;
-  }
-
-  // Translate color codes
-  message = colorize(message);
-  sender.sendMessage(message);
- }
-
- /**
-  * Sends an alert message to all players with the 'alexxautowarn.alert.receive' permission.
-  * Automatically applies the plugin prefix and color codes.
-  *
-  * @param triggeringPlayer The player who triggered the alert (used for context in message placeholders).
-  * @param key The key of the alert message in messages.yml.
-  * @param placeholders Optional key-value pairs for placeholder replacement.
-  */
- public void sendAlert(Player triggeringPlayer, String key, Object... placeholders) { // Changed to Object... for varargs
-  String message = getRawMessage(key);
-  if (message == null) {
-   plugin.getLogger().warning(String.format("Alert message key '%s' not found in messages.yml!", key));
-   message = String.format("&cError: Alert message key '%s' not found.", key);
-  }
-
-  // Apply placeholders
-  if (placeholders.length % 2 == 0) {
-   for (int i = 0; i < placeholders.length; i += 2) {
-    message = message.replace(String.valueOf(placeholders[i]), String.valueOf(placeholders[i + 1]));
-   }
-  } else {
-   plugin.getLogger().warning(String.format("Invalid number of placeholders for alert message key '%s'. Must be key-value pairs.", key));
-  }
-
-  // Add plugin prefix
+  // Add plugin prefix and colorize
   message = pluginPrefix + message;
-  // Translate color codes
-  message = colorize(message);
-
-  // Send it to players with permission
-  for (Player p : Bukkit.getOnlinePlayers()) {
-   // Updated permission node to match plugin name
-   if (p.hasPermission("alexxautowarn.alert.receive")) {
-    p.sendMessage(message);
-   }
-  }
-  // Also log to console for record-keeping
-  plugin.getLogger().log(Level.INFO, ChatColor.stripColor(colorize(message))); // Strip colors for console log readability
+  sender.sendMessage(colorize(message));
  }
 
  /**
-  * Logs a message to the plugin's console.
+  * Sends a formatted help message to a player.
+  * This method iterates through predefined help message keys in messages.yml.
   *
-  * @param level The logging level (e.g., Level.INFO, Level. WARNING, Level. SEVERE).
-  * @param key The key of the message in messages.yml.
-  * @param placeholdersAndOptionalThrowable Optional key-value pairs for placeholder replacement,
-  * followed by an optional Throwable object if logging an exception.
+  * @param player The player to send the help message to.
+  * @param commandAlias The alias used to invoke the main command (e.g., "autoinform", "ainform").
   */
- public void log(Level level, String key, Object... placeholdersAndOptionalThrowable) {
-  String message = getRawMessage(key);
+ public void sendHelpMessage(@NotNull Player player, @NotNull String commandAlias) {
+  // Retrieve and send header
+  sendMessage(player, "main-help-header");
+
+  // List of help message keys (can be dynamically loaded or hardcoded based on needs)
+  String[] helpKeys = {
+          "main-help-wand",
+          "main-help-pos1",
+          "main-help-pos2",
+          "main-help-define",
+          "main-help-defaultaction",
+          "main-help-setaction",
+          "main-help-removeaction",
+          "main-help-remove",
+          "main-help-info",
+          "main-help-list",
+          "main-help-clearwand",
+          "main-help-reload",
+          "main-help-banned"
+  };
+
+  for (String key : helpKeys) {
+   String message = cachedMessages.get(key);
+   if (message != null) {
+    message = message.replace("{command}", commandAlias);
+    sendMessage(player, key, "{command}", commandAlias); // Use sendMessage to apply prefix and color
+   } else {
+    plugin.getLogger().warning(String.format("Help message key '%s' not found in messages.yml!", key));
+   }
+  }
+ }
+
+
+ /**
+  * Logs a formatted message to the console.
+  * The message is retrieved from messages.yml based on the key.
+  * Placeholders in the message are replaced dynamically.
+  * Optional Throwable can be appended for stack trace logging.
+  *
+  * @param level The logging level.
+  * @param key The key of the message in messages.yml.
+  * @param placeholdersAndOptionalThrowable Optional alternating key-value pairs for placeholders,
+  * followed by an optional Throwable at the very end.
+  */
+ public void log(@NotNull Level level, @NotNull String key, Object... placeholdersAndOptionalThrowable) {
+  String message = cachedMessages.get(key);
   if (message == null) {
    plugin.getLogger().warning(String.format("Log message key '%s' not found in messages.yml!", key));
    message = String.format("&cError: Log message key '%s' not found.", key);
@@ -212,5 +196,45 @@ public class MessageUtil {
   } else {
    plugin.getLogger().log(level, message);
   }
+ }
+
+ /**
+  * Sends an alert message to all players with the "autoinform.alert.receive" permission.
+  * The message is retrieved from messages.yml based on the key.
+  *
+  * @param sender       The player who triggered the alert (used for context).
+  * @param key          The key of the alert message in messages.yml.
+  * @param placeholders Key-value pairs for placeholders.
+  */
+ public void sendAlert(@NotNull Player sender, @NotNull String key, Object... placeholders) {
+  String message = cachedMessages.get(key);
+  if (message == null) {
+   plugin.getLogger().warning(String.format("Alert message key '%s' not found in messages.yml!", key));
+   message = String.format("&cError: Alert message key '%s' not found.", key);
+  }
+
+  // Apply placeholders
+  if (placeholders.length % 2 == 0) { // Check for even number (key-value pairs)
+   for (int i = 0; i < placeholders.length; i += 2) {
+    if (i + 1 < placeholders.length) {
+     message = message.replace(String.valueOf(placeholders[i]), String.valueOf(placeholders[i + 1]));
+    }
+   }
+  } else {
+   plugin.getLogger().warning(String.format("Invalid number of placeholders for alert message key '%s'. Must be key-value pairs.", key));
+  }
+
+  // Add plugin prefix and colorize
+  message = pluginPrefix + message;
+  String colorizedMessage = colorize(message);
+
+  // Send to all players with permission
+  for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
+   if (onlinePlayer.hasPermission("autoinform.alert.receive")) {
+    onlinePlayer.sendMessage(colorizedMessage);
+   }
+  }
+  // Also log to console for auditing
+  plugin.getLogger().log(Level.INFO, ChatColor.stripColor(colorizedMessage));
  }
 }

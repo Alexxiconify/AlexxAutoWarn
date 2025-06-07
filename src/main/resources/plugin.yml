@@ -6,20 +6,19 @@ commands:
   autoinform:
     description: Manages AutoInform zones and settings.
     usage: /<command> <subcommand>
-    aliases: [ ainform, alexxautowarn ] # Added alexxautowarn alias for consistency
-    permission: alexxautowarn.admin.set # Updated base permission
+    aliases: [ ainform, alexxautowarn ]
+    permission: alexxautowarn.admin.set
     permission-message: You do not have permission to use this command.
 permissions:
-  alexxautowarn.admin.set: # Renamed permission node
+  alexxautowarn.admin.set:
     description: Allows setting and managing AutoInform zones and plugin settings.
-    default: op # Changed to op for admin commands by default, common practice for plugins
-  alexxautowarn.alert.receive: # Renamed permission node
+    default: op
+  alexxautowarn.alert.receive:
     description: Allows a player to receive in-game alerts when a monitored action occurs.
-    default: op # Changed to op for staff alerts by default
-  alexxautowarn.bypass: # Renamed permission node
+    default: op
+  alexxautowarn.bypass:
     description: Allows a player to bypass all AutoInform zone restrictions (no denials or alerts).
-    default: op # Changed to op for bypass by default
-  # New permission nodes for specific commands for finer control, set to op by default for now
+    default: op
   alexxautowarn.command.wand:
     description: Allows a player to get the AutoInform wand.
     default: op
@@ -41,7 +40,7 @@ permissions:
   alexxautowarn.command.remove:
     description: Allows a player to remove zones or material actions.
     default: op
-  alexxautowork.command.info: # Typo fix: alexxautowork -> alexxautowarn
+  alexxautowork.command.info:
     description: Allows a player to view zone information.
     default: op
   alexxautowarn.command.list:

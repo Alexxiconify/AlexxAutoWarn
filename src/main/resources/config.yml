@@ -7,14 +7,9 @@ zones:
   # Example Zone 1: Default action is ALERT, but LAVA_BUCKET is DENIED
   zone_alpha:
     world: "world"
-    corner1:
-      x: 0.0
-      y: 64.0
-      z: 0.0
-    corner2:
-      x: 100.0
-      y: 100.0
-      z: 100.0
+    # Corrected corner1 and corner2 to a single string format: "worldName,x,y,z"
+    corner1: "world,0.0,64.0,0.0"
+    corner2: "world,100.0,100.0,100.0"
     # Default action for materials in this zone if not specified in material-actions.
     # Options: DENY, ALERT, ALLOW
     default-material-action: ALERT
@@ -29,14 +24,9 @@ zones:
   # Example Zone 2: Default action is DENY
   zone_beta:
     world: "world_nether"
-    corner1:
-      x: -50.0
-      y: 30.0
-      z: -50.0
-    corner2:
-      x: 50.0
-      y: 100.0
-      z: 50.0
+    # Corrected corner1 and corner2 to a single string format: "worldName,x,y,z"
+    corner1: "world_nether,-50.0,30.0,-50.0"
+    corner2: "world_nether,50.0,100.0,50.0"
     default-material-action: DENY
     material-actions:
       OBSIDIAN: ALLOW # Allow obsidian in nether zones, even if general deny

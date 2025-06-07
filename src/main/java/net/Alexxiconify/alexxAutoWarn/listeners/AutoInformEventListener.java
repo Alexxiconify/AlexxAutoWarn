@@ -34,22 +34,24 @@ import java.util.logging.Level;
 public class AutoInformEventListener implements Listener {
 
  private final AlexxAutoWarn plugin;
- private final ZoneManager zoneManager;
- private final MessageUtil messageUtil;
+ private final ZoneManager zoneManager; // Made final and assigned in constructor
+ private final MessageUtil messageUtil; // Made final and assigned in constructor
  private final NamespacedKey wandKey;
- private final CoreProtectAPI coreProtectAPI; // Store reference to CoreProtectAPI
+ private final CoreProtectAPI coreProtectAPI;
 
  /**
   * Constructor for AutoInformEventListener.
   *
-  * @param plugin The main plugin instance.
+  * @param plugin      The main plugin instance.
+  * @param zoneManager The ZoneManager instance.
+  * @param messageUtil The MessageUtil instance.
   */
- public AutoInformEventListener(AlexxAutoWarn plugin) {
+ public AutoInformEventListener(AlexxAutoWarn plugin, ZoneManager zoneManager, MessageUtil messageUtil) {
   this.plugin = plugin;
-  this.zoneManager = zoneManager;
-  this.messageUtil = messageUtil;
+  this.zoneManager = zoneManager; // Assign zoneManager
+  this.messageUtil = messageUtil; // Assign messageUtil
   this.wandKey = new NamespacedKey(plugin, "autoinform_wand");
-  this.coreProtectAPI = plugin.getCoreProtectAPI(); // Get API from main class
+  this.coreProtectAPI = plugin.getCoreProtectAPI();
  }
 
  /**
@@ -138,16 +140,19 @@ public class AutoInformEventListener implements Listener {
    Block clickedBlock = event.getClickedBlock();
    if (clickedBlock != null) {
     Location location = clickedBlock.getLocation();
-    String locationString = String.format("%s,%.0f,%.0f,%.0f", location.getWorld().getName(), location.getX(), location.getY(), location.getZ()); // Simplified for better readability
+    // Use a temporary zone name for wand selections until the player defines the zone
+    String tempZoneName = "wand_selection_" + player.getUniqueId().toString().substring(0, 8); // Unique per player
 
     if (event.getAction() == Action.LEFT_CLICK_BLOCK) {
-     plugin.getCommandExecutor().setPlayerSelection(player, "pos1", locationString);
-     messageUtil.sendMessage(player, "command-define-pos1-set", "{location}", locationString);
-     messageUtil.log(Level.FINE, "debug-pos-saved", "{player}", player.getName(), "{position}", "Pos1", "{zone_name}", "N/A (wand)", "{location_string}", locationString);
+     // Pass the actual Location object, and the temporary zone name.
+     plugin.getCommandExecutor().setPlayerSelection(player, tempZoneName, "pos1", location);
+     messageUtil.sendMessage(player, "command-define-pos1-set", "{location}", plugin.getCommandExecutor().serializeLocation(location));
+     messageUtil.log(Level.FINE, "debug-pos-saved", "{player}", player.getName(), "{position}", "Pos1", "{zone_name}", tempZoneName, "{location_string}", plugin.getCommandExecutor().serializeLocation(location));
     } else if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
-     plugin.getCommandExecutor().setPlayerSelection(player, "pos2", locationString);
-     messageUtil.sendMessage(player, "command-define-pos2-set", "{location}", locationString);
-     messageUtil.log(Level.FINE, "debug-pos-saved", "{player}", player.getName(), "{position}", "Pos2", "{zone_name}", "N/A (wand)", "{location_string}", locationString);
+     // Pass the actual Location object, and the temporary zone name.
+     plugin.getCommandExecutor().setPlayerSelection(player, tempZoneName, "pos2", location);
+     messageUtil.sendMessage(player, "command-define-pos2-set", "{location}", plugin.getCommandExecutor().serializeLocation(location));
+     messageUtil.log(Level.FINE, "debug-pos-saved", "{player}", player.getName(), "{position}", "Pos2", "{zone_name}", tempZoneName, "{location_string}", plugin.getCommandExecutor().serializeLocation(location));
     }
     event.setCancelled(true); // Cancel the interaction to prevent block breaking/placement
    }
@@ -297,6 +302,8 @@ public class AutoInformEventListener implements Listener {
    case ALLOW:
     // No action needed, the event proceeds as normal.
     break;
+   default:
+    throw new IllegalStateException("Unexpected value: " + action);
   }
  }
 }
