@@ -1,5 +1,3 @@
-package net.Alexxiconify.alexxAutoWarn.objects;
-
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;

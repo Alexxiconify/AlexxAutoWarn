@@ -17,9 +17,10 @@ import java.util.logging.Level;
  * The main class for the AlexxAutoWarn plugin.
  * This plugin allows server administrators to define protected zones where certain material interactions
  * can be denied, alerted to staff, or explicitly allowed. It integrates with CoreProtect for logging.
- * <p>
+ *
  * This class handles plugin startup/shutdown, loads configurations, initializes managers and listeners,
- * and provides access to the CoreProtect API.
+ * and provides access to the CoreProtect API. It runs on a PaperMC server, leveraging the Bukkit API
+ * that Paper implements and enhances.
  */
 public final class AlexxAutoWarn extends JavaPlugin {
 
@@ -34,15 +35,6 @@ public final class AlexxAutoWarn extends JavaPlugin {
 
  // CoreProtect API instance for logging actions. Can be null if CoreProtect is not found.
  private CoreProtectAPI coreProtectAPI;
-
- /**
-  * Provides static access to the plugin instance.
-  *
-  * @return The AlexxAutoWarn plugin instance.
-  */
- public static AlexxAutoWarn getPlugin() {
-  return plugin;
- }
 
  /**
   * Called when the plugin is enabled.
@@ -71,7 +63,6 @@ public final class AlexxAutoWarn extends JavaPlugin {
   Objects.requireNonNull(getCommand("autoinform")).setTabCompleter(new AutoInformCommandExecutor(this));
 
   // Register event listeners to monitor player actions
-  // Ensure AutoInformEventListener constructor expects 'this' (AlexxAutoWarn plugin instance)
   getServer().getPluginManager().registerEvents(new AutoInformEventListener(this), this);
 
   // Attempt to hook into CoreProtect
@@ -113,6 +104,15 @@ public final class AlexxAutoWarn extends JavaPlugin {
    return coreProtectAPI != null; // Return true only if API is not null
   }
   return false;
+ }
+
+ /**
+  * Provides static access to the plugin instance.
+  *
+  * @return The AlexxAutoWarn plugin instance.
+  */
+ public static AlexxAutoWarn getPlugin() {
+  return plugin;
  }
 
  /**

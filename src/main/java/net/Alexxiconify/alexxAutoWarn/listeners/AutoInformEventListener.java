@@ -234,11 +234,11 @@ public class AutoInformEventListener implements Listener {
  /**
   * Applies the determined zone action to the player and event.
   *
-  * @param player   The player performing the action.
+  * @param player The player performing the action.
   * @param location The location of the action.
   * @param material The material involved in the action.
-  * @param action   The determined ZoneAction.
-  * @param event    The event that triggered the action.
+  * @param action The determined ZoneAction.
+  * @param event The event that triggered the action.
   */
  private void handleZoneAction(Player player, Location location, Material material, ZoneAction action, org.bukkit.event.Event event) {
   switch (action) {
@@ -269,7 +269,6 @@ public class AutoInformEventListener implements Listener {
       Block blockForLogging = ((BlockPlaceEvent) event).getBlock(); // Explicitly get Block
       coreProtectAPI.logPlacement(player.getName(), location, material, blockForLogging.getBlockData());
      } else if (event instanceof PlayerBucketEmptyEvent) {
-      // CoreProtect log for bucket empty (placement of liquid)
       coreProtectAPI.logPlacement(player.getName(), location, material, Bukkit.createBlockData(material));
      }
      // Console log for denied action
@@ -302,7 +301,7 @@ public class AutoInformEventListener implements Listener {
    case ALLOW:
     // No action needed, the event proceeds as normal.
     // Console log for allowed action (optional, for debugging)
-    plugin.getLogger().log(Level.FINE, player.getName() + " was ALLOWED to place " + material.name() + " at " + location.toString());
+    plugin.getLogger().log(Level.FINE, player.getName() + " was ALLOWED to place " + material.name() + " at + location.toString());
     break;
   }
  }

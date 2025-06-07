@@ -52,10 +52,10 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
  /**
   * Executes the given command.
   *
-  * @param sender  The sender of the command (Player, ConsoleSender, etc.)
+  * @param sender The sender of the command (Player, ConsoleSender, etc.)
   * @param command The command that was executed.
-  * @param label   The alias of the command used.
-  * @param args    The arguments passed to the command.
+  * @param label The alias of the command used.
+  * @param args The arguments passed to the command.
   * @return true if the command was handled successfully, false otherwise.
   */
  @Override
@@ -131,10 +131,10 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
  /**
   * Provides tab completions for the command.
   *
-  * @param sender  The sender of the command.
+  * @param sender The sender of the command.
   * @param command The command that was executed.
-  * @param label   The alias of the command used.
-  * @param args    The arguments passed to the command.
+  * @param label The alias of the command used.
+  * @param args The arguments passed to the command.
   * @return A list of possible tab completions.
   */
  @Override
@@ -229,8 +229,8 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
  /**
   * Handles the '/autoinform pos1/pos2 <zone_name>' commands. Manually sets zone corners.
   *
-  * @param sender     The command sender.
-  * @param args       The command arguments.
+  * @param sender The command sender.
+  * @param args The command arguments.
   * @param subCommand The specific subcommand ("pos1" or "pos2").
   */
  private void handlePosCommand(CommandSender sender, String[] args, String subCommand) {
@@ -313,7 +313,7 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
   * Sets the default action for a zone.
   *
   * @param sender The command sender.
-  * @param args   The command arguments.
+  * @param args The command arguments.
   */
  private void handleDefaultActionCommand(CommandSender sender, String[] args) {
   if (args.length < 3) {
@@ -341,7 +341,7 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
   * Sets a material-specific action for a zone.
   *
   * @param sender The command sender.
-  * @param args   The command arguments.
+  * @param args The command arguments.
   */
  private void handleSetActionCommand(CommandSender sender, String[] args) {
   if (args.length < 4) {
@@ -481,7 +481,7 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
   * Manages the global list of banned materials.
   *
   * @param sender The command sender.
-  * @param args   The command arguments.
+  * @param args The command arguments.
   */
  private void handleBannedCommand(CommandSender sender, String[] args) {
   if (args.length < 2) {
@@ -553,7 +553,7 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
   /**
    * Parses a JSON string into a PlayerSelections object.
    *
-   * @param json   The JSON string representation of selections.
+   * @param json The JSON string representation of selections.
    * @param plugin The main plugin instance (used for logging errors).
    * @return A PlayerSelections object, or an empty one if JSON is null or invalid.
    */
@@ -650,8 +650,8 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
   /**
    * Adds a selection (pos1 or pos2) for a given zone.
    *
-   * @param zoneName       The name of the zone.
-   * @param type           The type of selection ("pos1" or "pos2").
+   * @param zoneName The name of the zone.
+   * @param type The type of selection ("pos1" or "pos2").
    * @param locationString The location string (e.g., "world,X.Y,Z").
    */
   public void addSelection(String zoneName, String type, String locationString) {
@@ -662,8 +662,8 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
    * Retrieves a selection for a given zone and type.
    *
    * @param zoneName The name of the zone.
-   * @param type     The type of selection ("pos1" or "pos2").
-   * @param plugin   The main plugin instance for world lookup.
+   * @param type The type of selection ("pos1" or "pos2").
+   * @param plugin The main plugin instance for world lookup.
    * @return The Location object, or null if not found or world is invalid.
    */
   @Nullable

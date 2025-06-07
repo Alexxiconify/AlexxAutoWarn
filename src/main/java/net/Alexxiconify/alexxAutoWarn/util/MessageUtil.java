@@ -21,8 +21,8 @@ import java.util.logging.Level;
 public class MessageUtil {
 
  private final AlexxAutoWarn plugin;
- private final Map<String, String> cachedMessages = new HashMap<>();
  private FileConfiguration messagesConfig;
+ private final Map<String, String> cachedMessages = new HashMap<>();
  private String pluginPrefix;
 
  /**
@@ -33,16 +33,6 @@ public class MessageUtil {
  public MessageUtil(AlexxAutoWarn plugin) {
   this.plugin = plugin;
   loadMessages(); // Load messages on initialization
- }
-
- /**
-  * Translates '&' color codes to Minecraft ChatColor.
-  *
-  * @param message The message string with '&' color codes.
-  * @return The message string with ChatColor applied.
-  */
- public static String colorize(String message) {
-  return ChatColor.translateAlternateColorCodes('&', message);
  }
 
  /**
@@ -91,11 +81,21 @@ public class MessageUtil {
  }
 
  /**
+  * Translates '&' color codes to Minecraft ChatColor.
+  *
+  * @param message The message string with '&' color codes.
+  * @return The message string with ChatColor applied.
+  */
+ public static String colorize(String message) {
+  return ChatColor.translateAlternateColorCodes('&', message);
+ }
+
+ /**
   * Sends a formatted message to a command sender (player or console).
   * Automatically applies the plugin prefix and color codes.
   *
-  * @param sender       The recipient of the message.
-  * @param key          The key of the message in messages.yml.
+  * @param sender The recipient of the message.
+  * @param key The key of the message in messages.yml.
   * @param placeholders Optional key-value pairs for placeholder replacement (e.g., "{player}", "Alexx").
   */
  public void sendMessage(CommandSender sender, String key, String... placeholders) {
@@ -130,8 +130,8 @@ public class MessageUtil {
   * Automatically applies the plugin prefix and color codes.
   *
   * @param triggeringPlayer The player who triggered the alert (used for context in message placeholders).
-  * @param key              The key of the alert message in messages.yml.
-  * @param placeholders     Optional key-value pairs for placeholder replacement.
+  * @param key The key of the alert message in messages.yml.
+  * @param placeholders Optional key-value pairs for placeholder replacement.
   */
  public void sendAlert(Player triggeringPlayer, String key, String... placeholders) {
   String message = getRawMessage(key);
@@ -161,16 +161,16 @@ public class MessageUtil {
    }
   }
   // Also log to console for record-keeping
-  plugin.getLogger().log(Level.INFO, ChatColor.stripColor(message)); // Strip colors for console log readability
+  plugin.getLogger().log(Level.INFO, ChatColor.stripColor(colorize(message))); // Strip colors for console log readability
  }
 
  /**
   * Logs a message to the plugin's console.
   *
-  * @param level                            The logging level (e.g., Level.INFO, Level.WARNING, Level.SEVERE).
-  * @param key                              The key of the message in messages.yml.
+  * @param level The logging level (e.g., Level.INFO, Level.WARNING, Level.SEVERE).
+  * @param key The key of the message in messages.yml.
   * @param placeholdersAndOptionalThrowable Optional key-value pairs for placeholder replacement,
-  *                                         followed by an optional Throwable object if logging an exception.
+  * followed by an optional Throwable object if logging an exception.
   */
  public void log(Level level, String key, Object... placeholdersAndOptionalThrowable) {
   String message = getRawMessage(key);

@@ -1,7 +1,7 @@
 # plugin.yml
 # This file defines the core metadata for your Spigot/Paper plugin.
 # The main class of your plugin. This is where your plugin starts.
-main: net.Alexxiconify.alexxAutoWarn.AutoInformEventListener
+main: net.Alexxiconify.alexxAutoWarn.AlexxAutoWarn
 # The name of your plugin. This is what will appear in /plugins.
 name: AlexxAutoWarn
 # The version of your plugin. Update this for each new release.

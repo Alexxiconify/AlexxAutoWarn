@@ -35,10 +35,10 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-resources-plugin</artifactId>
-                <version>3.3.1</version>
+                <version>3.3.1</version> <!-- Explicitly define the resources plugin -->
                 <executions>
                     <execution>
-                        <id>copy-specific-resources</id> <!-- Changed ID for clarity -->
+                        <id>copy-resources</id>
                         <phase>process-resources</phase>
                         <goals>
                             <goal>copy-resources</goal>
@@ -48,7 +48,13 @@
                             <resources>
                                 <resource>
                                     <directory>src/main/resources</directory>
-                                    <filtering>true</filtering>
+                                    <filtering>true
+                                    </filtering> <!-- Corrected closing tag from elements to filtering -->
+                                    <includes>
+                                        <include>plugin.yml</include>
+                                        <include>config.yml</include>
+                                        <include>messages.yml</include>
+                                    </includes>
                                 </resource>
                             </resources>
                         </configuration>
@@ -61,12 +67,16 @@
                 <version>3.5.3</version>
                 <configuration>
                     <createDependencyReducedPom>false</createDependencyReducedPom>
-                    <artifactSet>
-                        <excludes>
-                            <exclude>net.coreprotect:coreprotect</exclude>
-                            <exclude>io.papermc.paper:paper-api</exclude>
-                        </excludes>
-                    </artifactSet>
+                    <excludeScope>provided</excludeScope>
+                    <filters>
+                        <filter>
+                            <artifact>net.coreprotect:coreprotect</artifact>
+                            <excludes>
+                                <exclude>plugin.yml</exclude>
+                                <exclude>META-INF/MANIFEST.MF</exclude>
+                            </excludes>
+                        </filter>
+                    </filters>
                 </configuration>
                 <executions>
                     <execution>
@@ -77,15 +87,11 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.1.2</version>
-                <configuration>
-                    <argLine>--enable-preview</argLine>
-                </configuration>
-            </plugin>
         </plugins>
+        <!-- The <resources> section is usually sufficient, but explicitly defining
+             maven-resources-plugin can sometimes resolve stubborn issues.
+             I'm keeping the <resources> section here as a standard practice,
+             but the explicit plugin above takes precedence for includes. -->
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
