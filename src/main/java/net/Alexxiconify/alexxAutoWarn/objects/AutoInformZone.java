@@ -62,7 +62,7 @@ public class AutoInformZone {
   return corner2;
  }
 
- public @NotNull ZoneAction getDefaultAction() {
+ public net.Alexxiconify.alexxAutoWarn.objects.ZoneAction getDefaultAction() {
   return defaultAction;
  }
 

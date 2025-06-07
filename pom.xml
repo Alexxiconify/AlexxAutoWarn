@@ -10,37 +10,29 @@
     <packaging>jar</packaging>
 
     <name>AlexxAutoWarn</name>
-    <description>A plugin to manage automated warnings and restrictions in zones.</description>
 
     <properties>
         <java.version>21</java.version>
-        <project.build.sourceEncoding>UTF-8</source-blend-mode>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
     <build>
-        <defaultGoal>clean install</defaultGoal>
+        <defaultGoal>clean package</defaultGoal>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.11.0</version>
+                <version>3.13.0</version>
                 <configuration>
-                    <source>${java.version}</source>
-                    <target>${java.version}</target>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <version>3.3.0</version>
-                <configuration>
-                    <outputDirectory>${project.build.directory}</outputDirectory>
+                    <source>21</source>
+                    <target>21</target>
+                    <!-- Removed compilerArgs to disable Java preview features -->
                 </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>3.4.1</version>
+                <version>3.5.3</version>
                 <executions>
                     <execution>
                         <phase>package</phase>
@@ -49,7 +41,6 @@
                         </goals>
                         <configuration>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
-                            <finalName>${project.artifactId}-${project.version}</finalName>
                         </configuration>
                     </execution>
                 </executions>
@@ -72,25 +63,23 @@
             <id>sonatype</id>
             <url>https://oss.sonatype.org/content/groups/public/</url>
         </repository>
-        <!-- CoreProtect Repository -->
         <repository>
-            <id>coreprotect-repo</id>
-            <url>https://maven.playpro.com/release</url>
+            <id>coreprotect-maven</id>
+            <url>https://maven.playpro.com</url>
         </repository>
     </repositories>
 
     <dependencies>
         <dependency>
-            <groupId>io.papermc.paper</groupId>
-            <artifactId>paper-api</artifactId>
-            <version>1.21.4-R0.1-SNAPSHOT</version> <!-- Use your specific Paper API version -->
-            <scope>provided</scope>
-        </dependency>
-        <!-- CoreProtect API dependency -->
-        <dependency>
             <groupId>net.coreprotect</groupId>
             <artifactId>coreprotect</artifactId>
-            <version>22.4</version> <!-- Use the correct CoreProtect API version -->
+            <version>22.4</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.papermc.paper</groupId>
+            <artifactId>paper-api</artifactId>
+            <version>1.21.4-R0.1-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
