@@ -1,10 +1,10 @@
 package net.Alexxiconify.alexxAutoWarn.listeners;
 
+import MessageUtil;
 import net.Alexxiconify.alexxAutoWarn.AlexxAutoWarn;
 import net.Alexxiconify.alexxAutoWarn.managers.ZoneManager;
 import net.Alexxiconify.alexxAutoWarn.objects.AutoInformZone;
 import net.Alexxiconify.alexxAutoWarn.objects.ZoneAction;
-import net.Alexxiconify.alexxAutoWarn.utils.MessageUtil;
 import net.coreprotect.CoreProtectAPI;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -166,7 +166,6 @@ public class AutoInformEventListener implements Listener {
               "{x}", String.valueOf(location.getBlockX()),
               "{y}", String.valueOf(location.getBlockY()),
               "{z}", String.valueOf(location.getBlockZ()));
-                        /*
                         // Temporarily commented out CoreProtect logging
                         if (coreProtectAPI != null) {
                             coreProtectAPI.logPlacement(player.getName(), location, clickedBlock.getType(), null);

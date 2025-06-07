@@ -1,9 +1,9 @@
 package net.Alexxiconify.alexxAutoWarn.managers;
 
+import MessageUtil;
 import net.Alexxiconify.alexxAutoWarn.AlexxAutoWarn;
 import net.Alexxiconify.alexxAutoWarn.objects.AutoInformZone;
 import net.Alexxiconify.alexxAutoWarn.objects.ZoneAction;
-import net.Alexxiconify.alexxAutoWarn.utils.MessageUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
