@@ -65,7 +65,7 @@ public class AutoInformEventListener implements Listener {
  public void onBlockPlace(BlockPlaceEvent event) {
   Player player = event.getPlayer();
   // Players with bypass permission are not affected by zone restrictions
-  if (player.hasPermission("autoinform.bypass")) {
+  if (player.hasPermission("alexxautowarn.bypass")) {
    return;
   }
 
@@ -88,7 +88,7 @@ public class AutoInformEventListener implements Listener {
  @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
  public void onPlayerBucketEmpty(PlayerBucketEmptyEvent event) {
   Player player = event.getPlayer();
-  if (player.hasPermission("autoinform.bypass")) {
+  if (player.hasPermission("alexxautowarn.bypass")) {
    return;
   }
 
@@ -157,7 +157,7 @@ public class AutoInformEventListener implements Listener {
     if (zone != null) {
      ZoneAction effectiveAction = getEffectiveAction(location, clickedBlock.getType());
 
-     if (effectiveAction == ZoneAction.ALERT && player.hasPermission("autoinform.alert.receive")) {
+     if (effectiveAction == ZoneAction.ALERT && player.hasPermission("alexxautowarn.alert.receive")) {
       messageUtil.sendAlert(player, "alert-container-access",
               "{player}", player.getName(),
               "{material}", clickedBlock.getType().name(),
@@ -166,15 +166,13 @@ public class AutoInformEventListener implements Listener {
               "{x}", String.valueOf(location.getBlockX()),
               "{y}", String.valueOf(location.getBlockY()),
               "{z}", String.valueOf(location.getBlockZ()));
-      // Properly integrate CoreProtect logging for container access
-      if (coreProtectAPI != null) {
-       // Log a container interaction to CoreProtect
-       // CoreProtect's logContainerAccess or logBlockBreak/Place might be appropriate here,
-       // but if no specific method, logging the interaction as a general lookup is common.
-       // This example uses logPlacement as a generic interaction log.
-       coreProtectAPI.logPlacement(player.getName(), location, clickedBlock.getType(), null);
-       plugin.getLogger().log(Level.INFO, "Container access logged to CoreProtect for " + player.getName() + " at " + location);
-      }
+                        /*
+                        // Temporarily commented out CoreProtect logging
+                        if (coreProtectAPI != null) {
+                            coreProtectAPI.logPlacement(player.getName(), location, clickedBlock.getType(), null);
+                            plugin.getLogger().log(Level.INFO, "Container access logged to CoreProtect for " + player.getName() + " at " + location);
+                        }
+                        */
      } else if (effectiveAction == ZoneAction.DENY) {
       event.setCancelled(true); // Deny chest access
       messageUtil.sendMessage(player, "action-denied-container-access",
@@ -242,14 +240,12 @@ public class AutoInformEventListener implements Listener {
             "{x}", String.valueOf(location.getBlockX()),
             "{y}", String.valueOf(location.getBlockY()),
             "{z}", String.valueOf(location.getBlockZ()));
-    // Log to CoreProtect if available
-    if (coreProtectAPI != null) {
-     // CoreProtect log for block placement
-     // Note: blockData is null for PlayerBucketEmptyEvent as there's no specific block data for liquid placement.
-     // For BlockPlaceEvent, we can get it from event.getBlockPlaced().getBlockData() if needed.
-     // For now, setting to null as it's optional for logPlacement.
-     coreProtectAPI.logPlacement(player.getName(), location, material, null);
-    }
+                /*
+                // Temporarily commented out CoreProtect logging
+                if (coreProtectAPI != null) {
+                    coreProtectAPI.logPlacement(player.getName(), location, material, null);
+                }
+                */
     messageUtil.log(Level.INFO, "action-denied-console",
             "{player}", player.getName(),
             "{material}", material.name(),
@@ -268,9 +264,12 @@ public class AutoInformEventListener implements Listener {
             "{x}", String.valueOf(location.getBlockX()),
             "{y}", String.valueOf(location.getBlockY()),
             "{z}", String.valueOf(location.getBlockZ()));
-    if (coreProtectAPI != null) {
-     coreProtectAPI.logPlacement(player.getName(), location, material, null);
-    }
+                /*
+                // Temporarily commented out CoreProtect logging
+                if (coreProtectAPI != null) {
+                    coreProtectAPI.logPlacement(player.getName(), location, material, null);
+                }
+                */
     messageUtil.log(Level.INFO, "action-alert-console",
             "{player}", player.getName(),
             "{material}", material.name(),
