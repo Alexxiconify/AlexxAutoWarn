@@ -2,8 +2,10 @@ package net.Alexxiconify.alexxAutoWarn;
 
 import net.Alexxiconify.alexxAutoWarn.commands.AutoInformCommandExecutor;
 import net.Alexxiconify.alexxAutoWarn.listeners.AutoInformEventListener;
+import net.Alexxiconify.alexxAutoWarn.managers.PlayerSelectionManager;
 import net.Alexxiconify.alexxAutoWarn.managers.ZoneManager;
 import net.Alexxiconify.alexxAutoWarn.utils.MessageUtil;
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -11,6 +13,7 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -19,152 +22,132 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.InputStream;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
-/**
- * Main class for the AlexxAutoWarn plugin.
- * Handles plugin lifecycle (onEnable, onDisable), configuration loading,
- * and initializes managers, listeners, and command executors.
- */
-@SuppressWarnings("ALL") // Suppress all warnings for brevity during iterative debugging
-public final class AlexxAutoWarn extends JavaPlugin implements CommandExecutor, TabCompleter {
+public class AlexxAutoWarn extends JavaPlugin implements CommandExecutor, TabCompleter {
 
- // Wand properties
- private static final String WAND_DISPLAY_NAME = ChatColor.GOLD + "" + ChatColor.BOLD + "AutoInform Selection Wand";
- private static final List<String> WAND_LORE = Arrays.asList(
-         ChatColor.GRAY + "Left-click a block to set Pos2",
-         ChatColor.GRAY + "Right-click a block to set Pos1"
- );
- // Added static plugin instance
- private static AlexxAutoWarn plugin;
  private MessageUtil messageUtil;
  private ZoneManager zoneManager;
+ // Configuration constants for the wand
+ private static final String WAND_DISPLAY_NAME_KEY = "wand.display-name";
  private NamespacedKey wandKey;
- private boolean monitorChestAccess;
- private Object resource;
-
- public static AlexxAutoWarn getPlugin() {
-  return plugin;
- }
+ private static final String WAND_LORE_KEY = "wand.lore";
+ private static final String WAND_MATERIAL_KEY = "wand.material";
+ private PlayerSelectionManager playerSelectionManager;
+ private String WAND_DISPLAY_NAME;
+ private List<String> WAND_LORE;
+ private Material WAND_MATERIAL;
 
  @Override
  public void onEnable() {
-  // Set the static plugin instance first
-  plugin = this; // Ensure 'plugin' static field is set
+  // Load default config
+  saveDefaultConfig();
 
-  // Set the logger level to FINE (DEBUG) by default for better troubleshooting
-  getLogger().setLevel(Level.FINE); // <--- ADD THIS LINE
-
-  // Plugin startup logic
-  messageUtil = new MessageUtil(this);
-  messageUtil.log(Level.INFO, "plugin-startup");
-
-  // Load configuration and initialize managers
-  saveDefaultConfig(); // Creates config.yml if it doesn't exist
-  reloadConfigInternal(); // Load configuration into memory
+  // Initialize utility and manager classes
+  this.messageUtil = new MessageUtil(this);
+  this.playerSelectionManager = new PlayerSelectionManager(); // Initialize PlayerSelectionManager
+  this.zoneManager = new ZoneManager(this, messageUtil); // ZoneManager no longer needs PlayerSelectionManager directly
 
   this.wandKey = new NamespacedKey(this, "autoinform_wand");
 
-  // Register event listener
-  getServer().getPluginManager().registerEvents(new AutoInformEventListener(this), this);
+  // Load wand properties from config
+  loadWandProperties();
 
-  // Set command executor and tab completer
-  // We set 'this' as the executor/completer in plugin.yml, but delegate to AutoInformCommandExecutor
-  // This is a common pattern for separating command logic from the main plugin class.
-  AutoInformCommandExecutor commandExecutor = new AutoInformCommandExecutor(this);
-  getCommand("autoinform").setExecutor(commandExecutor);
-  getCommand("autoinform").setTabCompleter(commandExecutor);
+  // Register event listener
+  Bukkit.getPluginManager().registerEvents(new AutoInformEventListener(this), this);
+
+  // Register command executor and tab completer
+  getCommand("autoinform").setExecutor(new AutoInformCommandExecutor(this));
+  getCommand("autoinform").setTabCompleter(new AutoInformCommandExecutor(this));
 
   messageUtil.log(Level.INFO, "plugin-enabled");
  }
 
  @Override
  public void onDisable() {
-  // Plugin shutdown logic
-  messageUtil.log(Level.INFO, "plugin-shutting-down");
-  // Save any pending data if necessary (zones are saved by ZoneManager as they are modified)
-
   messageUtil.log(Level.INFO, "plugin-disabled");
  }
 
  /**
-  * Reloads the plugin's configuration from disk.
-  * This method is called internally on plugin enable and via the reload command.
+  * Reloads the plugin's configuration and messages.
+  * This method is typically called by a command.
   */
- public void reloadConfigInternal() {
-  reloadConfig(); // Reloads config.yml from disk
-  messageUtil.loadMessages(); // Reload messages from messages.yml
-
-  // Re-initialize ZoneManager to load zones from the reloaded config
-  this.zoneManager = new ZoneManager(this, messageUtil);
-  this.zoneManager.loadZones(); // Load zones defined in config.yml
-  this.zoneManager.loadGloballyBannedMaterials(); // Load globally banned materials
-
-  // Update global settings
-  this.monitorChestAccess = getConfig().getBoolean("settings.monitor-chest-access", true); // Default to true
-
-  // Ensure logger level is maintained after reload
-  getLogger().setLevel(Level.FINE); // <--- ADD THIS LINE (again, in reload)
-
+ public void reloadPluginConfig() {
+  reloadConfig(); // Reloads config.yml
+  messageUtil.loadMessages(); // Reloads messages.yml
+  loadWandProperties(); // Reload wand properties
+  zoneManager.loadZones(); // Reload zones (which also reloads banned materials)
   messageUtil.log(Level.INFO, "plugin-config-reloaded");
  }
 
- /**
-  * Retrieves the MessageUtil instance.
-  *
-  * @return The MessageUtil instance.
-  */
+ private void loadWandProperties() {
+  FileConfiguration config = getConfig();
+  this.WAND_DISPLAY_NAME = ChatColor.translateAlternateColorCodes('&', config.getString(WAND_DISPLAY_NAME_KEY, "&bAutoInform Wand"));
+  this.WAND_LORE = config.getStringList(WAND_LORE_KEY).stream()
+          .map(line -> ChatColor.translateAlternateColorCodes('&', line))
+          .collect(Collectors.toList());
+  try {
+   this.WAND_MATERIAL = Material.valueOf(config.getString(WAND_MATERIAL_KEY, "BLAZE_ROD").toUpperCase());
+  } catch (IllegalArgumentException e) {
+   getLogger().log(Level.WARNING, "Invalid material specified for wand in config.yml. Defaulting to BLAZE_ROD.", e);
+   this.WAND_MATERIAL = Material.BLAZE_ROD;
+  }
+ }
+
+ // --- Getters for other classes to access managers and plugin resources ---
  public MessageUtil getMessageUtil() {
   return messageUtil;
  }
 
- /**
-  * Retrieves the ZoneManager instance.
-  *
-  * @return The ZoneManager instance.
-  */
  public ZoneManager getZoneManager() {
   return zoneManager;
  }
 
- /**
-  * Checks if chest access monitoring is enabled in the configuration.
-  * @return true if enabled, false otherwise.
-  */
- public boolean isMonitorChestAccess() {
-  return monitorChestAccess;
+ public PlayerSelectionManager getPlayerSelectionManager() {
+  return playerSelectionManager;
  }
 
- // --- Dummy/Placeholder implementations for Listener and CommandExecutor for this main class ---
- // The actual logic is in AutoInformEventListener and AutoInformCommandExecutor
+ public NamespacedKey getWandKey() {
+  return wandKey;
+ }
 
  /**
-  * Gives the AutoInform selection wand to the specified player.
+  * Provides the custom wand item stack.
   *
-  * @param player The player to give the wand to.
+  * @return An ItemStack representing the AutoInform wand.
   */
- public void giveWand(Player player) {
-  ItemStack wand = new ItemStack(Material.BLAZE_ROD); // Blaze Rod as the wand item
+ public ItemStack getAutoInformWand() {
+  ItemStack wand = new ItemStack(WAND_MATERIAL);
   ItemMeta meta = wand.getItemMeta();
   if (meta != null) {
    meta.setDisplayName(WAND_DISPLAY_NAME);
    meta.setLore(WAND_LORE);
-   meta.getPersistentDataContainer().set(wandKey, PersistentDataType.BYTE, (byte) 1); // Mark as wand
+   meta.getPersistentDataContainer().set(wandKey, PersistentDataType.BYTE, (byte) 1);
    wand.setItemMeta(meta);
   }
+  return wand;
+ }
+
+ /**
+  * Grants the custom wand to a player.
+  *
+  * @param player The player to give the wand to.
+  */
+ public void giveWand(@NotNull Player player) {
+  ItemStack wand = getAutoInformWand();
   player.getInventory().addItem(wand);
  }
 
  /**
   * Formats a set of Materials into a comma-separated string.
+  *
+  * @param materials The set of materials to format.
+  * @return A comma-separated string of material names, or "None" if empty.
   */
- private String formatMaterialList(Set<Material> materials) {
+ public String formatMaterialList(Set<Material> materials) {
   if (materials.isEmpty()) return "None";
   return materials.stream().map(Enum::name).collect(Collectors.joining(", "));
  }
@@ -172,22 +155,12 @@ public final class AlexxAutoWarn extends JavaPlugin implements CommandExecutor, 
  @Override
  public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
   // This is handled by AutoInformCommandExecutor, but JavaPlugin requires this method if it implements CommandExecutor.
-  // It should delegate or simply return true as the actual executor is set.
   return true;
  }
 
  @Override
  public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
   // This is handled by AutoInformCommandExecutor, but JavaPlugin requires this method if it implements TabCompleter.
-  // It should delegate or simply return an empty list as the actual tab completer is set.
-  return Collections.emptyList();
- }
-
- public Object getResource() {
-  return resource;
- }
-
- public void setResource(InputStream resource) {
-  this.resource = resource;
+  return null;
  }
 }

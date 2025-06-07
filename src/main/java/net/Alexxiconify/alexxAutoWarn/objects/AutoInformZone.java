@@ -17,9 +17,9 @@ import java.util.Objects;
  */
 public class AutoInformZone {
  private final String name;
- private final World world;
- private final Location corner1;
- private final Location corner2;
+ private final World world; // World is immutable for a zone
+ private Location corner1; // Made non-final to allow updates
+ private Location corner2; // Made non-final to allow updates
  private final Map<Material, ZoneAction> materialSpecificActions;
  private ZoneAction defaultAction;
 
@@ -35,11 +35,11 @@ public class AutoInformZone {
  public AutoInformZone(@NotNull String name, @NotNull Location corner1, @NotNull Location corner2,
                        @NotNull ZoneAction defaultAction, @NotNull Map<Material, ZoneAction> materialSpecificActions) {
   this.name = name;
-  this.world = corner1.getWorld(); // World should be consistent between corners
+  this.world = corner1.getWorld();
   this.corner1 = corner1;
   this.corner2 = corner2;
   this.defaultAction = defaultAction;
-  this.materialSpecificActions = new HashMap<>(materialSpecificActions); // Defensive copy
+  this.materialSpecificActions = new HashMap<>(materialSpecificActions);
  }
 
  // Getters
@@ -63,13 +63,27 @@ public class AutoInformZone {
   return defaultAction;
  }
 
- // Setters
- public void setDefaultAction(@NotNull ZoneAction defaultAction) {
-  this.defaultAction = defaultAction;
+ public Map<Material, ZoneAction> getMaterialSpecificActions() {
+  return Collections.unmodifiableMap(materialSpecificActions);
  }
 
- public Map<Material, ZoneAction> getMaterialSpecificActions() {
-  return Collections.unmodifiableMap(materialSpecificActions); // Return unmodifiable map
+ // Setters for mutable properties
+ public void setCorner1(@NotNull Location corner1) {
+  if (!corner1.getWorld().equals(this.world)) {
+   throw new IllegalArgumentException("New corner1 must be in the same world as the existing zone. Zone world: " + this.world.getName() + ", Provided world: " + corner1.getWorld().getName());
+  }
+  this.corner1 = corner1;
+ }
+
+ public void setCorner2(@NotNull Location corner2) {
+  if (!corner2.getWorld().equals(this.world)) {
+   throw new IllegalArgumentException("New corner2 must be in the same world as the existing zone. Zone world: " + this.world.getName() + ", Provided world: " + corner2.getWorld().getName());
+  }
+  this.corner2 = corner2;
+ }
+
+ public void setDefaultAction(@NotNull ZoneAction defaultAction) {
+  this.defaultAction = defaultAction;
  }
 
  public void addMaterialSpecificAction(@NotNull Material material, @NotNull ZoneAction action) {
@@ -144,8 +158,6 @@ public class AutoInformZone {
 
  @Override
  public String toString() {
-  // Assuming LocationUtil is available for formatting locations
-  // If not, you can replace with a simple String.format or similar
   return "AutoInformZone{" +
           "name='" + name + '\'' +
           ", world=" + world.getName() +
