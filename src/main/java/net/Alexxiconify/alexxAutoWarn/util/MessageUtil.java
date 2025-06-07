@@ -61,7 +61,8 @@ public class MessageUtil {
   // Get and cache the plugin prefix
   this.pluginPrefix = getRawMessage("plugin-prefix");
   if (this.pluginPrefix == null) {
-   this.pluginPrefix = "&c[AutoInform] &e"; // Fallback prefix if not found
+   // Updated fallback prefix to match plugin name
+   this.pluginPrefix = "&c[AlexxAutoWarn] &e";
    plugin.getLogger().warning("Plugin prefix not found in messages.yml. Using default.");
   }
 
@@ -125,7 +126,7 @@ public class MessageUtil {
  }
 
  /**
-  * Sends an alert message to all players with the 'autoinform.alert.receive' permission.
+  * Sends an alert message to all players with the 'alexxautowarn.alert.receive' permission.
   * Automatically applies the plugin prefix and color codes.
   *
   * @param triggeringPlayer The player who triggered the alert (used for context in message placeholders).
@@ -155,7 +156,8 @@ public class MessageUtil {
 
   // Send it to players with permission
   for (Player p : Bukkit.getOnlinePlayers()) {
-   if (p.hasPermission("autoinform.alert.receive")) {
+   // Updated permission node to match plugin name
+   if (p.hasPermission("alexxautowarn.alert.receive")) {
     p.sendMessage(message);
    }
   }
