@@ -1,4 +1,4 @@
-package net.Alexxiconify.alexxAutoWarn.util;
+package net.Alexxiconify.alexxAutoWarn.utils;
 
 import net.Alexxiconify.alexxAutoWarn.AlexxAutoWarn;
 import org.bukkit.Bukkit;
