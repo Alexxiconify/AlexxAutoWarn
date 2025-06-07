@@ -19,8 +19,8 @@ public class AutoInformZone {
  private final World world;
  private final Location corner1;
  private final Location corner2;
- private final Map<Material, ZoneAction> materialSpecificActions; // This map should be final for immutability
  private ZoneAction defaultAction; // Made non-final to allow updates via setter
+ private final Map<Material, ZoneAction> materialSpecificActions; // This map should be final for immutability
 
  /**
   * Constructs a new AutoInformZone.
@@ -62,7 +62,7 @@ public class AutoInformZone {
   return corner2;
  }
 
- public net.Alexxiconify.alexxAutoWarn.objects.ZoneAction getDefaultAction() {
+ public @NotNull ZoneAction getDefaultAction() {
   return defaultAction;
  }
 

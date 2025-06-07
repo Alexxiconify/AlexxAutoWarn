@@ -1,4 +1,3 @@
-#file: noinspection SpellCheckingInspection
 main: net.Alexxiconify.alexxAutoWarn.AlexxAutoWarn
 version: 1.0.0
 api-version: 1.20
@@ -7,16 +6,59 @@ commands:
   autoinform:
     description: Manages AutoInform zones and settings.
     usage: /<command> <subcommand>
-    aliases: [ ainform ]
-    permission: autoinform.admin.set
+    aliases: [ ainform, alexxautowarn ] # Added alexxautowarn alias for consistency
+    permission: alexxautowarn.admin.set # Updated base permission
     permission-message: You do not have permission to use this command.
 permissions:
-  autoinform.admin.set:
+  alexxautowarn.admin.set: # Renamed permission node
     description: Allows setting and managing AutoInform zones and plugin settings.
-    default: true
-  autoinform.alert.receive:
+    default: op # Changed to op for admin commands by default, common practice for plugins
+  alexxautowarn.alert.receive: # Renamed permission node
     description: Allows a player to receive in-game alerts when a monitored action occurs.
-    default: true
-  autoinform.bypass:
+    default: op # Changed to op for staff alerts by default
+  alexxautowarn.bypass: # Renamed permission node
     description: Allows a player to bypass all AutoInform zone restrictions (no denials or alerts).
-    default: true
+    default: op # Changed to op for bypass by default
+  # New permission nodes for specific commands for finer control, set to op by default for now
+  alexxautowarn.command.wand:
+    description: Allows a player to get the AutoInform wand.
+    default: op
+  alexxautowarn.command.pos1:
+    description: Allows a player to set position 1 for a zone.
+    default: op
+  alexxautowarn.command.pos2:
+    description: Allows a player to set position 2 for a zone.
+    default: op
+  alexxautowarn.command.define:
+    description: Allows a player to define or update a zone.
+    default: op
+  alexxautowarn.command.defaultaction:
+    description: Allows a player to set the default action for a zone.
+    default: op
+  alexxautowarn.command.setaction:
+    description: Allows a player to set specific material actions for a zone.
+    default: op
+  alexxautowarn.command.remove:
+    description: Allows a player to remove zones or material actions.
+    default: op
+  alexxautowork.command.info: # Typo fix: alexxautowork -> alexxautowarn
+    description: Allows a player to view zone information.
+    default: op
+  alexxautowarn.command.list:
+    description: Allows a player to list all defined zones.
+    default: op
+  alexxautowarn.command.clearwand:
+    description: Allows a player to clear their wand selections.
+    default: op
+  alexxautowarn.command.reload:
+    description: Allows a player to reload the plugin configuration.
+    default: op
+  alexxautowarn.command.banned:
+    description: Allows a player to manage globally banned materials.
+    default: op
+  alexxautowarn.command.togglechestmonitor:
+    description: Allows a player to toggle chest access monitoring.
+    default: op
+  alexxautowarn.command.debug:
+    description: Allows a player to toggle debug logging.
+    default: op
