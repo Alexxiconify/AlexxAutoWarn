@@ -5,7 +5,7 @@ import net.Alexxiconify.alexxAutoWarn.managers.PlayerSelectionManager;
 import net.Alexxiconify.alexxAutoWarn.managers.ZoneManager;
 import net.Alexxiconify.alexxAutoWarn.objects.AutoInformZone;
 import net.Alexxiconify.alexxAutoWarn.objects.ZoneAction;
-import net.Alexxiconify.alexxAutoWarn.util.MessageUtil;
+import net.Alexxiconify.alexxAutoWarn.utils.MessageUtil;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -134,10 +134,8 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
   Location newCornerLocation = player.getLocation().getBlock().getLocation();
 
   if (!newCornerLocation.getWorld().equals(zone.getWorld())) {
-   messageUtil.sendMessage(player, "error-different-worlds-for-zone-corner", new Object[]{
-           "{world}", newCornerLocation.getWorld().getName(),
-           "{zone_world}", zone.getWorld().getName()
-   });
+   messageUtil.sendMessage(player, "error-different-worlds-for-zone-corner", "{world}", newCornerLocation.getWorld().getName(),
+           "{zone_world}", zone.getWorld().getName());
    return;
   }
 
@@ -148,12 +146,10 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
   }
   zoneManager.updateZone(zone);
 
-  messageUtil.sendMessage(player, "zone-corner-set", new Object[]{
-          "{zone_name}", zoneName,
+  messageUtil.sendMessage(player, "zone-corner-set", "{zone_name}", zoneName,
           "{pos_type}", posType,
           "{location}", formatLocation(newCornerLocation),
-          "{world}", newCornerLocation.getWorld().getName()
-  });
+          "{world}", newCornerLocation.getWorld().getName());
 
   messageUtil.log(Level.FINE, "debug-zone-corner-set",
           "{player}", player.getName(),
