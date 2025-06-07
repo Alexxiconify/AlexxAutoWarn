@@ -49,8 +49,8 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
   this.plugin = plugin;
   this.zoneManager = plugin.getZoneManager();
   this.messageUtil = plugin.getMessageUtil();
-  // Initialize NamespacedKey for wand selections
-  this.wandSelectionKey = new NamespacedKey(plugin, "autoinform_wand_selections");
+  // Initialize NamespacedKey for wand selections, updated to match plugin name
+  this.wandSelectionKey = new NamespacedKey(plugin, "alexxautowarn_wand_selections");
   this.playerSelectionsMap = new ConcurrentHashMap<>();
  }
 
@@ -65,8 +65,9 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
   */
  @Override
  public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-  // Ensure the sender has the base permission to use any 'autoinform' command
-  if (!sender.hasPermission("autoinform.admin.set")) {
+  // Ensure the sender has the base permission to use any 'alexxautowarn' command
+  // Updated base permission node
+  if (!sender.hasPermission("alexxautowarn.admin.set")) {
    messageUtil.sendMessage(sender, "error-no-permission");
    return true;
   }
@@ -88,23 +89,23 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
 
   switch (subCommand) {
    case "wand":
-    handleWandCommand(sender);
+    handleWandCommand(sender, label); // Pass label
     break;
    case "pos1":
    case "pos2":
-    handlePosCommand(sender, args, subCommand);
+    handlePosCommand(sender, args, subCommand, label); // Pass label
     break;
    case "define":
-    handleDefineCommand(sender, args);
+    handleDefineCommand(sender, args, label); // Pass label
     break;
    case "defaultaction":
-    handleDefaultActionCommand(sender, args);
+    handleDefaultActionCommand(sender, args, label); // Pass label
     break;
    case "setaction":
-    handleSetActionCommand(sender, args);
+    handleSetActionCommand(sender, args, label); // Pass label
     break;
    case "remove":
-    handleRemoveCommand(sender, args);
+    handleRemoveCommand(sender, args, label); // Pass label
     break;
    case "info":
     handleInfoCommand(sender, args);
@@ -113,13 +114,13 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
     handleListCommand(sender);
     break;
    case "clearwand":
-    handleClearWandCommand(sender);
+    handleClearWandCommand(sender, label); // Pass label
     break;
    case "reload":
     handleReloadCommand(sender);
     break;
    case "banned":
-    handleBannedCommand(sender, args);
+    handleBannedCommand(sender, args, label); // Pass label
     break;
    case "togglechestmonitor":
     handleToggleChestMonitorCommand(sender);
@@ -146,7 +147,8 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
   */
  @Override
  public @NotNull List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
-  if (!sender.hasPermission("autoinform.admin.set") && !args[0].equalsIgnoreCase("help")) {
+  // Updated permission node for tab completion
+  if (!sender.hasPermission("alexxautowarn.admin.set") && !args[0].equalsIgnoreCase("help")) {
    return Collections.emptyList(); // No completion if no permission, unless asking for help
   }
   // If console and not reload/debug/help, return empty list (console can't use pos1/pos2 etc.)
@@ -156,31 +158,32 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
 
   List<String> completions = new ArrayList<>();
   if (args.length == 1) {
-   // Main subcommands
-   if (sender.hasPermission("autoinform.command.wand")) completions.add("wand");
-   if (sender.hasPermission("autoinform.command.pos1")) completions.add("pos1");
-   if (sender.hasPermission("autoinform.command.pos2")) completions.add("pos2");
-   if (sender.hasPermission("autoinform.command.define")) completions.add("define");
-   if (sender.hasPermission("autoinform.command.defaultaction")) completions.add("defaultaction");
-   if (sender.hasPermission("autoinform.command.setaction")) completions.add("setaction");
-   if (sender.hasPermission("autoinform.command.remove")) completions.add("remove");
-   if (sender.hasPermission("autoinform.command.info")) completions.add("info");
-   if (sender.hasPermission("autoinform.command.list")) completions.add("list");
-   if (sender.hasPermission("autoinform.command.clearwand")) completions.add("clearwand");
-   if (sender.hasPermission("autoinform.command.reload")) completions.add("reload");
-   if (sender.hasPermission("autoinform.command.banned")) completions.add("banned");
-   if (sender.hasPermission("autoinform.command.togglechestmonitor")) completions.add("togglechestmonitor");
-   if (sender.hasPermission("autoinform.command.debug")) completions.add("debug");
+   // Main subcommands - Updated all permission nodes
+   if (sender.hasPermission("alexxautowarn.command.wand")) completions.add("wand");
+   if (sender.hasPermission("alexxautowarn.command.pos1")) completions.add("pos1");
+   if (sender.hasPermission("alexxautowarn.command.pos2")) completions.add("pos2");
+   if (sender.hasPermission("alexxautowarn.command.define")) completions.add("define");
+   if (sender.hasPermission("alexxautowarn.command.defaultaction")) completions.add("defaultaction");
+   if (sender.hasPermission("alexxautowarn.command.setaction")) completions.add("setaction");
+   if (sender.hasPermission("alexxautowarn.command.remove")) completions.add("remove");
+   if (sender.hasPermission("alexxautowarn.command.info")) completions.add("info");
+   if (sender.hasPermission("alexxautowarn.command.list")) completions.add("list");
+   if (sender.hasPermission("alexxautowarn.command.clearwand")) completions.add("clearwand");
+   if (sender.hasPermission("alexxautowarn.command.reload")) completions.add("reload");
+   if (sender.hasPermission("alexxautowarn.command.banned")) completions.add("banned");
+   if (sender.hasPermission("alexxautowarn.command.togglechestmonitor")) completions.add("togglechestmonitor");
+   if (sender.hasPermission("alexxautowarn.command.debug")) completions.add("debug");
    completions.add("help"); // Always suggest help
 
    return completions.stream()
-           .filter(s -> s.startsWith(args[0].toLowerCase()))
+           .filter(s -> s.toLowerCase().startsWith(args[0].toLowerCase())) // Corrected filtering
            .collect(Collectors.toList());
 
   } else if (args.length >= 2) {
    String subCommand = args[0].toLowerCase();
-   String zoneName = args.length > 2 ? args[2] : "";
-   String materialName = args.length > 3 ? args[3] : "";
+   // The following variables zoneName and materialName are unused in this scope
+   // String zoneName = args.length > 2 ? args[2] : "";
+   // String materialName = args.length > 3 ? args[3] : "";
 
    switch (subCommand) {
     case "define":
@@ -237,13 +240,17 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
      break;
     case "banned":
      if (args.length == 2) { // Second argument for 'banned' is sub-action (add, remove, list)
-      StringUtil.copyPartialMatches(args[1], Arrays.asList("add", "remove", "list"), completions);
+      // Replaced StringUtil.copyPartialMatches
+      return Arrays.asList("add", "remove", "list").stream()
+              .filter(s -> s.toLowerCase().startsWith(args[1].toLowerCase()))
+              .collect(Collectors.toList());
      } else if (args.length == 3 && (args[1].equalsIgnoreCase("add") || args[1].equalsIgnoreCase("remove"))) {
       // Third argument for 'banned add/remove' is material name
-      StringUtil.copyPartialMatches(args[2], Arrays.stream(Material.values())
+      // Replaced StringUtil.copyPartialMatches
+      return Arrays.stream(Material.values())
               .map(Enum::name)
               .filter(name -> name.toLowerCase().startsWith(args[2].toLowerCase()))
-              .collect(Collectors.toList()), completions);
+              .collect(Collectors.toList());
      }
      break;
    }
@@ -254,11 +261,13 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
 
 
  /**
-  * Handles the '/autoinform wand' command. Gives the player the selection wand.
+  * Handles the '/alexxautowarn wand' command. Gives the player the selection wand.
   *
   * @param sender The command sender.
+  * @param label The alias of the command used.
+  * @since 1.0.0
   */
- private void handleWandCommand(CommandSender sender) {
+ private void handleWandCommand(CommandSender sender, String label) {
   if (!(sender instanceof Player player)) {
    messageUtil.sendMessage(sender, "error-player-only-command");
    return;
@@ -268,19 +277,21 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
  }
 
  /**
-  * Handles the '/autoinform pos1/pos2 <zone_name>' commands. Manually sets zone corners.
+  * Handles the '/alexxautowarn pos1/pos2 <zone_name>' commands. Manually sets zone corners.
   *
   * @param sender The command sender.
   * @param args The command arguments.
   * @param subCommand The specific subcommand ("pos1" or "pos2").
+  * @param label The alias of the command used.
+  * @since 1.0.0
   */
- private void handlePosCommand(CommandSender sender, String[] args, String subCommand) {
+ private void handlePosCommand(CommandSender sender, String[] args, String subCommand, String label) {
   if (!(sender instanceof Player player)) {
    messageUtil.sendMessage(sender, "error-player-only-command");
    return;
   }
   if (args.length < 2) {
-   messageUtil.sendMessage(player, "error-usage-pos", "{command}", args[0]);
+   messageUtil.sendMessage(player, "error-usage-pos", "{command}", label); // Changed args[0] to label
    return;
   }
 
@@ -301,18 +312,21 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
  }
 
  /**
-  * Handles the '/autoinform define <zone_name> <default_action>' command. Defines or updates a zone.
+  * Handles the '/alexxautowarn define <zone_name> <default_action>' command. Defines or updates a zone.
   * This command now also takes a default action when defining.
   *
   * @param sender The command sender.
+  * @param args The command arguments.
+  * @param label The alias of the command used.
+  * @since 1.0.0
   */
- private void handleDefineCommand(CommandSender sender, String[] args) {
+ private void handleDefineCommand(CommandSender sender, String[] args, String label) {
   if (!(sender instanceof Player player)) {
    messageUtil.sendMessage(sender, "error-player-only-command");
    return;
   }
   if (args.length < 3) { // Expecting /define <zone_name> <default_action>
-   messageUtil.sendMessage(player, "error-usage-define", "{command}", args[0]);
+   messageUtil.sendMessage(player, "error-usage-define", "{command}", label); // Changed args[0] to label
    return;
   }
 
@@ -357,15 +371,17 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
  }
 
  /**
-  * Handles the '/autoinform defaultaction <zone_name> <action>' command.
+  * Handles the '/alexxautowarn defaultaction <zone_name> <action>' command.
   * Sets the default action for a zone.
   *
   * @param sender The command sender.
   * @param args The command arguments.
+  * @param label The alias of the command used.
+  * @since 1.0.0
   */
- private void handleDefaultActionCommand(CommandSender sender, String[] args) {
+ private void handleDefaultActionCommand(CommandSender sender, String[] args, String label) {
   if (args.length < 3) {
-   messageUtil.sendMessage(sender, "error-usage-defaultaction", "{command}", args[0]);
+   messageUtil.sendMessage(sender, "error-usage-defaultaction", "{command}", label); // Changed args[0] to label
    return;
   }
 
@@ -385,15 +401,17 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
  }
 
  /**
-  * Handles the '/autoinform setaction <zone_name> <material> <action>' command.
+  * Handles the '/alexxautowarn setaction <zone_name> <material> <action>' command.
   * Sets a material-specific action for a zone.
   *
   * @param sender The command sender.
   * @param args The command arguments.
+  * @param label The alias of the command used.
+  * @since 1.0.0
   */
- private void handleSetActionCommand(CommandSender sender, String[] args) {
+ private void handleSetActionCommand(CommandSender sender, String[] args, String label) {
   if (args.length < 4) {
-   messageUtil.sendMessage(sender, "error-usage-setaction", "{command}", args[0]);
+   messageUtil.sendMessage(sender, "error-usage-setaction", "{command}", label); // Changed args[0] to label
    return;
   }
 
@@ -416,15 +434,17 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
  }
 
  /**
-  * Handles the '/autoinform remove <zone_name> [material]' command.
+  * Handles the '/alexxautowarn remove <zone_name> [material]' command.
   * Can remove an entire zone or a material-specific action from a zone.
   *
   * @param sender The command sender.
   * @param args The command arguments.
+  * @param label The alias of the command used.
+  * @since 1.0.0
   */
- private void handleRemoveCommand(CommandSender sender, String[] args) {
+ private void handleRemoveCommand(CommandSender sender, String[] args, String label) {
   if (args.length < 2) {
-   messageUtil.sendMessage(sender, "error-usage-remove", "{command}", args[0]);
+   messageUtil.sendMessage(sender, "error-usage-remove", "{command}", label); // Changed args[0] to label
    return;
   }
 
@@ -451,15 +471,16 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
     messageUtil.sendMessage(sender, "error-invalid-material", "{material}", materialString);
    }
   } else {
-   messageUtil.sendMessage(sender, "error-usage-remove", "{command}", args[0]);
+   messageUtil.sendMessage(sender, "error-usage-remove", "{command}", label); // Changed args[0] to label
   }
  }
 
 
  /**
-  * Handles the '/autoinform info [zone_name]' command. Displays information about a zone.
+  * Handles the '/alexxautowarn info [zone_name]' command. Displays information about a zone.
   *
   * @param sender The command sender.
+  * @since 1.0.0
   */
  private void handleInfoCommand(CommandSender sender, String[] args) {
   if (args.length == 1) {
@@ -506,9 +527,10 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
  }
 
  /**
-  * Handles the '/autoinform list' command. Lists all defined zones.
+  * Handles the '/alexxautowarn list' command. Lists all defined zones.
   *
   * @param sender The command sender.
+  * @since 1.0.0
   */
  private void handleListCommand(CommandSender sender) {
   Set<String> zoneNames = zoneManager.getZoneNames();
@@ -530,11 +552,13 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
  }
 
  /**
-  * Handles the '/autoinform clearwand' command. Clears player's wand selections.
+  * Handles the '/alexxautowarn clearwand' command. Clears player's wand selections.
   *
   * @param sender The command sender.
+  * @param label The alias of the command used.
+  * @since 1.0.0
   */
- private void handleClearWandCommand(CommandSender sender) {
+ private void handleClearWandCommand(CommandSender sender, String label) {
   if (!(sender instanceof Player player)) {
    messageUtil.sendMessage(sender, "error-player-only-command");
    return;
@@ -544,9 +568,10 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
  }
 
  /**
-  * Handles the '/autoinform reload' command. Reloads configuration.
+  * Handles the '/alexxautowarn reload' command. Reloads configuration.
   *
   * @param sender The command sender.
+  * @since 1.0.0
   */
  private void handleReloadCommand(CommandSender sender) {
   plugin.reloadConfig();
@@ -556,14 +581,17 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
  }
 
  /**
-  * Handles the '/autoinform banned <add|remove|list> [material]' command.
+  * Handles the '/alexxautowarn banned <add|remove|list> [material]' command.
   * Manages the global list of banned materials.
   *
   * @param sender The command sender.
+  * @param args The command arguments.
+  * @param label The alias of the command used.
+  * @since 1.0.0
   */
- private void handleBannedCommand(CommandSender sender, String[] args) {
+ private void handleBannedCommand(CommandSender sender, String[] args, String label) {
   if (args.length < 2) {
-   messageUtil.sendMessage(sender, "error-usage-banned", "{command}", args[0]);
+   messageUtil.sendMessage(sender, "error-usage-banned", "{command}", label); // Changed args[0] to label
    return;
   }
 
@@ -573,7 +601,7 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
   switch (action) {
    case "add":
     if (args.length < 3) {
-     messageUtil.sendMessage(sender, "error-usage-banned-add");
+     messageUtil.sendMessage(sender, "error-usage-banned-add", "{command}", label); // Pass label
      return;
     }
     try {
@@ -589,7 +617,7 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
     break;
    case "remove":
     if (args.length < 3) {
-     messageUtil.sendMessage(sender, "error-usage-banned-remove");
+     messageUtil.sendMessage(sender, "error-usage-banned-remove", "{command}", label); // Pass label
      return;
     }
     try {
@@ -612,16 +640,17 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
     }
     break;
    default:
-    messageUtil.sendMessage(sender, "error-usage-banned", "{command}", args[0]);
+    messageUtil.sendMessage(sender, "error-usage-banned", "{command}", label); // Changed args[0] to label
     break;
   }
  }
 
  /**
   * Handles the 'togglechestmonitor' command. Toggles the global chest monitoring setting.
-  * Syntax: /autoinform togglechestmonitor
+  * Syntax: /alexxautowarn togglechestmonitor
   *
   * @param sender The sender of the command.
+  * @since 1.0.0
   */
  private void handleToggleChestMonitorCommand(CommandSender sender) {
   boolean currentState = plugin.isMonitorChestAccess();
@@ -632,9 +661,10 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
 
  /**
   * Handles the 'debug' command. Toggles debug logging level.
-  * Syntax: /autoinform debug
+  * Syntax: /alexxautowarn debug
   *
   * @param sender The sender of the command.
+  * @since 1.0.0
   */
  private void handleDebugCommand(CommandSender sender) {
   Level currentLevel = plugin.getLogger().getLevel();
@@ -653,10 +683,12 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
   * Sends the main help message to the sender.
   *
   * @param sender The recipient of the help message.
+  * @since 1.0.0
   */
  private void sendHelpMessage(CommandSender sender) {
   messageUtil.sendMessage(sender, "main-help-header");
-  if (sender.hasPermission("autoinform.admin.set")) {
+  // Updated all permission nodes for help messages
+  if (sender.hasPermission("alexxautowarn.admin.set")) {
    messageUtil.sendMessage(sender, "main-help-wand");
    messageUtil.sendMessage(sender, "main-help-pos1");
    messageUtil.sendMessage(sender, "main-help-pos2");
@@ -827,43 +859,19 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
     double y = Double.parseDouble(parts[2]);
     double z = Double.parseDouble(parts[3]);
 
-    org.bukkit.World world = Bukkit.getWorld(worldName);
-    if (world == null) {
-     plugin.getLogger().warning("World '" + worldName + "' not found for wand selection of zone '" + zoneName + "'.");
-     return null;
-    }
-    return new Location(world, x, y, z);
-   } catch (NumberFormatException e) {
-    plugin.getLogger().log(java.util.logging.Level.WARNING, "Invalid location string format in wand selection: " + locationString, e);
+    return new Location(Bukkit.getWorld(worldName), x, y, z);
+   } catch (NumberFormatException | NullPointerException e) {
+    plugin.getLogger().log(Level.WARNING, "Error parsing location string for zone '" + zoneName + "', type '" + type + "': " + locationString, e);
     return null;
    }
   }
 
   /**
    * Clears all selections for a specific zone.
-   *
-   * @param zoneName The name of the zone to clear selections for.
+   * @param zoneName The name of the zone whose selections should be cleared.
    */
   public void clearZoneSelections(String zoneName) {
    selections.remove(zoneName);
-  }
- }
-
- /**
-  * Utility class for string operations, specifically for tab completion.
-  */
- private static class StringUtil {
-  public static <T extends Collection<? super String>> T copyPartialMatches(@NotNull final String token, @NotNull final Iterable<String> completions, @NotNull final T collection) {
-   for (String completion : completions) {
-    if (startsWithIgnoreCase(completion, token)) {
-     collection.add(completion);
-    }
-   }
-   return collection;
-  }
-
-  public static boolean startsWithIgnoreCase(@NotNull final String string, @NotNull final String prefix) {
-   return string.length() >= prefix.length() && string.regionMatches(true, 0, prefix, 0, prefix.length());
   }
  }
 }
