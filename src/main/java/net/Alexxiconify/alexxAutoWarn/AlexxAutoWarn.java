@@ -1,209 +1,216 @@
-package net.Alexxiconify.alexxAutoWarn;
+package net.Alexxiconify.alexxAutoWarn.utils;
 
-import net.Alexxiconify.alexxAutoWarn.commands.AutoInformCommandExecutor;
-import net.Alexxiconify.alexxAutoWarn.listeners.AutoInformEventListener;
-import net.Alexxiconify.alexxAutoWarn.managers.ZoneManager;
-import net.Alexxiconify.alexxAutoWarn.utils.MessageUtil;
-import net.coreprotect.CoreProtect;
-import net.coreprotect.CoreProtectAPI;
-import org.bukkit.Bukkit;
+import net.Alexxiconify.alexxAutoWarn.AlexxAutoWarn;
 import org.bukkit.ChatColor;
-import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
-import org.bukkit.event.Listener;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.plugin.Plugin;
-import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
+import java.io.File;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
-import java.util.stream.Collectors;
-
 
 /**
- * The main class for the AlexxAutoWarn plugin.
- * This plugin allows server administrators to define protected zones where certain material interactions
- * can be denied, alerted to staff, or explicitly allowed. It integrates with CoreProtect for logging.
- *
- * This class handles plugin startup/shutdown, loads configurations, initializes managers and listeners,
- * and provides access to the CoreProtect API. It runs on a PaperMC server, leveraging the Bukkit API
- * that Paper implements and enhances.
+ * Utility class for handling all plugin messages.
+ * Loads messages from messages.yml and provides methods for sending formatted messages
+ * to players, console, and broadcasting alerts.
  */
-@SuppressWarnings("ALL") // Suppress all warnings for brevity during iterative debugging
-public final class AlexxAutoWarn extends JavaPlugin implements Listener, CommandExecutor { // Removed TabCompleter from implements for simplicity as it's delegated
+public class MessageUtil {
 
- // --- Plugin Constants ---
- private static final String COMMAND_NAME = "autoinform"; // Primary command alias
- private static final String WAND_KEY_STRING = "autoinform_wand"; // Key for persistent data on wand
- private static final String WAND_DISPLAY_NAME = ChatColor.GOLD + "" + ChatColor.BOLD + "AutoInform Zone Selector Wand";
- private static final List<String> WAND_LORE = Arrays.asList(
-         ChatColor.GRAY + "Left-click: Set Position 1",
-         ChatColor.GRAY + "Right-click: Set Position 2"
- );
- // Static plugin instance (initialized in onEnable)
- private static AlexxAutoWarn plugin;
-
- // --- Instance Variables ---
- private CoreProtectAPI coreProtectAPI;
- private ZoneManager zoneManager;
- // --- Global Settings ---
- private boolean monitorChestAccess;
- private NamespacedKey wandKey;
- private MessageUtil messageUtil;
+ private final AlexxAutoWarn plugin;
+ private final Map<String, String> cachedMessages = new HashMap<>();
+ private String pluginPrefix;
 
  /**
-  * Provides static access to the plugin instance.
-  */
- public static AlexxAutoWarn getPlugin() {
-  return plugin;
- }
-
- @Override
- public void onDisable() {
-  messageUtil.log(Level.INFO, "plugin-shutting-down"); // Using message through MessageUtil
-  if (zoneManager != null) {
-   zoneManager.clearZones(); // Clear zones via manager
-  }
-  messageUtil.log(Level.INFO, "plugin-disabled"); // Using message through MessageUtil
- }
-
- /**
-  * Attempts to get the CoreProtect API instance.
-  */
- private boolean setupCoreProtect() {
-  Plugin coreProtectPlugin = Bukkit.getPluginManager().getPlugin("CoreProtect");
-  if (coreProtectPlugin instanceof CoreProtect) {
-   coreProtectAPI = ((CoreProtect) coreProtectPlugin).getAPI();
-   return coreProtectAPI != null;
-  }
-  return false;
- }
-
- @Override
- public void onEnable() {
-  // Set the static plugin instance first
-  plugin = this;
-
-  // Load or create the default configuration files (config.yml and messages.yml)
-  saveDefaultConfig(); // This saves config.yml if not present
-  saveResource("messages.yml", false); // Save messages.yml if not present
-
-  // Initialize MessageUtil. It loads messages from messages.yml.
-  this.messageUtil = new MessageUtil(this);
-  messageUtil.log(Level.INFO, "plugin-startup"); // Using message through MessageUtil
-
-  // Initialize managers
-  this.zoneManager = new ZoneManager(this);
-  zoneManager.loadZonesFromConfig(); // Attempt to load zones and banned materials from config.yml
-
-  // Load global settings
-  this.monitorChestAccess = getConfig().getBoolean("monitor-chest-access", false);
-  if (this.monitorChestAccess) {
-   messageUtil.log(Level.INFO, "plugin-monitor-chest-access-enabled");
-  } else {
-   messageUtil.log(Level.INFO, "plugin-monitor-chest-access-disabled");
-  }
-
-  // Initialize wand key (used in event listener and command executor)
-  this.wandKey = new NamespacedKey(this, WAND_KEY_STRING);
-
-  // Attempt to hook into CoreProtect
-  if (!setupCoreProtect()) {
-   messageUtil.log(Level.WARNING, "plugin-coreprotect-not-found");
-  } else {
-   messageUtil.log(Level.INFO, "plugin-coreprotect-found");
-  }
-
-  // Register commands and their executors
-  AutoInformCommandExecutor commandExecutor = new AutoInformCommandExecutor(this);
-  Objects.requireNonNull(getCommand(COMMAND_NAME)).setExecutor(commandExecutor);
-  Objects.requireNonNull(getCommand(COMMAND_NAME)).setTabCompleter(commandExecutor);
-
-  // Register event listeners to monitor player actions
-  getServer().getPluginManager().registerEvents(new AutoInformEventListener(this), this);
-
-  messageUtil.log(Level.INFO, "plugin-enabled"); // Using message through MessageUtil
-  // Inform about loaded zones and banned materials using messageUtil
-  if (zoneManager.getDefinedZones().isEmpty()) {
-   messageUtil.log(Level.INFO, "plugin-no-zones-defined"); // Changed to INFO and removed {command} as it's not a help message
-  } else {
-   messageUtil.log(Level.INFO, "plugin-zones-loaded", "{count}", String.valueOf(zoneManager.getDefinedZones().size()));
-  }
-  messageUtil.log(Level.INFO, "plugin-banned-materials-loaded", "{count}", String.valueOf(zoneManager.getGloballyBannedMaterials().size()));
-  messageUtil.log(Level.INFO, "plugin-current-banned-materials", "{materials}", formatMaterialList(zoneManager.getGloballyBannedMaterials()));
- }
-
- /** Gets the ZoneManager instance. */
- public ZoneManager getZoneManager() {
-  return zoneManager;
- }
-
- /** Gets the MessageUtil instance. */
- public MessageUtil getMessageUtil() {
-  return messageUtil;
- }
-
- /** Gets the CoreProtectAPI instance. */
- @Nullable
- public CoreProtectAPI getCoreProtectAPI() {
-  return coreProtectAPI;
- }
-
- /** Gets the global monitorChestAccess setting. */
- public boolean isMonitorChestAccess() {
-  return monitorChestAccess;
- }
-
- /** Sets the global monitorChestAccess setting and saves to config. */
- public void setMonitorChestAccess(boolean monitorChestAccess) {
-  this.monitorChestAccess = monitorChestAccess;
-  getConfig().set("monitor-chest-access", monitorChestAccess);
-  saveConfig();
-  messageUtil.log(Level.INFO, "plugin-toggle-chest-monitor-success", "{status}", String.valueOf(monitorChestAccess));
- }
-
- /**
-  * Gives the specified player the AutoInform wand.
+  * Constructor for MessageUtil.
   *
-  * @param player The player to give the wand to.
+  * @param plugin The main plugin instance.
   */
- public void giveAutoInformWand(Player player) {
-  ItemStack wand = new ItemStack(Material.BLAZE_ROD);
-  ItemMeta meta = wand.getItemMeta();
-  if (meta != null) {
-   meta.setDisplayName(WAND_DISPLAY_NAME);
-   meta.setLore(WAND_LORE);
-   meta.getPersistentDataContainer().set(wandKey, PersistentDataType.BYTE, (byte) 1);
-   wand.setItemMeta(meta);
+ public MessageUtil(AlexxAutoWarn plugin) {
+  this.plugin = plugin;
+  loadMessages(); // Load messages on initialization
+ }
+
+ /**
+  * Translates '&' color codes to Minecraft ChatColor.
+  *
+  * @param message The message string with '&' color codes.
+  * @return The message string with ChatColor applied.
+  */
+ public static String colorize(@NotNull String message) {
+  return ChatColor.translateAlternateColorCodes('&', message);
+ }
+
+ /**
+  * Loads messages from the messages.yml file.
+  * This method should be called on plugin enabled and reload.
+  */
+ public void loadMessages() {
+  File messagesFile = new File(plugin.getDataFolder(), "messages.yml");
+  if (!messagesFile.exists()) {
+   plugin.saveResource("messages.yml", false); // Use plugin.saveResource() for resources
   }
-  player.getInventory().addItem(wand);
+
+  FileConfiguration messagesConfig = YamlConfiguration.loadConfiguration(messagesFile);
+
+  cachedMessages.clear();
+  Set<String> keys = messagesConfig.getKeys(true); // Get all keys, including nested ones
+  for (String key : keys) {
+   String message = messagesConfig.getString(key);
+   if (message != null) {
+    cachedMessages.put(key, message);
+   }
+  }
+
+  // Get and cache the plugin prefix
+  this.pluginPrefix = getRawMessage("plugin-prefix");
+  if (this.pluginPrefix == null || this.pluginPrefix.isEmpty()) {
+   this.pluginPrefix = "&c[AlexxAutoWarn] &e"; // Fallback prefix
+   plugin.getLogger().warning("Plugin prefix not found or empty in messages.yml. Using default.");
+  }
  }
 
- /** Formats a set of Materials into a comma-separated string. */
- private String formatMaterialList(Set<Material> materials) {
-  if (materials.isEmpty()) return "None";
-  return materials.stream().map(Enum::name).collect(Collectors.joining(", "));
+ /**
+  * Gets a raw message string from the cache, without a prefix or color translation.
+  *
+  * @param key The key of the message.
+  * @return The raw message string, or null if not found.
+  */
+ @Nullable
+ private String getRawMessage(@NotNull String key) {
+  return cachedMessages.get(key);
  }
 
- // --- Dummy/Placeholder implementations for Listener and CommandExecutor for this main class ---
- // The actual logic is in AutoInformEventListener and AutoInformCommandExecutor
+ /**
+  * Sends a formatted message to a command sender (player or console).
+  * Automatically applies the plugin prefix and color codes.
+  *
+  * @param sender The recipient of the message.
+  * @param key The key of the message in messages.yml.
+  * @param placeholders Optional key-value pairs for placeholder replacement (e.g., "{player}", "Alexx").
+  */
+ public void sendMessage(@NotNull CommandSender sender, @NotNull String key, String... placeholders) {
+  String rawMessage = getRawMessage(key);
+  if (rawMessage == null) {
+   plugin.getLogger().warning(String.format("Message key '%s' not found in messages.yml!", key));
+   rawMessage = String.format("&cError: Message key '%s' not found.", key); // Fallback message
+  }
 
- @Override
- public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-  // This is handled by AutoInformCommandExecutor, but JavaPlugin requires this method if it implements CommandExecutor.
-  // It should delegate or simply return true as the actual executor is set.
-  return true;
+  String message = replacePlaceholders(rawMessage, placeholders);
+
+  // Add plugin prefix unless the message already contains it or is a help header
+  // Help messages manage their own {plugin-prefix} explicitly for formatting flexibility
+  if (!key.startsWith("main-help-") && !message.contains(ChatColor.stripColor(colorize(pluginPrefix)))) {
+   message = pluginPrefix + message;
+  }
+
+  sender.sendMessage(colorize(message));
  }
- // Removed onTabComplete here as it's implemented in AutoInformCommandExecutor
+
+ /**
+  * Sends an alert message to all players with the 'alexxautowarn.alert.receive' permission.
+  * Automatically applies the plugin prefix and color codes.
+  *
+  * @param triggeringPlayer The player who triggered the alert (used for context in message placeholders).
+  * @param key              The key of the alert message in messages.yml.
+  * @param placeholders     Optional key-value pairs for placeholder replacement.
+  */
+ public void sendAlert(@NotNull Player triggeringPlayer, @NotNull String key, String... placeholders) {
+  String rawMessage = getRawMessage(key);
+  if (rawMessage == null) {
+   plugin.getLogger().warning(String.format("Alert message key '%s' not found in messages.yml!", key));
+   rawMessage = String.format("&cError: Alert message key '%s' not found.", key);
+  }
+
+  String message = replacePlaceholders(rawMessage, placeholders);
+  message = pluginPrefix + message; // Always add prefix to alerts
+
+  // Send it to players with permission
+  for (Player p : plugin.getServer().getOnlinePlayers()) {
+   if (p.hasPermission("alexxautowarn.alert.receive")) {
+    p.sendMessage(colorize(message));
+   }
+  }
+  // Also log to console for record-keeping
+  plugin.getLogger().log(Level.INFO, ChatColor.stripColor(colorize(message)));
+ }
+
+ /**
+  * Logs a message to the plugin's console.
+  *
+  * @param level                            The logging level (e.g., Level.INFO, Level.WARNING, Level.SEVERE).
+  *                                         Use Level.FINE for debug messages.
+  * @param key                              The key of the message in messages.yml.
+  * @param placeholdersAndOptionalThrowable Optional key-value pairs for placeholder replacement,
+  *                                         followed by an optional Throwable object if logging an exception.
+  */
+ public void log(@NotNull Level level, @NotNull String key, Object... placeholdersAndOptionalThrowable) {
+  String rawMessage = getRawMessage(key);
+  if (rawMessage == null) {
+   plugin.getLogger().warning(String.format("Log message key '%s' not found in messages.yml!", key));
+   rawMessage = String.format("&cError: Log message key '%s' not found.", key);
+  }
+
+  Throwable throwable = null;
+  int placeholderCount = placeholdersAndOptionalThrowable.length;
+
+  // Check if the last argument is a Throwable
+  if (placeholderCount > 0 && placeholdersAndOptionalThrowable[placeholderCount - 1] instanceof Throwable) {
+   throwable = (Throwable) placeholdersAndOptionalThrowable[placeholderCount - 1];
+   // Reduce placeholderCount to exclude the Throwable for message formatting
+   placeholderCount--;
+  }
+
+  // Apply placeholders (up to placeholderCount)
+  String message = rawMessage;
+  if (placeholderCount % 2 == 0) {
+   for (int i = 0; i < placeholderCount; i += 2) {
+    if (i + 1 < placeholdersAndOptionalThrowable.length) { // Ensure value exists
+     message = message.replace(String.valueOf(placeholdersAndOptionalThrowable[i]), String.valueOf(placeholdersAndOptionalThrowable[i + 1]));
+    }
+   }
+  } else {
+   plugin.getLogger().warning(String.format("Invalid number of placeholders for log message key '%s'. Must be key-value pairs.", key));
+  }
+
+  // Add plugin prefix unless the message already contains it or is a help header
+  if (!key.startsWith("main-help-") && !message.contains(ChatColor.stripColor(colorize(pluginPrefix)))) {
+   message = pluginPrefix + message;
+  }
+
+  // Translate color codes and strip for console readability
+  message = ChatColor.stripColor(colorize(message));
+
+  // Log with or without the throwable
+  if (throwable != null) {
+   plugin.getLogger().log(level, message, throwable);
+  } else {
+   plugin.getLogger().log(level, message);
+  }
+ }
+
+ /**
+  * Replaces placeholders in a message string.
+  *
+  * @param message The message string with placeholders (e.g., "Hello {name}").
+  * @param replacements An array of key-value pairs (e.g., "{name}", "World").
+  * @return The message string with placeholders replaced.
+  */
+ private String replacePlaceholders(@NotNull String message, String... replacements) {
+  String tempMessage = message;
+
+  if (replacements.length % 2 != 0) {
+   plugin.getLogger().warning("MessageUtil: Odd number of replacements provided. Message key: " + message);
+  }
+
+  for (int i = 0; i + 1 < replacements.length; i += 2) { // Ensure i+1 is within bounds
+   tempMessage = tempMessage.replace(replacements[i], replacements[i + 1]);
+  }
+  return tempMessage;
+ }
 }

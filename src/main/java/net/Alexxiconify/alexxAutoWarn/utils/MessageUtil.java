@@ -1,5 +1,3 @@
-package net.Alexxiconify.alexxAutoWarn.utils;
-
 import net.Alexxiconify.alexxAutoWarn.AlexxAutoWarn;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
