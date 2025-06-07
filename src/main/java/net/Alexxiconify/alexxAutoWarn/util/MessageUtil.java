@@ -1,4 +1,4 @@
-package net.Alexxiconify.alexxAutoWarn.util; // Changed from 'utils' to 'util' to match your error path
+package net.Alexxiconify.alexxAutoWarn.util;
 
 import net.Alexxiconify.alexxAutoWarn.AlexxAutoWarn;
 import org.bukkit.Bukkit;
@@ -21,7 +21,6 @@ import java.util.logging.Level;
 public class MessageUtil {
 
  private final AlexxAutoWarn plugin;
- private FileConfiguration messagesConfig;
  private final Map<String, String> cachedMessages = new HashMap<>();
  private String pluginPrefix;
 
@@ -37,7 +36,7 @@ public class MessageUtil {
 
  /**
   * Loads messages from the messages.yml file.
-  * This method should be called on plugin enable and reload.
+  * This method should be called on plugin enabled and reload.
   */
  public void loadMessages() {
   // Ensure messages.yml exists, otherwise create it from resources
@@ -47,7 +46,7 @@ public class MessageUtil {
   }
 
   // Load the messages.yml file
-  messagesConfig = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(messagesFile);
+  FileConfiguration messagesConfig = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(messagesFile);
 
   // Cache all messages for faster access
   cachedMessages.clear();
@@ -71,7 +70,7 @@ public class MessageUtil {
  }
 
  /**
-  * Gets a raw message string from the cache, without prefix or color translation.
+  * Gets a raw message string from the cache, without a prefix or color translation.
   *
   * @param key The key of the message.
   * @return The raw message string, or null if not found.
@@ -101,8 +100,8 @@ public class MessageUtil {
  public void sendMessage(CommandSender sender, String key, String... placeholders) {
   String message = getRawMessage(key);
   if (message == null) {
-   plugin.getLogger().warning("Message key '" + key + "' not found in messages.yml!");
-   message = "&cError: Message key '" + key + "' not found."; // Fallback message
+   plugin.getLogger().warning(STR."Message key '\{key}' not found in messages.yml!");
+   message = STR."&cError: Message key '\{key}' not found."; // Fallback message
   }
 
   // Apply placeholders
@@ -111,11 +110,11 @@ public class MessageUtil {
     message = message.replace(placeholders[i], placeholders[i + 1]);
    }
   } else {
-   plugin.getLogger().warning("Invalid number of placeholders for message key '" + key + "'. Must be key-value pairs.");
+   plugin.getLogger().warning(STR."Invalid number of placeholders for message key '\{key}'. Must be key-value pairs.");
   }
 
   // Add plugin prefix unless the message already starts with '{plugin-prefix}' or is a help header
-  // Help headers manage their own {plugin-prefix} explicitly for formatting flexibility
+  // Help with headers manage their own {plugin-prefix} explicitly for formatting flexibility
   if (!key.startsWith("main-help-") && !message.startsWith("{plugin-prefix}")) {
    message = pluginPrefix + message;
   }
@@ -136,8 +135,8 @@ public class MessageUtil {
  public void sendAlert(Player triggeringPlayer, String key, String... placeholders) {
   String message = getRawMessage(key);
   if (message == null) {
-   plugin.getLogger().warning("Alert message key '" + key + "' not found in messages.yml!");
-   message = "&cError: Alert message key '" + key + "' not found.";
+   plugin.getLogger().warning(STR."Alert message key '\{key}' not found in messages.yml!");
+   message = STR."&cError: Alert message key '\{key}' not found.";
   }
 
   // Apply placeholders
@@ -146,7 +145,7 @@ public class MessageUtil {
     message = message.replace(placeholders[i], placeholders[i + 1]);
    }
   } else {
-   plugin.getLogger().warning("Invalid number of placeholders for alert message key '" + key + "'. Must be key-value pairs.");
+   plugin.getLogger().warning(STR."Invalid number of placeholders for alert message key '\{key}'. Must be key-value pairs.");
   }
 
   // Add plugin prefix
@@ -154,7 +153,7 @@ public class MessageUtil {
   // Translate color codes
   message = colorize(message);
 
-  // Send to players with permission
+  // Send it to players with permission
   for (Player p : Bukkit.getOnlinePlayers()) {
    if (p.hasPermission("autoinform.alert.receive")) {
     p.sendMessage(message);
@@ -167,7 +166,7 @@ public class MessageUtil {
  /**
   * Logs a message to the plugin's console.
   *
-  * @param level The logging level (e.g., Level.INFO, Level.WARNING, Level.SEVERE).
+  * @param level The logging level (e.g., Level.INFO, Level. WARNING, Level. SEVERE).
   * @param key The key of the message in messages.yml.
   * @param placeholdersAndOptionalThrowable Optional key-value pairs for placeholder replacement,
   * followed by an optional Throwable object if logging an exception.
@@ -175,8 +174,8 @@ public class MessageUtil {
  public void log(Level level, String key, Object... placeholdersAndOptionalThrowable) {
   String message = getRawMessage(key);
   if (message == null) {
-   plugin.getLogger().warning("Log message key '" + key + "' not found in messages.yml!");
-   message = "&cError: Log message key '" + key + "' not found.";
+   plugin.getLogger().warning(STR."Log message key '\{key}' not found in messages.yml!");
+   message = STR."&cError: Log message key '\{key}' not found.";
   }
 
   Throwable throwable = null;
@@ -197,7 +196,7 @@ public class MessageUtil {
     }
    }
   } else {
-   plugin.getLogger().warning("Invalid number of placeholders for log message key '" + key + "'. Must be key-value pairs.");
+   plugin.getLogger().warning(STR."Invalid number of placeholders for log message key '\{key}'. Must be key-value pairs.");
   }
 
   // Add plugin prefix
