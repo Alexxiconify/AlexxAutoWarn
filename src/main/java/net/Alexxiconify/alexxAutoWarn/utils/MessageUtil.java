@@ -24,6 +24,10 @@ public class MessageUtil {
  private final AlexxAutoWarn plugin;
  private final Map<String, String> cachedMessages = new HashMap<>();
  private String pluginPrefix;
+ private Class<?> playerSelectionsClass;
+ private String key;
+ private String[] placeholders;
+ private MessageUtil sender;
 
  /**
   * Constructor for MessageUtil.
@@ -90,10 +94,11 @@ public class MessageUtil {
   * Automatically applies the plugin prefix and color codes.
   *
   * @param playerSelectionsClass
-  * @param key                   The key of the message in messages.yml.
-  * @param placeholders          Optional key-value pairs for placeholder replacement (e.g., "{player}", "Alexx").
   */
- public void sendMessage(Class<? extends UBiDiProps> playerSelectionsClass, @NotNull String key, String... placeholders) {
+ public void sendMessage(Class<? extends Object> playerSelectionsClass) throws ClassNotFoundException {
+  this.playerSelectionsClass = playerSelectionsClass;
+  this.key = key;
+  this.placeholders = placeholders;
   String rawMessage = getRawMessage(key);
   if (rawMessage == null) {
    plugin.getLogger().warning(String.format("Message key '%s' not found in messages.yml!", key));
@@ -108,7 +113,7 @@ public class MessageUtil {
    message = pluginPrefix + message;
   }
 
-  sender.sendMessage(colorize(message));
+  sender.sendMessage(Class.forName(colorize(message)));
  }
 
  /**
@@ -213,7 +218,7 @@ public class MessageUtil {
   return tempMessage;
  }
 
- public void sendMessage(Player player, String key, String s, @NotNull String name) {
+ public void sendMessage(Player player, String key, String s, @NotNull String name, String string, @NotNull String name1) {
 
  }
 

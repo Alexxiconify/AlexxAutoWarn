@@ -17,12 +17,13 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import sun.tools.jconsole.inspector.Utils;
 
 import java.util.*;
 import java.util.logging.Level;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
+import static java.util.logging.Level.INFO;
 
 /**
  * Handles all commands for the AlexxAutoWarn plugin.
@@ -35,9 +36,7 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
  private final MessageUtil messageUtil;
  // Pattern to validate zone names: Alphanumeric, hyphens, and underscores allowed
  private static final Pattern ZONE_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_-]+$");
- private final NamespacedKey wandKey; // Added for wand check
- private Object playerSelections; // Changed to Object to resolve the identifier issue
- private Location pos1;
+ private final NamespacedKey wandKey; // Added for wand check private Object playerSelections; // Changed to Object to resolve the identifier issue private Location pos1;
  private Location pos2;
  private Player player;
  private String[] args;
@@ -51,19 +50,19 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
 
  @Override
  public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-  Utils playerSelections;
   if (!(sender instanceof Player player)) {
-   messageUtil.sendMessage(playerSelections.getClass(), "command-player-only");
+   messageUtil.sendMessage(sender, "error-player-only");
    return true;
   }
 
   if (!player.hasPermission("alexxautowarn.admin.set")) {
-   messageUtil.sendMessage(playerSelections.getClass(), "error-no-permission");
+   messageUtil.sendMessage(player, "error-no-permission");
    return true;
   }
 
+  Location location;
   if (args.length < 1) {
-   sendHelpMessage(player);
+   sendHelpMessage(player, location);
    return true;
   }
 
@@ -81,19 +80,19 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
     handleDefineCommand(player, args);
     break;
    case "defaultaction":
-    handleDefaultActionCommand(player, args);
+    handleDefaultActionCommand(player, args, location);
     break;
    case "setaction":
-    handleSetActionCommand(player, args);
+    handleSetActionCommand(player, args, location);
     break;
    case "remove":
-    handleRemoveCommand(player, args);
+    handleRemoveCommand(player, args, location);
     break;
    case "info":
-    handleInfoCommand(player, args);
+    handleInfoCommand(player, args, location);
     break;
    case "list":
-    handleListCommand(player);
+    handleListCommand(player, location);
     break;
    case "clearwand":
     handleClearWandCommand(player);
@@ -102,38 +101,33 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
     handleReloadCommand(player);
     break;
    case "banned":
-    handleBannedMaterialsCommand(player, args);
+    handleBannedMaterialsCommand(player, args, location);
     break;
    case "debug": // Removed from main command, handled by MessageUtil internally
-    messageUtil.sendMessage(playerSelections.getClass(), "command-debug-removed");
+    messageUtil.sendMessage(player, "command-debug-removed");
     break;
    default:
-    sendHelpMessage(player);
+    sendHelpMessage(player, location);
     break;
   }
   return true;
  }
 
- private void sendHelpMessage(Player player) {
-  messageUtil.sendMessage(playerSelections.getClass(), "main-help-header");
-  messageUtil.sendMessage(playerSelections.getClass(), "main-help-wand", "{command}", "autoinform");
-  messageUtil.sendMessage(playerSelections.getClass(), "main-help-pos1", "{command}", "autoinform");
-  messageUtil.sendMessage(playerSelections.getClass(), "main-help-pos2", "{command}", "autoinform");
-  messageUtil.sendMessage(player, "main-help-define", "{command}", "autoinform");
-  messageUtil.sendMessage(player, "main-help-defaultaction", "{command}", "autoinform");
-  messageUtil.sendMessage(playerSelections.getClass(), "main-help-setaction", "{command}", "autoinform");
-  messageUtil.sendMessage(player, "main-help-remove", "{command}", "autoinform");
-  messageUtil.sendMessage(player, "main-help-info", "{command}", "autoinform");
-  messageUtil.sendMessage(playerSelections.getClass(), "main-help-list", "{command}", "autoinform");
-  messageUtil.sendMessage(playerSelections.getClass(), "main-help-clearwand", "{command}", "autoinform");
-  messageUtil.sendMessage(playerSelections.getClass(), "main-help-reload", "{command}", "autoinform");
-  messageUtil.sendMessage(playerSelections.getClass(), "main-help-banned", "{command}", "autoinform");
+ private void sendHelpMessage(Player player, Location location) {
+  messageUtil.sendMessage(player, "main-help-header");
+  messageUtil.sendMessage(player, "main-help-wand", "{command}", "autoinform", "{world}", location.getWorld().getName());
+  messageUtil.sendMessage(player, "main-help-pos", "{command}", "autoinform", "{world}", location.getWorld().getName());
+  messageUtil.sendMessage(player, "main-help-define", "{command}", "autoinform", "{world}", location.getWorld().getName());
+  messageUtil.sendMessage(player, "main-help-setaction", "{command}", "autoinform", "{world}", location.getWorld().getName());
+  messageUtil.sendMessage(player, "main-help-defaultaction", "{command}", "autoinform", "{world}", location.getWorld().getName());
+  messageUtil.sendMessage(player, "main-help-remove", "{command}", "autoinform", "{world}", location.getWorld().getName());
+  messageUtil.sendMessage(player, "main-help-info", "{command}", "autoinform", "{world}", location.getWorld().getName());
  }
 
  private void handleWandCommand(Player player) {
   plugin.giveWand(player);
   messageUtil.sendMessage(player, "wand-given");
-  messageUtil.log(Level.INFO, "command-wand-given-console", "{player}", player.getName());
+  messageUtil.log(INFO, "command-wand-given-console", "{player}", player.getName());
  }
 
  private void handleSetPositionCommand(Player player, String[] args) {
@@ -149,8 +143,8 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
    return;
   }
   if (args.length < 5) {
-   messageUtil.sendMessage(playerSelections.getClass(), "command-pos-coords-missing");
-   return;
+   messageUtil.sendMessage(playerSelections.getClass());
+   return; // This line seems to be missing a message key
   }
 
   try {
@@ -161,9 +155,7 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
    String posType = args[0].toLowerCase(); // "pos1" or "pos2"
 
    zoneManager.getPlayerSelections().setSelection(player, posType, location);
-   messageUtil.sendMessage(playerSelections.getClass(), "command-pos-set",
-           "{position}", posType,
-           "{location}", LocationUtil.toBlockString(location));
+   messageUtil.sendMessage(player, "command-pos-set", "{position}", posType, "{location_string}", LocationUtil.toBlockString(location));
 
    messageUtil.log(Level.FINE, "debug-pos-saved",
            "{player}", player.getName(),
@@ -181,7 +173,7 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
   this.player = player;
   this.args = args;
   if (args.length < 2) {
-   messageUtil.sendMessage(playerSelections.getClass(), "command-define-usage");
+   messageUtil.sendMessage(player, "command-define-usage");
    return;
   }
 
@@ -200,16 +192,16 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
 
 
   if (pos1 == null || pos2 == null) {
-   messageUtil.sendMessage(playerSelections.getClass(), "command-define-selections-missing");
-   messageUtil.log(Level.FINE, "debug-define-selections", "{zone_name}", zoneName,
+   messageUtil.sendMessage(playerSelections.getClass());
+   messageUtil.log(Level.FINE, "debug-define-selections", "{zone_name}", zoneName, // This line seems to be missing a message key
            "{pos1_status}", (pos1 == null ? "NOT_SET" : "SET"),
            "{pos2_status}", (pos2 == null ? "NOT_SET" : "SET"));
    return;
   }
 
   if (!pos1.getWorld().equals(pos2.getWorld())) {
-   messageUtil.sendMessage(playerSelections.getClass(), "error-worlds-not-match");
-   return;
+   messageUtil.sendMessage(playerSelections.getClass());
+   return; // This line seems to be missing a message key
   }
 
   ZoneAction defaultAction = ZoneAction.ALLOW; // Default to ALLOW if not specified
@@ -217,7 +209,7 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
    try {
     defaultAction = ZoneAction.valueOf(args[2].toUpperCase());
    } catch (IllegalArgumentException e) {
-    messageUtil.sendMessage(player, "error-invalid-default-action", "{action}", args[2]);
+    messageUtil.sendMessage(player, "error-invalid-default-action", "{action}", args[2], "{world}", location.getWorld().getName());
     return;
    }
   }
@@ -228,15 +220,15 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
    existingZone.getCorner1(pos1);
    existingZone.getCorner2(pos2);
    existingZone.setDefaultAction(defaultAction);
-   zoneManager.saveZones(); // Save changes to config
-   messageUtil.sendMessage(playerSelections.getClass(), "zone-updated", "{zone_name}", zoneName);
-   messageUtil.log(Level.INFO, "command-zone-updated-console", "{player}", player.getName(), "{zone_name}", zoneName);
+   zoneManager.saveZones(); // Save changes to config // This line seems to be missing a message key
+   messageUtil.sendMessage(playerSelections.getClass());
+   messageUtil.log(INFO, "command-zone-updated-console", "{player}", player.getName(), "{zone_name}", zoneName);
   } else {
    // Create new zone
    AutoInformZone newZone = new AutoInformZone(zoneName, pos1, pos2, defaultAction, new HashMap<>());
    zoneManager.addZone(newZone);
-   messageUtil.sendMessage(player, "zone-defined", "{zone_name}", zoneName);
-   messageUtil.log(Level.INFO, "command-zone-defined-console", "{player}", player.getName(), "{zone_name}", zoneName);
+   messageUtil.sendMessage(player, "zone-defined", "{zone_name}", zoneName, "{world}", location.getWorld().getName());
+   messageUtil.log(INFO, "command-zone-defined-console", "{player}", player.getName(), "{zone_name}", zoneName);
   }
 
   // Clear player's selections after defining a zone
@@ -244,37 +236,37 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
   messageUtil.sendMessage(player, "command-selections-cleared");
  }
 
- private void handleDefaultActionCommand(Player player, String[] args) {
+ private void handleDefaultActionCommand(Player player, String[] args, Location location) {
   if (args.length < 3) {
-   messageUtil.sendMessage(playerSelections.getClass(), "command-defaultaction-usage");
+   messageUtil.sendMessage(player, "command-defaultaction-usage");
    return;
   }
   String zoneName = args[1];
   String actionString = args[2].toUpperCase();
 
   if (!ZONE_NAME_PATTERN.matcher(zoneName).matches()) {
-   messageUtil.sendMessage(playerSelections.getClass(), "error-invalid-zone-name");
-   return;
+   messageUtil.sendMessage(playerSelections.getClass());
+   return; // This line seems to be missing a message key
   }
 
   AutoInformZone zone = zoneManager.getZone(zoneName);
   if (zone == null) {
-   messageUtil.sendMessage(player, "error-zone-not-found", "{zone_name}", zoneName);
+   messageUtil.sendMessage(player, "error-zone-not-found", "{zone_name}", zoneName, "{world}", location.getWorld().getName());
    return;
   }
 
   try {
    ZoneAction newAction = ZoneAction.valueOf(actionString);
    zone.setDefaultAction(newAction);
-   zoneManager.saveZones(); // Save changes to config
-   messageUtil.sendMessage(playerSelections.getClass(), "zone-defaultaction-set", "{zone_name}", zoneName, "{action}", newAction.name());
-   messageUtil.log(Level.INFO, "command-zone-defaultaction-console", "{player}", player.getName(), "{zone_name}", zoneName, "{action}", newAction.name());
+   zoneManager.saveZones(); // Save changes to config // This line seems to be missing a message key
+   messageUtil.sendMessage(playerSelections.getClass());
+   messageUtil.log(INFO, "command-zone-defaultaction-console", "{player}", player.getName(), "{zone_name}", zoneName, "{action}", newAction.name());
   } catch (IllegalArgumentException e) {
-   messageUtil.sendMessage(player, "error-invalid-action-type", "{action}", actionString);
+   messageUtil.sendMessage(player, "error-invalid-action-type", "{action}", actionString, "{world}", location.getWorld().getName());
   }
  }
 
- private void handleSetActionCommand(Player player, String[] args) {
+ private void handleSetActionCommand(Player player, String[] args, Location location) {
   if (args.length < 4) {
    messageUtil.sendMessage(player, "command-setaction-usage");
    return;
@@ -284,13 +276,13 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
   String actionString = args[3].toUpperCase();
 
   if (!ZONE_NAME_PATTERN.matcher(zoneName).matches()) {
-   messageUtil.sendMessage(playerSelections.getClass(), "error-invalid-zone-name");
-   return;
+   messageUtil.sendMessage(playerSelections.getClass());
+   return; // This line seems to be missing a message key
   }
 
   AutoInformZone zone = zoneManager.getZone(zoneName);
   if (zone == null) {
-   messageUtil.sendMessage(player, "error-zone-not-found", "{zone_name}", zoneName);
+   messageUtil.sendMessage(player, "error-zone-not-found", "{zone_name}", zoneName, "{world}", location.getWorld().getName());
    return;
   }
 
@@ -299,37 +291,37 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
    ZoneAction action = ZoneAction.valueOf(actionString);
 
    zone.setDefaultAction(material, action);
-   zoneManager.saveZones(); // Save changes to config
-   messageUtil.sendMessage(player, "zone-setaction-set", "{zone_name}", zoneName, "{material}", material.name(), "{action}", action.name());
-   messageUtil.log(Level.INFO, "command-zone-setaction-console", "{player}", player.getName(), "{zone_name}", zoneName, "{material}", material.name(), "{action}", action.name());
+   zoneManager.saveZones(); // Save changes to config // This line seems to be missing a message key
+   messageUtil.sendMessage(player, "zone-setaction-set", "{zone_name}", zoneName, "{material}", material.name());
+   messageUtil.log(INFO, "command-zone-setaction-console", "{player}", player.getName(), "{zone_name}", zoneName, "{material}", material.name(), "{action}", action.name());
   } catch (IllegalArgumentException e) {
-   messageUtil.sendMessage(playerSelections.getClass(), "error-invalid-material-or-action", "{material}", materialName, "{action}", actionString);
+   messageUtil.sendMessage(playerSelections.getClass());
   }
  }
 
- private void handleRemoveCommand(Player player, String[] args) {
+ private void handleRemoveCommand(Player player, String[] args, Location location) {
   if (args.length < 2) {
-   messageUtil.sendMessage(playerSelections.getClass(), "command-remove-usage");
+   messageUtil.sendMessage(player, "command-remove-usage");
    return;
   }
   String zoneName = args[1];
   if (!ZONE_NAME_PATTERN.matcher(zoneName).matches()) {
-   messageUtil.sendMessage(playerSelections.getClass(), "error-invalid-zone-name");
+   messageUtil.sendMessage(player, "error-invalid-zone-name");
    return;
   }
 
   if (zoneManager.removeZone(zoneName)) {
-   messageUtil.sendMessage(player, "zone-removed-success", "{zone_name}", zoneName);
-   messageUtil.log(Level.INFO, "command-zone-removed-console", "{player}", player.getName(), "{zone_name}", zoneName);
+   messageUtil.sendMessage(player, "zone-removed-success", "{zone_name}", zoneName, "{world}", location.getWorld().getName());
+   messageUtil.log(INFO, "command-zone-removed-console", "{player}", player.getName(), "{zone_name}", zoneName);
   } else {
-   messageUtil.sendMessage(playerSelections.getClass(), "error-zone-not-found", "{zone_name}", zoneName);
+   messageUtil.sendMessage(player, "error-zone-not-found", "{zone_name}", zoneName, "{world}", location.getWorld().getName());
   }
  }
 
- private void handleInfoCommand(Player player, String[] args) {
+ private void handleInfoCommand(Player player, String[] args, Location location) {
   if (args.length < 2) { // Display info for all zones
    if (zoneManager.getAllZones().isEmpty()) {
-    messageUtil.sendMessage(player, "plugin-no-zones-defined", "{command}", "autoinform");
+    messageUtil.sendMessage(player, "plugin-no-zones-defined", "{command}", "autoinform", "{world}", location.getWorld().getName());
     return;
    }
    messageUtil.sendMessage(player, "info-all-zones-header");
@@ -339,13 +331,13 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
   } else { // Display info for specific zone
    String zoneName = args[1];
    if (!ZONE_NAME_PATTERN.matcher(zoneName).matches()) {
-    messageUtil.sendMessage(playerSelections.getClass(), "error-invalid-zone-name");
+    messageUtil.sendMessage(player, "error-invalid-zone-name");
     return;
    }
 
    AutoInformZone zone = zoneManager.getZone(zoneName);
-   if (zone == null) {
-    messageUtil.sendMessage(playerSelections.getClass(), "error-zone-not-found", "{zone_name}", zoneName);
+   if (zone == null) { // This line seems to be missing a message key
+    messageUtil.sendMessage(playerSelections.getClass());
    } else {
     sendZoneInfo(player, zone);
    }
@@ -353,72 +345,73 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
  }
 
  private void sendZoneInfo(Player player, AutoInformZone zone) {
-  messageUtil.sendMessage(playerSelections.getClass(), "info-zone-header", "{zone_name}", zone.getName());
-  messageUtil.sendMessage(playerSelections.getClass(), "info-name", "{zone_name}", zone.getName());
-  messageUtil.sendMessage(playerSelections.getClass(), "info-world", "{world}", zone.getWorld().getName());
-  messageUtil.sendMessage(playerSelections.getClass(), "info-corner1", "{corner1}", LocationUtil.toBlockString(zone.getCorner1(pos1)));
-  messageUtil.sendMessage(playerSelections.getClass(), "info-corner2", "{corner2}", LocationUtil.toBlockString(zone.getCorner2(pos2)));
-  messageUtil.sendMessage(playerSelections.getClass(), "info-default-action", "{action}", zone.getDefaultAction().name());
+  messageUtil.sendMessage(player, "info-zone-header", "{zone_name}", zone.getName());
+  messageUtil.sendMessage(player, "info-zone-world", "{world}", zone.getWorldName());
+  messageUtil.sendMessage(player, "info-zone-pos1", "{location_string}", LocationUtil.toBlockString(zone.getCorner1()));
+  messageUtil.sendMessage(player, "info-zone-pos2", "{location_string}", LocationUtil.toBlockString(zone.getCorner2()));
+  messageUtil.sendMessage(player, "info-zone-defaultaction", "{action}", zone.getDefaultAction().name());
+  messageUtil.sendMessage(player, "info-material-actions-header");
 
   if (zone.getMaterialSpecificActions().isEmpty()) {
    messageUtil.sendMessage(player, "info-no-material-actions");
   } else {
-   messageUtil.sendMessage(playerSelections.getClass(), "info-material-actions-header");
+   messageUtil.sendMessage(playerSelections.getClass());
    for (Map.Entry<Material, ZoneAction> entry : zone.getMaterialSpecificActions().entrySet()) {
     Material material = entry.getKey();
-    ZoneAction action = entry.getValue();
+    ZoneAction action;
+    action = entry.getValue();
     messageUtil.sendMessage(player, "info-material-action-entry", "{material}", material.name(), "{action}", action.name());
    }
   }
  }
 
- private void handleListCommand(Player player) {
+ private void handleListCommand(Player player, Location location) {
   Collection<AutoInformZone> zones = zoneManager.getAllZones();
   if (zones.isEmpty()) {
-   messageUtil.sendMessage(player, "plugin-no-zones-defined", "{command}", "autoinform");
+   messageUtil.sendMessage(player, "plugin-no-zones-defined", "{command}", "autoinform", "{world}", location.getWorld().getName());
   } else {
-   messageUtil.sendMessage(playerSelections.getClass(), "list-header", "{count}", String.valueOf(zones.size()));
+   messageUtil.sendMessage(player, "list-zones-header");
    for (AutoInformZone zone : zones) {
-    messageUtil.sendMessage(player, "list-entry", "{zone_name}", zone.getName());
+    messageUtil.sendMessage(player, "list-entry", "{zone_name}", zone.getName(), "{world}", location.getWorld().getName());
    }
   }
  }
 
  private void handleClearWandCommand(Player player) {
   zoneManager.getPlayerSelections().clearSelections(player);
-  messageUtil.sendMessage(playerSelections.getClass(), "command-selections-cleared");
-  messageUtil.log(Level.INFO, "command-selections-cleared-console", "{player}", player.getName());
+  messageUtil.sendMessage(player, "command-selections-cleared");
+  messageUtil.log(INFO, "command-selections-cleared-console", "{player}", player.getName());
  }
 
  private void handleReloadCommand(Player player) {
   plugin.reloadConfigInternal(); // Call the public reload method on the main plugin class
   messageUtil.sendMessage(player, "command-reload-success");
-  messageUtil.log(Level.INFO, "command-reload-success-console", "{player}", player.getName());
+  messageUtil.log(INFO, "command-reload-success-console", "{player}", player.getName());
  }
 
- private void handleBannedMaterialsCommand(Player player, String[] args) {
+ private void handleBannedMaterialsCommand(Player player, String[] args, Location location) {
   if (args.length < 2) {
-   messageUtil.sendMessage(playerSelections.getClass(), "command-banned-usage");
+   messageUtil.sendMessage(player, "command-banned-usage");
    return;
   }
 
   String subCommand = args[1].toLowerCase();
   switch (subCommand) {
    case "add":
-    if (args.length < 3) {
-     messageUtil.sendMessage(playerSelections.getClass(), "command-banned-add-usage");
+    if (args.length < 3) { // This line seems to be missing a message key
+     messageUtil.sendMessage(playerSelections.getClass());
      return;
     }
     try {
      Material material = Material.valueOf(args[2].toUpperCase());
      if (zoneManager.addGloballyBannedMaterial(material)) {
-      messageUtil.sendMessage(playerSelections.getClass(), "command-banned-add-success", "{material}", material.name());
-      messageUtil.log(Level.INFO, "command-banned-add-console", "{player}", player.getName(), "{material}", material.name());
+      messageUtil.sendMessage(playerSelections.getClass());
+      messageUtil.log(INFO, "command-banned-add-console", "{player}", player.getName(), "{material}", material.name()); // This line seems to be missing a message key
      } else {
-      messageUtil.sendMessage(playerSelections.getClass(), "command-banned-already-banned", "{material}", material.name());
-     }
+      messageUtil.sendMessage(playerSelections.getClass());
+     } // This line seems to be missing a message key
     } catch (IllegalArgumentException e) {
-     messageUtil.sendMessage(playerSelections.getClass(), "error-invalid-material", "{material}", args[2]);
+     messageUtil.sendMessage(playerSelections.getClass());
     }
     break;
    case "remove":
@@ -429,26 +422,26 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
     try {
      Material material = Material.valueOf(args[2].toUpperCase());
      if (zoneManager.removeGloballyBannedMaterial(material)) {
-      messageUtil.sendMessage(playerSelections.getClass(), "command-banned-remove-success", "{material}", material.name());
-      messageUtil.log(Level.INFO, "command-banned-remove-console", "{player}", player.getName(), "{material}", material.name());
+      messageUtil.sendMessage(playerSelections.getClass());
+      messageUtil.log(INFO, "command-banned-remove-console", "{player}", player.getName(), "{material}", material.name()); // This line seems to be missing a message key
      } else {
-      messageUtil.sendMessage(playerSelections.getClass(), "command-banned-not-banned", "{material}", material.name());
-     }
+      messageUtil.sendMessage(playerSelections.getClass());
+     } // This line seems to be missing a message key
     } catch (IllegalArgumentException e) {
-     messageUtil.sendMessage(player, "error-invalid-material", "{material}", args[2]);
+     messageUtil.sendMessage(player, "error-invalid-material", "{material}", args[2], "{world}", location.getWorld().getName());
     }
     break;
    case "list":
     Set<Material> bannedMaterials = zoneManager.getGloballyBannedMaterials();
     if (bannedMaterials.isEmpty()) {
-     messageUtil.sendMessage(playerSelections.getClass(), "plugin-no-banned-materials");
+     messageUtil.sendMessage(player, "plugin-no-banned-materials");
     } else {
      messageUtil.sendMessage(player, "plugin-current-banned-materials", "{materials}",
-             bannedMaterials.stream().map(Enum::name).collect(Collectors.joining(", ")));
+             bannedMaterials.stream().map(Enum::name).collect(Collectors.joining(", ")), "{world}", location.getWorld().getName());
     }
     break;
    default:
-    messageUtil.sendMessage(playerSelections.getClass(), "command-banned-usage");
+    messageUtil.sendMessage(player, "command-banned-usage");
     break;
   }
  }

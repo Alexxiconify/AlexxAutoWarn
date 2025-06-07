@@ -47,6 +47,7 @@ public final class AlexxAutoWarn extends JavaPlugin implements CommandExecutor, 
  private ZoneManager zoneManager;
  private NamespacedKey wandKey;
  private boolean monitorChestAccess;
+ private Object resource;
 
  public static AlexxAutoWarn getPlugin() {
   return plugin;
@@ -182,7 +183,7 @@ public final class AlexxAutoWarn extends JavaPlugin implements CommandExecutor, 
   return Collections.emptyList();
  }
 
- public @org.jspecify.annotations.Nullable InputStream getResource() {
+ public Object getResource() {
   return resource;
  }
 

@@ -184,7 +184,11 @@ public class ZoneManager {
   }
   zones.put(zone.getName().toLowerCase(), zone);
   saveZones(); // Save immediately after adding
-  messageUtil.sendMessage(playerSelections.getClass(), "zone-added", "{zone_name}", zone.getName());
+  try {
+   messageUtil.sendMessage(playerSelections.getClass());
+  } catch (ClassNotFoundException e) {
+   throw new RuntimeException(e);
+  }
   return true;
  }
 
@@ -197,7 +201,11 @@ public class ZoneManager {
  public boolean removeZone(String zoneName) {
   if (zones.remove(zoneName.toLowerCase()) != null) {
    saveZones(); // Save immediately after removing
-   messageUtil.sendMessage(playerSelections.getClass(), "zone-removed", "{zone_name}", zoneName);
+   try {
+    messageUtil.sendMessage(playerSelections.getClass());
+   } catch (ClassNotFoundException e) {
+    throw new RuntimeException(e);
+   }
    return true;
   }
   return false;

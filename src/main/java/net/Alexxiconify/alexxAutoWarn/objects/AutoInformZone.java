@@ -5,6 +5,7 @@ import org.bukkit.Material;
 import org.bukkit.World;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -19,8 +20,8 @@ public class AutoInformZone {
  private final World world;
  private final Location corner1;
  private final Location corner2;
- private ZoneAction defaultAction; // Made non-final to allow updates via setter
- private final Map<Material, ZoneAction> materialSpecificActions; // This map should be final for immutability
+ private final Map<Material, ZoneAction> materialSpecificActions;
+ private ZoneAction defaultAction;
 
  /**
   * Constructs a new AutoInformZone.
@@ -32,61 +33,69 @@ public class AutoInformZone {
   * @param materialSpecificActions A map of materials to their specific actions within this zone.
   */
  public AutoInformZone(@NotNull String name, @NotNull Location corner1, @NotNull Location corner2,
-                       net.Alexxiconify.alexxAutoWarn.objects.ZoneAction defaultAction, @NotNull Map<Material, ZoneAction> materialSpecificActions) {
+                       @NotNull ZoneAction defaultAction, @NotNull Map<Material, ZoneAction> materialSpecificActions) {
   this.name = name;
-  // Ensure both corners are in the same world
-  if (!corner1.getWorld().equals(corner2.getWorld())) {
-   throw new IllegalArgumentException("Zone corners must be in the same world.");
-  }
-  this.world = corner1.getWorld(); // Store the world object
+  this.world = corner1.getWorld(); // World should be consistent between corners
   this.corner1 = corner1;
   this.corner2 = corner2;
   this.defaultAction = defaultAction;
-  // Create a new HashMap to avoid external modification and ensure internal mutability for updates
-  this.materialSpecificActions = new HashMap<>(materialSpecificActions);
+  this.materialSpecificActions = new HashMap<>(materialSpecificActions); // Defensive copy
  }
 
- public @NotNull String getName() {
+ // Getters
+ public String getName() {
   return name;
  }
 
- public @NotNull World getWorld() {
+ public World getWorld() {
   return world;
  }
 
- public @NotNull Location getCorner1(Location pos1) {
+ public Location getCorner1() {
   return corner1;
  }
 
- public @NotNull Location getCorner2(Location pos2) {
+ public Location getCorner2() {
   return corner2;
  }
 
- public net.Alexxiconify.alexxAutoWarn.objects.ZoneAction getDefaultAction() {
+ public ZoneAction getDefaultAction() {
   return defaultAction;
  }
 
- // Setter for defaultAction to allow updates
- public void setDefaultAction(net.Alexxiconify.alexxAutoWarn.objects.ZoneAction defaultAction) {
+ // Setters
+ public void setDefaultAction(@NotNull ZoneAction defaultAction) {
   this.defaultAction = defaultAction;
  }
 
- /**
-  * Gets a mutable map of material-specific actions.
-  * This allows the ZoneManager to update specific actions.
-  * If true immutability is desired, this should return an unmodifiable map
-  * and updates would require creating a new AutoInformZone object.
-  * For the current implementation, returning a mutable map is fine.
-  *
-  * @return A mutable Map from Material to ZoneAction.
-  */
- public @NotNull Map<Material, ZoneAction> getMaterialSpecificActions() {
-  return materialSpecificActions;
+ public Map<Material, ZoneAction> getMaterialSpecificActions() {
+  return Collections.unmodifiableMap(materialSpecificActions); // Return unmodifiable map
+ }
+
+ public void addMaterialSpecificAction(@NotNull Material material, @NotNull ZoneAction action) {
+  this.materialSpecificActions.put(material, action);
+ }
+
+ public void removeMaterialSpecificAction(@NotNull Material material) {
+  this.materialSpecificActions.remove(material);
  }
 
  /**
-  * Checks if a given location is within this zone's bounding box.
-  * The check is inclusive of the boundary blocks.
+  * Determines the effective action for a given material within this zone.
+  * Checks material-specific actions first, then falls back to the default action.
+  *
+  * @param material The material to check.
+  * @return The ZoneAction applicable to the material in this zone.
+  */
+ @NotNull
+ public ZoneAction getEffectiveAction(@NotNull Material material) {
+  return materialSpecificActions.getOrDefault(material, defaultAction);
+ }
+
+
+ /**
+  * Checks if a given location is within this zone.
+  * The check is inclusive of the boundary coordinates.
   *
   * @param loc The location to check.
   * @return true if the location is within the zone, false otherwise.
@@ -117,17 +126,33 @@ public class AutoInformZone {
 
  @Override
  public boolean equals(Object o) {
-  return false;
+  if (this == o) return true;
+  if (o == null || getClass() != o.getClass()) return false;
+  AutoInformZone that = (AutoInformZone) o;
+  return name.equals(that.name) &&
+          world.equals(that.world) &&
+          corner1.equals(that.corner1) &&
+          corner2.equals(that.corner2) &&
+          defaultAction == that.defaultAction &&
+          materialSpecificActions.equals(that.materialSpecificActions);
  }
 
  @Override
  public int hashCode() {
-  return Objects.hash(name, world, corner1, corner2, defaultAction, materialSpecificActions);
+  return Objects.hash(name, world, corner1, corner2, materialSpecificActions, defaultAction);
  }
 
- public void setDefaultAction(Material material, net.Alexxiconify.alexxAutoWarn.objects.ZoneAction action) {
- }
-
- public net.Alexxiconify.alexxAutoWarn.objects.ZoneAction getDefaultAction(Material material) {
+ @Override
+ public String toString() {
+  // Assuming LocationUtil is available for formatting locations
+  // If not, you can replace with a simple String.format or similar
+  return "AutoInformZone{" +
+          "name='" + name + '\'' +
+          ", world=" + world.getName() +
+          ", corner1=" + String.format("[%d, %d, %d]", corner1.getBlockX(), corner1.getBlockY(), corner1.getBlockZ()) +
+          ", corner2=" + String.format("[%d, %d, %d]", corner2.getBlockX(), corner2.getBlockY(), corner2.getBlockZ()) +
+          ", defaultAction=" + defaultAction +
+          ", materialSpecificActions=" + materialSpecificActions +
+          '}';
  }
 }
