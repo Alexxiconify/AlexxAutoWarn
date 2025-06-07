@@ -1,3 +1,5 @@
+package net.Alexxiconify.alexxAutoWarn.utils;
+
 import net.Alexxiconify.alexxAutoWarn.AlexxAutoWarn;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
@@ -20,7 +22,7 @@ import java.util.logging.Level;
  */
 public class MessageUtil {
 
- private final AlexxAutoWarn plugin; // This is where AlexxAutoWarn is used
+ private final AlexxAutoWarn plugin;
  private final Map<String, String> cachedMessages = new HashMap<>();
  private String pluginPrefix;
 
@@ -32,16 +34,6 @@ public class MessageUtil {
  public MessageUtil(AlexxAutoWarn plugin) {
   this.plugin = plugin;
   loadMessages(); // Load messages on initialization
- }
-
- /**
-  * Translates '&' color codes to Minecraft ChatColor.
-  *
-  * @param message The message string with '&' color codes.
-  * @return The message string with ChatColor applied.
-  */
- public static String colorize(@NotNull String message) {
-  return ChatColor.translateAlternateColorCodes('&', message);
  }
 
  /**
@@ -85,6 +77,16 @@ public class MessageUtil {
  }
 
  /**
+  * Translates '&' color codes to Minecraft ChatColor.
+  *
+  * @param message The message string with '&' color codes.
+  * @return The message string with ChatColor applied.
+  */
+ public static String colorize(@NotNull String message) {
+  return ChatColor.translateAlternateColorCodes('&', message);
+ }
+
+ /**
   * Sends a formatted message to a command sender (player or console).
   * Automatically applies the plugin prefix and color codes.
   *
@@ -103,7 +105,7 @@ public class MessageUtil {
 
   // Add plugin prefix unless the message already contains it or is a help header
   // Help messages manage their own {plugin-prefix} explicitly for formatting flexibility
-  if (!key.startsWith("main-help-") && !message.contains(ChatColor.stripColor(colorize(pluginPrefix)))) { // Check if prefix is already applied (stripped to avoid color code issues)
+  if (!key.startsWith("main-help-") && !message.contains(ChatColor.stripColor(colorize(pluginPrefix)))) {
    message = pluginPrefix + message;
   }
 
@@ -130,7 +132,7 @@ public class MessageUtil {
 
   // Send it to players with permission
   for (Player p : plugin.getServer().getOnlinePlayers()) {
-   if (p.hasPermission("alexxautowarn.alert.receive")) { // Updated permission node
+   if (p.hasPermission("alexxautowarn.alert.receive")) {
     p.sendMessage(colorize(message));
    }
   }
@@ -142,6 +144,7 @@ public class MessageUtil {
   * Logs a message to the plugin's console.
   *
   * @param level The logging level (e.g., Level.INFO, Level.WARNING, Level.SEVERE).
+  * Use Level.FINE for debug messages.
   * @param key The key of the message in messages.yml.
   * @param placeholdersAndOptionalThrowable Optional key-value pairs for placeholder replacement,
   * followed by an optional Throwable object if logging an exception.
@@ -194,7 +197,7 @@ public class MessageUtil {
  /**
   * Replaces placeholders in a message string.
   *
-  * @param message      The message string with placeholders (e.g., "Hello {name}").
+  * @param message The message string with placeholders (e.g., "Hello {name}").
   * @param replacements An array of key-value pairs (e.g., "{name}", "World").
   * @return The message string with placeholders replaced.
   */
