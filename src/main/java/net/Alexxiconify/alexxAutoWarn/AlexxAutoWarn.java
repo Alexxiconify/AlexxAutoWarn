@@ -3,14 +3,16 @@ package net.Alexxiconify.alexxAutoWarn;
 import net.Alexxiconify.alexxAutoWarn.commands.AutoInformCommandExecutor;
 import net.Alexxiconify.alexxAutoWarn.listeners.AutoInformEventListener;
 import net.Alexxiconify.alexxAutoWarn.managers.ZoneManager;
-import net.Alexxiconify.alexxAutoWarn.util.MessageUtil;
+import net.Alexxiconify.alexxAutoWarn.utils.MessageUtil;
 import net.coreprotect.CoreProtect;
 import net.coreprotect.CoreProtectAPI;
-import org.bukkit.*;
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
-import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
 import org.bukkit.inventory.ItemStack;
@@ -21,7 +23,10 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
@@ -35,37 +40,54 @@ import java.util.stream.Collectors;
  * and provides access to the CoreProtect API. It runs on a PaperMC server, leveraging the Bukkit API
  * that Paper implements and enhances.
  */
-@SuppressWarnings("ALL")
-public final class AlexxAutoWarn extends JavaPlugin implements Listener, CommandExecutor, TabCompleter {
+@SuppressWarnings("ALL") // Suppress all warnings for brevity during iterative debugging
+public final class AlexxAutoWarn extends JavaPlugin implements Listener, CommandExecutor { // Removed TabCompleter from implements for simplicity as it's delegated
 
  // --- Plugin Constants ---
- private static final String COMMAND_NAME = "autoinform";
- private static final String PERMISSION_ADMIN_SET = "autoinform.admin.set"; // Permission for admin commands
- private static final String PERMISSION_ALERT_RECEIVE = "autoinform.alert.receive"; // Permission to receive staff alerts
- private static final String PERMISSION_BYPASS = "autoinform.bypass"; // Permission to bypass all restrictions
- private static final String WAND_KEY_STRING = "autoinform_wand"; // Changed from ainform_wand to autoinform_wand for consistency
+ private static final String COMMAND_NAME = "autoinform"; // Primary command alias
+ private static final String WAND_KEY_STRING = "autoinform_wand"; // Key for persistent data on wand
  private static final String WAND_DISPLAY_NAME = ChatColor.GOLD + "" + ChatColor.BOLD + "AutoInform Zone Selector Wand";
  private static final List<String> WAND_LORE = Arrays.asList(
          ChatColor.GRAY + "Left-click: Set Position 1",
          ChatColor.GRAY + "Right-click: Set Position 2"
  );
-
- // --- Configurable Messages ---
- // private final Map<String, String> messages = new HashMap<>(); // This is now handled by MessageUtil
- // Corrected: removed 'final' keyword. 'plugin' will be assigned in onEnable()
+ // Static plugin instance (initialized in onEnable)
  private static AlexxAutoWarn plugin;
- // --- Global Settings ---
- private boolean monitorChestAccess; // New field for chest monitoring
+
  // --- Instance Variables ---
  private CoreProtectAPI coreProtectAPI;
- // Correct way to integrate managers
  private ZoneManager zoneManager;
- private MessageUtil messageUtil; // This will be initialized to allow other managers to use it.
+ // --- Global Settings ---
+ private boolean monitorChestAccess;
  private NamespacedKey wandKey;
+ private MessageUtil messageUtil;
 
- /** Provides static access to the plugin instance. */
+ /**
+  * Provides static access to the plugin instance.
+  */
  public static AlexxAutoWarn getPlugin() {
   return plugin;
+ }
+
+ @Override
+ public void onDisable() {
+  messageUtil.log(Level.INFO, "plugin-shutting-down"); // Using message through MessageUtil
+  if (zoneManager != null) {
+   zoneManager.clearZones(); // Clear zones via manager
+  }
+  messageUtil.log(Level.INFO, "plugin-disabled"); // Using message through MessageUtil
+ }
+
+ /**
+  * Attempts to get the CoreProtect API instance.
+  */
+ private boolean setupCoreProtect() {
+  Plugin coreProtectPlugin = Bukkit.getPluginManager().getPlugin("CoreProtect");
+  if (coreProtectPlugin instanceof CoreProtect) {
+   coreProtectAPI = ((CoreProtect) coreProtectPlugin).getAPI();
+   return coreProtectAPI != null;
+  }
+  return false;
  }
 
  @Override
@@ -73,18 +95,17 @@ public final class AlexxAutoWarn extends JavaPlugin implements Listener, Command
   // Set the static plugin instance first
   plugin = this;
 
-  // Load or create the default configuration file
-  saveDefaultConfig();
+  // Load or create the default configuration files (config.yml and messages.yml)
+  saveDefaultConfig(); // This saves config.yml if not present
+  saveResource("messages.yml", false); // Save messages.yml if not present
 
-  // Initialize MessageUtil. It loads messages from config.
+  // Initialize MessageUtil. It loads messages from messages.yml.
   this.messageUtil = new MessageUtil(this);
   messageUtil.log(Level.INFO, "plugin-startup"); // Using message through MessageUtil
 
   // Initialize managers
-  this.zoneManager = new ZoneManager(this); // Pass plugin to ZoneManager
-
-  // Attempt to load zones and banned materials from the config.yml
-  zoneManager.loadZonesFromConfig();
+  this.zoneManager = new ZoneManager(this);
+  zoneManager.loadZonesFromConfig(); // Attempt to load zones and banned materials from config.yml
 
   // Load global settings
   this.monitorChestAccess = getConfig().getBoolean("monitor-chest-access", false);
@@ -113,33 +134,14 @@ public final class AlexxAutoWarn extends JavaPlugin implements Listener, Command
   getServer().getPluginManager().registerEvents(new AutoInformEventListener(this), this);
 
   messageUtil.log(Level.INFO, "plugin-enabled"); // Using message through MessageUtil
-  if (zoneManager.getDefinedZones().isEmpty()) { // Access through ZoneManager
-   messageUtil.log(Level.WARNING, "plugin-warning-no-zones-old", "{command}", COMMAND_NAME);
+  // Inform about loaded zones and banned materials using messageUtil
+  if (zoneManager.getDefinedZones().isEmpty()) {
+   messageUtil.log(Level.INFO, "plugin-no-zones-defined"); // Changed to INFO and removed {command} as it's not a help message
   } else {
-   messageUtil.log(Level.INFO, "plugin-success-zones-loaded-old", "{count}", String.valueOf(zoneManager.getDefinedZones().size()));
+   messageUtil.log(Level.INFO, "plugin-zones-loaded", "{count}", String.valueOf(zoneManager.getDefinedZones().size()));
   }
-  messageUtil.log(Level.INFO, "plugin-current-banned-materials", "{materials}", formatMaterialList(zoneManager.getGloballyBannedMaterials())); // Access through ZoneManager
- }
-
- @Override
- public void onDisable() {
-  messageUtil.log(Level.INFO, "plugin-shutting-down"); // Using message through MessageUtil
-  if (zoneManager != null) {
-   zoneManager.clearZones(); // Clear zones via manager
-  }
-  messageUtil.log(Level.INFO, "plugin-disabled"); // Using message through MessageUtil
- }
-
- /**
-  * Attempts to get the CoreProtect API instance.
-  */
- private boolean setupCoreProtect() {
-  Plugin coreProtectPlugin = Bukkit.getPluginManager().getPlugin("CoreProtect");
-  if (coreProtectPlugin instanceof CoreProtect) {
-   coreProtectAPI = ((CoreProtect) coreProtectPlugin).getAPI();
-   return coreProtectAPI != null;
-  }
-  return false;
+  messageUtil.log(Level.INFO, "plugin-banned-materials-loaded", "{count}", String.valueOf(zoneManager.getGloballyBannedMaterials().size()));
+  messageUtil.log(Level.INFO, "plugin-current-banned-materials", "{materials}", formatMaterialList(zoneManager.getGloballyBannedMaterials()));
  }
 
  /** Gets the ZoneManager instance. */
@@ -158,16 +160,12 @@ public final class AlexxAutoWarn extends JavaPlugin implements Listener, Command
   return coreProtectAPI;
  }
 
- /**
-  * Gets the global monitorChestAccess setting.
-  */
+ /** Gets the global monitorChestAccess setting. */
  public boolean isMonitorChestAccess() {
   return monitorChestAccess;
  }
 
- /**
-  * Sets the global monitorChestAccess setting and saves to config.
-  */
+ /** Sets the global monitorChestAccess setting and saves to config. */
  public void setMonitorChestAccess(boolean monitorChestAccess) {
   this.monitorChestAccess = monitorChestAccess;
   getConfig().set("monitor-chest-access", monitorChestAccess);
@@ -184,40 +182,15 @@ public final class AlexxAutoWarn extends JavaPlugin implements Listener, Command
   ItemStack wand = new ItemStack(Material.BLAZE_ROD);
   ItemMeta meta = wand.getItemMeta();
   if (meta != null) {
-   // These methods are deprecated, consider migrating to Adventure API for text components.
-   // Example using Adventure API (requires Paper API or Adventure library):
-   // meta.displayName(Component.text("AutoInform Zone Selector Wand").color(NamedTextColor.GOLD).decorate(TextDecoration.BOLD));
-   // meta.lore(Arrays.asList(Component.text("Left-click: Set Position 1").color(NamedTextColor.GRAY),
-   //                        Component.text("Right-click: Set Position 2").color(NamedTextColor.GRAY)));
-
-   meta.setDisplayName(WAND_DISPLAY_NAME); // Uses deprecated ChatColor
-   meta.setLore(WAND_LORE); // Uses deprecated ChatColor
-
-   // Add a persistent tag to identify this as the AutoInform wand
+   meta.setDisplayName(WAND_DISPLAY_NAME);
+   meta.setLore(WAND_LORE);
    meta.getPersistentDataContainer().set(wandKey, PersistentDataType.BYTE, (byte) 1);
    wand.setItemMeta(meta);
   }
   player.getInventory().addItem(wand);
  }
 
-
- // --- Helper methods and command/event implementations moved here from previous monolithic structure ---
-
- // Moved from original AlexxAutoWarn.java if it was monolithic
-
- /**
-  * Formats a Location object into a readable string.
-  */
- private String formatLocation(Location loc) {
-  if (loc == null) return "N/A";
-  return String.format("X: %.1f, Y: %.1f, Z: %.1f (World: %s)", loc.getX(), loc.getY(), loc.getZ(), loc.getWorld().getName());
- }
-
- // Moved from original AlexxAutoWarn.java if it was monolithic
-
- /**
-  * Formats a set of Materials into a comma-separated string.
-  */
+ /** Formats a set of Materials into a comma-separated string. */
  private String formatMaterialList(Set<Material> materials) {
   if (materials.isEmpty()) return "None";
   return materials.stream().map(Enum::name).collect(Collectors.joining(", "));
@@ -230,18 +203,7 @@ public final class AlexxAutoWarn extends JavaPlugin implements Listener, Command
  public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
   // This is handled by AutoInformCommandExecutor, but JavaPlugin requires this method if it implements CommandExecutor.
   // It should delegate or simply return true as the actual executor is set.
-  // If CommandExecutor is removed from AlexxAutoWarn class signature, this method is not needed here.
   return true;
  }
-
- @Override
- public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
-  // This is handled by AutoInformCommandExecutor, but JavaPlugin requires this method if it implements TabCompleter.
-  // It should delegate or simply return an empty list as the actual tab completer is set.
-  // If TabCompleter is removed from AlexxAutoWarn class signature, this method is not needed here.
-  return Collections.emptyList();
- }
-
- // No @EventHandler methods needed directly in AlexxAutoWarn if using AutoInformEventListener.
- // If Listener is removed from AlexxAutoWarn class signature, no @EventHandler methods are needed.
+ // Removed onTabComplete here as it's implemented in AutoInformCommandExecutor
 }
