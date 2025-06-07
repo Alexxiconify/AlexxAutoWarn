@@ -27,6 +27,7 @@ import java.util.stream.Collectors;
  * Handles all commands for the AlexxAutoWarn plugin.
  * Implements CommandExecutor for command execution and TabCompleter for tab completion.
  */
+@SuppressWarnings("ALL") // Suppress all warnings for brevity during iterative debugging
 public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter {
 
  private final AlexxAutoWarn plugin;
@@ -37,9 +38,6 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
 
  // NamespacedKey for storing wand selection data on player's persistent data container
  private final NamespacedKey wandSelectionKey;
- // This map is generally not needed if selections are stored in PDC, but can be useful for caching.
- // However, for consistency and avoiding state issues, direct PDC access is preferred.
- // private final ConcurrentHashMap<java.util.UUID, PlayerSelections> playerSelectionsMap;
 
  /**
   * Constructor for AutoInformCommandExecutor.
@@ -52,7 +50,6 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
   this.messageUtil = plugin.getMessageUtil();
   // Initialize NamespacedKey for wand selections, updated to match plugin name consistently
   this.wandSelectionKey = new NamespacedKey(plugin, "alexxautowarn_wand_selections");
-  // this.playerSelectionsMap = new ConcurrentHashMap<>(); // Not strictly needed with PDC
  }
 
  /**
@@ -287,10 +284,21 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
   String selectionsJson = player.getPersistentDataContainer().get(wandSelectionKey, PersistentDataType.STRING);
   PlayerSelections selections = PlayerSelections.fromJson(selectionsJson, plugin); // Pass plugin reference
 
-  selections.addSelection(zoneName, subCommand.equals("pos1") ? "pos1" : "pos2",
-          String.format("%s,%.2f,%.2f,%.2f", playerLocation.getWorld().getName(), playerLocation.getX(), playerLocation.getY(), playerLocation.getZ()));
+  String locationString = String.format("%s,%.2f,%.2f,%.2f",
+          playerLocation.getWorld().getName(),
+          playerLocation.getX(),
+          playerLocation.getY(),
+          playerLocation.getZ());
+
+  selections.addSelection(zoneName, subCommand.equals("pos1") ? "pos1" : "pos2", locationString);
 
   player.getPersistentDataContainer().set(wandSelectionKey, PersistentDataType.STRING, selections.toJson());
+  messageUtil.log(Level.FINE, "debug-pos-saved",
+          "{player}", player.getName(),
+          "{zone_name}", zoneName,
+          "{position}", subCommand,
+          "{location_string}", locationString,
+          "{current_json}", selections.toJson());
 
   messageUtil.sendMessage(player, "pos-set",
           "{zone_name}", zoneName,
@@ -326,10 +334,21 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
 
   // Retrieve selections from player's persistent data container
   String selectionsJson = player.getPersistentDataContainer().get(wandSelectionKey, PersistentDataType.STRING);
+  messageUtil.log(Level.FINE, "debug-define-start",
+          "{player}", player.getName(),
+          "{zone_name}", zoneName,
+          "{raw_json}", (selectionsJson != null ? selectionsJson : "null"));
+
   PlayerSelections selections = PlayerSelections.fromJson(selectionsJson, plugin); // Pass plugin reference
 
   Location pos1 = selections.getSelection(zoneName, "pos1", plugin);
   Location pos2 = selections.getSelection(zoneName, "pos2", plugin);
+
+  messageUtil.log(Level.FINE, "debug-define-selections",
+          "{player}", player.getName(),
+          "{zone_name}", zoneName,
+          "{pos1_status}", (pos1 != null ? "SET" : "NOT_SET"),
+          "{pos2_status}", (pos2 != null ? "SET" : "NOT_SET"));
 
   if (pos1 == null || pos2 == null) {
    messageUtil.sendMessage(player, "error-define-no-selection", "{zone_name}", zoneName);
@@ -349,6 +368,7 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
   selections.clearZoneSelections(zoneName);
   player.getPersistentDataContainer().set(wandSelectionKey, PersistentDataType.STRING, selections.toJson());
   messageUtil.sendMessage(player, "wand-selection-cleared-for-zone", "{zone_name}", zoneName);
+  messageUtil.log(Level.FINE, "debug-define-end", "{player}", player.getName(), "{zone_name}", zoneName);
  }
 
  /**
@@ -546,8 +566,8 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
   */
  private void handleReloadCommand(CommandSender sender) {
   plugin.reloadConfig();
+  messageUtil.loadMessages(); // Load messages first as other managers might use them
   zoneManager.loadZonesFromConfig();
-  messageUtil.loadMessages();
   messageUtil.sendMessage(sender, "plugin-config-reloaded");
  }
 
@@ -654,24 +674,23 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
   * @param commandLabel The alias of the command used (e.g., "autoinform").
   */
  private void sendHelpMessage(CommandSender sender, String commandLabel) {
-  messageUtil.sendMessage(sender, "main-help-header");
+  messageUtil.sendMessage(sender, "main-help-header", "{command}", commandLabel);
   // All help messages now pass the commandLabel for consistent usage display
-  if (sender.hasPermission("alexxautowarn.admin.set")) {
-   messageUtil.sendMessage(sender, "main-help-wand", "{command}", commandLabel);
-   messageUtil.sendMessage(sender, "main-help-pos1", "{command}", commandLabel);
-   messageUtil.sendMessage(sender, "main-help-pos2", "{command}", commandLabel);
-   messageUtil.sendMessage(sender, "main-help-define", "{command}", commandLabel);
-   messageUtil.sendMessage(sender, "main-help-defaultaction", "{command}", commandLabel);
-   messageUtil.sendMessage(sender, "main-help-setaction", "{command}", commandLabel);
-   messageUtil.sendMessage(sender, "main-help-remove", "{command}", commandLabel);
-   messageUtil.sendMessage(sender, "main-help-info", "{command}", commandLabel);
-   messageUtil.sendMessage(sender, "main-help-list", "{command}", commandLabel);
-   messageUtil.sendMessage(sender, "main-help-clearwand", "{command}", commandLabel);
-   messageUtil.sendMessage(sender, "main-help-reload", "{command}", commandLabel);
-   messageUtil.sendMessage(sender, "main-help-banned", "{command}", commandLabel);
-   messageUtil.sendMessage(sender, "main-help-togglechestmonitor", "{command}", commandLabel);
-   messageUtil.sendMessage(sender, "main-help-debug", "{command}", commandLabel);
-  }
+  // Permissions for help messages are handled in onTabComplete or implicitly by admin.set
+  messageUtil.sendMessage(sender, "main-help-wand", "{command}", commandLabel);
+  messageUtil.sendMessage(sender, "main-help-pos1", "{command}", commandLabel);
+  messageUtil.sendMessage(sender, "main-help-pos2", "{command}", commandLabel);
+  messageUtil.sendMessage(sender, "main-help-define", "{command}", commandLabel);
+  messageUtil.sendMessage(sender, "main-help-defaultaction", "{command}", commandLabel);
+  messageUtil.sendMessage(sender, "main-help-setaction", "{command}", commandLabel);
+  messageUtil.sendMessage(sender, "main-help-remove", "{command}", commandLabel);
+  messageUtil.sendMessage(sender, "main-help-info", "{command}", commandLabel);
+  messageUtil.sendMessage(sender, "main-help-list", "{command}", commandLabel);
+  messageUtil.sendMessage(sender, "main-help-clearwand", "{command}", commandLabel);
+  messageUtil.sendMessage(sender, "main-help-reload", "{command}", commandLabel);
+  messageUtil.sendMessage(sender, "main-help-banned", "{command}", commandLabel);
+  messageUtil.sendMessage(sender, "main-help-togglechestmonitor", "{command}", commandLabel);
+  messageUtil.sendMessage(sender, "main-help-debug", "{command}", commandLabel);
  }
 
 
@@ -679,12 +698,13 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
   * Inner class to manage player's wand selections using JSON for persistent data.
   */
  private static class PlayerSelections {
+  // Map: ZoneName (lowercase) -> Map: "pos1" or "pos2" -> LocationString (e.g., "world,X.Y,Z")
   private final Map<String, Map<String, String>> selections;
   private final AlexxAutoWarn plugin; // Added plugin field
 
   public PlayerSelections(AlexxAutoWarn plugin) {
    this.selections = new HashMap<>();
-   this.plugin = plugin; // Initialize plugin
+   this.plugin = plugin;
   }
 
   /**
@@ -695,73 +715,97 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
    * @return A PlayerSelections object, or an empty one if JSON is null or invalid.
    */
   public static PlayerSelections fromJson(@Nullable String json, AlexxAutoWarn plugin) {
-   PlayerSelections playerSelections = new PlayerSelections(plugin); // Pass plugin to constructor
+   PlayerSelections playerSelections = new PlayerSelections(plugin);
    if (json == null || json.isEmpty() || json.equals("{}")) {
+    plugin.getLogger().log(Level.FINEST, "PlayerSelections.fromJson: Provided JSON is null, empty or {}. Returning empty selections.");
     return playerSelections;
    }
+
    try {
-    json = json.trim();
-    if (json.startsWith("{") && json.endsWith("}")) {
-     String content = json.substring(1, json.length() - 1);
-     if (content.isEmpty()) {
-      return playerSelections;
+    // Remove outer braces
+    String content = json.trim();
+    if (content.startsWith("{") && content.endsWith("}")) {
+     content = content.substring(1, content.length() - 1).trim();
+    } else {
+     plugin.getLogger().log(Level.WARNING, "PlayerSelections.fromJson: JSON does not start/end with curly braces: " + json);
+     return playerSelections;
+    }
+
+    if (content.isEmpty()) {
+     return playerSelections;
+    }
+
+    // Split by top-level commas. This regex handles commas inside quoted strings.
+    String[] zoneEntries = content.split(",(?=([^\"]*\"[^\"]*\")*[^\"]*$)");
+
+    for (String zoneEntry : zoneEntries) {
+     zoneEntry = zoneEntry.trim();
+     if (zoneEntry.isEmpty()) continue;
+
+     int firstColon = zoneEntry.indexOf(':');
+     if (firstColon == -1) {
+      plugin.getLogger().log(Level.WARNING, "PlayerSelections.fromJson: Malformed zone entry (no colon): " + zoneEntry);
+      continue;
      }
-     // Handle comma splitting outside of quotes, for simplicity, assuming well-formed JSON
-     String[] zoneEntries = content.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
 
-     for (String zoneEntry : zoneEntries) {
-      zoneEntry = zoneEntry.trim();
-      if (zoneEntry.isEmpty()) continue;
+     String zoneNameKey = zoneEntry.substring(0, firstColon).trim();
+     if (!zoneNameKey.startsWith("\"") || !zoneNameKey.endsWith("\"")) {
+      plugin.getLogger().log(Level.WARNING, "PlayerSelections.fromJson: Zone name key not quoted: " + zoneNameKey);
+      continue;
+     }
+     String zoneName = zoneNameKey.substring(1, zoneNameKey.length() - 1);
 
-      int firstColon = zoneEntry.indexOf(':');
-      if (firstColon == -1) continue;
+     String zoneValuePart = zoneEntry.substring(firstColon + 1).trim();
+     if (!zoneValuePart.startsWith("{") || !zoneValuePart.endsWith("}")) {
+      plugin.getLogger().log(Level.WARNING, "PlayerSelections.fromJson: Zone value part not curly braced: " + zoneValuePart);
+      continue;
+     }
 
-      String zoneNameKey = zoneEntry.substring(0, firstColon).trim();
-      if (!zoneNameKey.startsWith("\"") || !zoneNameKey.endsWith("\"")) continue; // Must be quoted
-      String zoneName = zoneNameKey.substring(1, zoneNameKey.length() - 1);
+     String selectionContent = zoneValuePart.substring(1, zoneValuePart.length() - 1).trim();
+     Map<String, String> zoneSelections = new HashMap<>();
 
-      String zoneValuePart = zoneEntry.substring(firstColon + 1).trim();
-      if (!zoneValuePart.startsWith("{") || !zoneValuePart.endsWith("}")) continue;
-
-      String selectionContent = zoneValuePart.substring(1, zoneValuePart.length() - 1);
-      if (selectionContent.isEmpty()) {
-       playerSelections.selections.put(zoneName, new HashMap<>());
-       continue;
-      }
-
-      // Handle comma splitting outside of quotes
-      String[] posEntries = selectionContent.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
-
-      Map<String, String> zoneSelections = new HashMap<>();
+     if (!selectionContent.isEmpty()) {
+      String[] posEntries = selectionContent.split(",(?=([^\"]*\"[^\"]*\")*[^\"]*$)");
       for (String posEntry : posEntries) {
        posEntry = posEntry.trim();
        if (posEntry.isEmpty()) continue;
 
        int posColon = posEntry.indexOf(':');
-       if (posColon == -1) continue;
+       if (posColon == -1) {
+        plugin.getLogger().log(Level.WARNING, "PlayerSelections.fromJson: Malformed position entry (no colon): " + posEntry);
+        continue;
+       }
 
        String posKey = posEntry.substring(0, posColon).trim();
-       if (!posKey.startsWith("\"") || !posKey.endsWith("\"")) continue;
+       if (!posKey.startsWith("\"") || !posKey.endsWith("\"")) {
+        plugin.getLogger().log(Level.WARNING, "PlayerSelections.fromJson: Position key not quoted: " + posKey);
+        continue;
+       }
        String posType = posKey.substring(1, posKey.length() - 1);
 
        String locValue = posEntry.substring(posColon + 1).trim();
-       if (!locValue.startsWith("\"") || !locValue.endsWith("\"")) continue;
+       if (!locValue.startsWith("\"") || !locValue.endsWith("\"")) {
+        plugin.getLogger().log(Level.WARNING, "PlayerSelections.fromJson: Location value not quoted: " + locValue);
+        continue;
+       }
        String locationString = locValue.substring(1, locValue.length() - 1);
 
        zoneSelections.put(posType, locationString);
       }
-      playerSelections.selections.put(zoneName, zoneSelections);
      }
+     playerSelections.selections.put(zoneName, zoneSelections);
     }
    } catch (Exception e) {
-    plugin.getLogger().log(Level.WARNING, "Failed to parse player selections JSON: " + json, e);
+    plugin.getLogger().log(Level.WARNING, "PlayerSelections.fromJson: Failed to parse player selections JSON: " + json, e);
     return new PlayerSelections(plugin); // Return empty on error
    }
    return playerSelections;
   }
 
+
   /**
    * Converts the PlayerSelections object to a JSON string.
+   * Explicitly quotes keys and values to ensure valid JSON.
    *
    * @return JSON string representation.
    */
@@ -773,19 +817,65 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
     if (!firstZone) {
      sb.append(",");
     }
-    sb.append("\"").append(zoneEntry.getKey()).append("\":{");
+    sb.append("\"").append(escapeJson(zoneEntry.getKey())).append("\":{"); // Escape zone name key
     boolean firstPos = true;
     for (Map.Entry<String, String> posEntry : zoneEntry.getValue().entrySet()) {
      if (!firstPos) {
       sb.append(",");
      }
-     sb.append("\"").append(posEntry.getKey()).append("\":\"").append(posEntry.getValue()).append("\"");
+     sb.append("\"").append(escapeJson(posEntry.getKey())).append("\":\"").append(escapeJson(posEntry.getValue())).append("\""); // Escape pos key and location string value
      firstPos = false;
     }
     sb.append("}");
     firstZone = false;
    }
    sb.append("}");
+   return sb.toString();
+  }
+
+  /**
+   * Escapes a string for JSON output.
+   *
+   * @param text The text to escape.
+   * @return The escaped text.
+   */
+  private String escapeJson(String text) {
+   if (text == null || text.isEmpty()) {
+    return "";
+   }
+   StringBuilder sb = new StringBuilder();
+   for (char c : text.toCharArray()) {
+    switch (c) {
+     case '"':
+      sb.append("\\\"");
+      break;
+     case '\\':
+      sb.append("\\\\");
+      break;
+     case '\b':
+      sb.append("\\b");
+      break;
+     case '\f':
+      sb.append("\\f");
+      break;
+     case '\n':
+      sb.append("\\n");
+      break;
+     case '\r':
+      sb.append("\\r");
+      break;
+     case '\t':
+      sb.append("\\t");
+      break;
+     default:
+      if (c < '\u0020' || c > '\u007e') { // Handle control characters and non-ASCII
+       sb.append(String.format("\\u%04x", (int) c));
+      } else {
+       sb.append(c);
+      }
+      break;
+    }
+   }
    return sb.toString();
   }
 
@@ -797,7 +887,7 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
    * @param locationString The location string (e.g., "world,X.Y,Z").
    */
   public void addSelection(String zoneName, String type, String locationString) {
-   selections.computeIfAbsent(zoneName, k -> new HashMap<>()).put(type, locationString);
+   selections.computeIfAbsent(zoneName.toLowerCase(), k -> new HashMap<>()).put(type, locationString);
   }
 
   /**
@@ -810,16 +900,22 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
    */
   @Nullable
   public Location getSelection(String zoneName, String type, AlexxAutoWarn plugin) {
-   Map<String, String> zoneSelections = selections.get(zoneName);
-   if (zoneSelections == null) return null;
+   Map<String, String> zoneSelections = selections.get(zoneName.toLowerCase());
+   if (zoneSelections == null) {
+    plugin.getLogger().log(Level.FINEST, "PlayerSelections.getSelection: No selections found for zone '" + zoneName + "'.");
+    return null;
+   }
 
    String locationString = zoneSelections.get(type);
-   if (locationString == null) return null;
+   if (locationString == null) {
+    plugin.getLogger().log(Level.FINEST, "PlayerSelections.getSelection: No '" + type + "' selection found for zone '" + zoneName + "'.");
+    return null;
+   }
 
    try {
     String[] parts = locationString.split(",");
     if (parts.length != 4) {
-     plugin.getLogger().warning("Invalid location string format for zone '" + zoneName + "', type '" + type + "': " + locationString);
+     plugin.getLogger().log(Level.WARNING, "PlayerSelections.getSelection: Invalid location string format for zone '" + zoneName + "', type '" + type + "': " + locationString);
      return null;
     }
 
@@ -830,12 +926,12 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
 
     org.bukkit.World world = Bukkit.getWorld(worldName);
     if (world == null) {
-     plugin.getLogger().warning("World '" + worldName + "' not found for wand selection of zone '" + zoneName + "'.");
+     plugin.getLogger().log(Level.WARNING, "PlayerSelections.getSelection: World '" + worldName + "' not found for wand selection of zone '" + zoneName + "'.");
      return null;
     }
     return new Location(world, x, y, z);
    } catch (NumberFormatException | NullPointerException e) {
-    plugin.getLogger().log(Level.WARNING, "Error parsing location string for zone '" + zoneName + "', type '" + type + "': " + locationString, e);
+    plugin.getLogger().log(Level.WARNING, "PlayerSelections.getSelection: Error parsing location string for zone '" + zoneName + "', type '" + type + "': " + locationString, e);
     return null;
    }
   }
@@ -845,7 +941,26 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
    * @param zoneName The name of the zone whose selections should be cleared.
    */
   public void clearZoneSelections(String zoneName) {
-   selections.remove(zoneName);
+   selections.remove(zoneName.toLowerCase());
+  }
+ }
+
+ /**
+  * Utility class for string operations, specifically for tab completion.
+  * Copied from org.bukkit.command.defaults.StringUtil.
+  */
+ private static class StringUtil {
+  public static <T extends Collection<? super String>> T copyPartialMatches(@NotNull final String token, @NotNull final Iterable<String> completions, @NotNull final T collection) {
+   for (String completion : completions) {
+    if (startsWithIgnoreCase(completion, token)) {
+     collection.add(completion);
+    }
+   }
+   return collection;
+  }
+
+  public static boolean startsWithIgnoreCase(@NotNull final String string, @NotNull final String prefix) {
+   return string.length() >= prefix.length() && string.regionMatches(true, 0, prefix, 0, prefix.length());
   }
  }
 }
