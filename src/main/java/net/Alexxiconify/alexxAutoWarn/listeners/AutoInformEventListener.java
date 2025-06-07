@@ -4,15 +4,15 @@ import net.Alexxiconify.alexxAutoWarn.AlexxAutoWarn;
 import net.Alexxiconify.alexxAutoWarn.managers.ZoneManager;
 import net.Alexxiconify.alexxAutoWarn.objects.AutoInformZone;
 import net.Alexxiconify.alexxAutoWarn.objects.ZoneAction;
-import net.Alexxiconify.alexxAutoWarn.utils.MessageUtil;
+import net.Alexxiconify.alexxAutoWarn.util.MessageUtil;
 import net.coreprotect.CoreProtectAPI;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.block.Block;
 import org.bukkit.block.Container;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Cancellable;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -24,6 +24,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 
 import java.util.logging.Level;
+
 
 /**
  * Handles all event listeners for the AlexxAutoWarn plugin.
@@ -49,7 +50,7 @@ public class AutoInformEventListener implements Listener {
   this.plugin = plugin;
   this.zoneManager = plugin.getZoneManager();
   this.messageUtil = plugin.getMessageUtil();
-  this.coreProtectAPI = plugin.getCoreProtectAPI(); // Now accessible as public
+  this.coreProtectAPI = plugin.getCoreProtectAPI();
   this.wandKey = new NamespacedKey(plugin, "autoinform_wand");
  }
 
@@ -68,9 +69,6 @@ public class AutoInformEventListener implements Listener {
    return;
   }
 
-  // event.getBlock() refers to the Block object that existed at the location
-  // BEFORE the new block was placed (or the block being replaced).
-  // Explicitly assigning to a Block variable to help compiler resolve.
   Block affectedBlock = event.getBlock();
   Location location = affectedBlock.getLocation();
   Material placedMaterial = event.getBlockPlaced().getType();
@@ -94,12 +92,9 @@ public class AutoInformEventListener implements Listener {
    return;
   }
 
-  // event.getBlockClicked() gets the block that was right-clicked.
-  // .getRelative(event.getBlockFace()) gets the block ADJACENT to it where the liquid will be placed.
-  // Explicitly assigning to a Block variable.
   Block affectedBlock = event.getBlockClicked().getRelative(event.getBlockFace());
   Location location = affectedBlock.getLocation();
-  Material emptiedMaterial = event.getBucket(); // BUCKET, LAVA_BUCKET, WATER_BUCKET, POWDER_SNOW_BUCKET
+  Material emptiedMaterial = event.getBucket();
 
   // Adjust material to the actual block placed (e.g., LAVA for LAVA_BUCKET)
   Material placedMaterial;
@@ -139,40 +134,27 @@ public class AutoInformEventListener implements Listener {
   if (itemInHand.hasItemMeta() && itemInHand.getItemMeta().getPersistentDataContainer().has(wandKey, PersistentDataType.BYTE)) {
    // Wand interaction
    if (event.getAction() == Action.LEFT_CLICK_BLOCK && event.getClickedBlock() != null) {
-    // event.getClickedBlock() refers to the block that was clicked.
-    Block clickedBlock = event.getClickedBlock(); // Explicitly assigning to a Block variable
+    Block clickedBlock = event.getClickedBlock();
     Location loc = clickedBlock.getLocation();
-    // This logic is handled by the command executor directly via a custom "PlayerSelections" PDC,
-    // but for a true in-game wand, you'd store it temporarily or apply it to a named zone here.
-    // For now, this just prevents the block from being broken if the wand is used.
     event.setCancelled(true); // Prevent block breaking with wand
     messageUtil.sendMessage(player, "wand-pos2-selected", "{location}", String.format("%.0f, %.0f, %.0f", loc.getX(), loc.getY(), loc.getZ()));
    } else if (event.getAction() == Action.RIGHT_CLICK_BLOCK && event.getClickedBlock() != null) {
-    // event.getClickedBlock() refers to the block that was clicked.
-    Block clickedBlock = event.getClickedBlock(); // Explicitly assigning to a Block variable
+    Block clickedBlock = event.getClickedBlock();
     Location loc = clickedBlock.getLocation();
     event.setCancelled(true); // Prevent block interaction (e.g., opening chest) with wand
     messageUtil.sendMessage(player, "wand-pos1-selected", "{location}", String.format("%.0f, %.0f, %.0f", loc.getX(), loc.getY(), loc.getZ()));
    }
-   return; // Don't process other actions if it's the wand
+   return;
   }
 
   // --- Container Monitoring ---
-  // This part monitors opening of containers, which might be useful for alerting
-  // if players open chests in a monitored zone.
-  if (event.getAction() == Action.RIGHT_CLICK_BLOCK && event.getClickedBlock() != null) {
-   Block clickedBlock = event.getClickedBlock(); // Explicitly assigning to a Block variable
+  if (event.getAction() == Action.RIGHT_CLICK_BLOCK && event.getClickedBlock() != null && plugin.isMonitorChestAccess()) { // Check global setting
+   Block clickedBlock = event.getClickedBlock();
    if (clickedBlock.getState() instanceof Container) {
     Location location = clickedBlock.getLocation();
-    // Check if the container is within any defined zone
     AutoInformZone zone = zoneManager.getZoneAtLocation(location);
 
     if (zone != null) {
-     // Check if opening containers should trigger an alert for this zone
-     // Currently, the plugin configures actions for materials.
-     // If container opening should be specifically monitored, it needs a material/action in config.
-     // For example, if "CHEST" or "BARREL" is set to ALERT, then trigger.
-     // For now, we'll just check the default action if no specific material action for the container type.
      ZoneAction effectiveAction = getEffectiveAction(location, clickedBlock.getType());
 
      if (effectiveAction == ZoneAction.ALERT && player.hasPermission("autoinform.alert.receive")) {
@@ -184,15 +166,24 @@ public class AutoInformEventListener implements Listener {
               "{x}", String.valueOf(location.getBlockX()),
               "{y}", String.valueOf(location.getBlockY()),
               "{z}", String.valueOf(location.getBlockZ()));
-      // Log to CoreProtect if available
+      // Properly integrate CoreProtect logging for container access
       if (coreProtectAPI != null) {
-       // The method logContainerAccess might not be present or have a different signature
-       // in your CoreProtect API version. Commenting it out for compilation.
-       // Consider using coreProtectAPI.logAction() for a more generic log
-       // or consult CoreProtect API docs for container access logging.
-       // coreProtectAPI.logContainerAccess(player.getName(), location);
-       plugin.getLogger().log(Level.INFO, "CoreProtect logging for container access skipped due to potential API mismatch.");
+       // Log a container interaction to CoreProtect
+       // CoreProtect's logContainerAccess or logBlockBreak/Place might be appropriate here,
+       // but if no specific method, logging the interaction as a general lookup is common.
+       // This example uses logPlacement as a generic interaction log.
+       coreProtectAPI.logPlacement(player.getName(), location, clickedBlock.getType(), null);
+       plugin.getLogger().log(Level.INFO, "Container access logged to CoreProtect for " + player.getName() + " at " + location);
       }
+     } else if (effectiveAction == ZoneAction.DENY) {
+      event.setCancelled(true); // Deny chest access
+      messageUtil.sendMessage(player, "action-denied-container-access",
+              "{material}", clickedBlock.getType().name(),
+              "{zone_name}", zone.getName(),
+              "{world}", location.getWorld().getName(),
+              "{x}", String.valueOf(location.getBlockX()),
+              "{y}", String.valueOf(location.getBlockY()),
+              "{z}", String.valueOf(location.getBlockZ()));
      }
     }
    }
@@ -204,104 +195,101 @@ public class AutoInformEventListener implements Listener {
   * This considers specific zone material actions, default zone actions,
   * and global banned materials.
   *
-  * @param location The location to check.
-  * @param material The material being interacted with.
-  * @return The effective ZoneAction (DENY, ALERT, ALLOW).
+  * @param location The location where the action is occurring.
+  * @param material The material involved in the action.
+  * @return The determined ZoneAction.
   */
  private ZoneAction getEffectiveAction(Location location, Material material) {
-  // 1. Check if the location is within any defined zone
+  // 1. Check for specific zone material action
   AutoInformZone zone = zoneManager.getZoneAtLocation(location);
-
   if (zone != null) {
-   // 2. If in a zone, check for material-specific action within that zone
-   ZoneAction materialSpecificAction = zone.getMaterialSpecificActions().get(material);
-   if (materialSpecificAction != null) {
-    return materialSpecificAction; // Zone-specific material action overrides everything
-   } else {
-    // 3. If no material-specific action, use the zone's default action
-    return zone.getDefaultAction();
+   if (zone.getMaterialSpecificActions().containsKey(material)) {
+    return zone.getMaterialSpecificActions().get(material);
    }
-  } else {
-   // 4. If not in any zone, check if the material is globally banned
-   if (zoneManager.isGloballyBanned(material)) {
-    return ZoneAction.DENY; // Globally banned materials are denied outside zones
-   }
+   // 2. If no specific material action, use the zone's default action
+   return zone.getDefaultAction();
   }
-  // 5. If not in a zone and not globally banned, implicitly allow
+
+  // 3. If not in a zone, check global banned materials list
+  if (zoneManager.isGloballyBanned(material)) {
+   return ZoneAction.DENY; // Globally banned materials are always denied outside of specific zone overrides
+  }
+
+  // 4. Default to ALLOW if none of the above conditions are met
   return ZoneAction.ALLOW;
  }
 
  /**
-  * Applies the determined zone action to the player and event.
+  * Handles the outcome of a zone action (DENY, ALERT, ALLOW).
   *
   * @param player The player performing the action.
   * @param location The location of the action.
   * @param material The material involved in the action.
-  * @param action The determined ZoneAction.
-  * @param event The event that triggered the action.
+  * @param action The ZoneAction to apply.
+  * @param event The event to potentially cancel (must be Cancellable).
   */
- private void handleZoneAction(Player player, Location location, Material material, ZoneAction action, org.bukkit.event.Event event) {
+ private void handleZoneAction(Player player, Location location, Material material, ZoneAction action, Cancellable event) {
+  AutoInformZone zone = zoneManager.getZoneAtLocation(location);
+  String zoneName = (zone != null) ? zone.getName() : "N/A";
+
   switch (action) {
    case DENY:
-    // Cancel the event to prevent the action
-    if (event instanceof BlockPlaceEvent) {
-     ((BlockPlaceEvent) event).setCancelled(true);
-     // Re-send the block to the player to immediately revert the client-side change
-     // event.getBlock() is used here for its location and current state in the world
-     Block blockToRevert = ((BlockPlaceEvent) event).getBlock(); // Explicitly get Block
-     player.sendBlockChange(location, blockToRevert.getBlockData());
-    } else if (event instanceof PlayerBucketEmptyEvent) {
-     ((PlayerBucketEmptyEvent) event).setCancelled(true);
-    }
-
-    // Send a denial message to the player
+    event.setCancelled(true);
     messageUtil.sendMessage(player, "action-denied",
             "{material}", material.name(),
-            "{x}", String.valueOf(location.getBlockX()),
-            "{y}", String.valueOf(location.getBlockY()),
-            "{z}", String.valueOf(location.getBlockZ()));
-
-    // Log the action to CoreProtect if enabled
-    if (coreProtectAPI != null) {
-     // CoreProtect log for block placement
-     if (event instanceof BlockPlaceEvent) {
-      // event.getBlock() is used here for its location and current state in the world
-      Block blockForLogging = ((BlockPlaceEvent) event).getBlock(); // Explicitly get Block
-      coreProtectAPI.logPlacement(player.getName(), location, material, blockForLogging.getBlockData());
-     } else if (event instanceof PlayerBucketEmptyEvent) {
-      coreProtectAPI.logPlacement(player.getName(), location, material, Bukkit.createBlockData(material));
-     }
-     // Console log for denied action
-     plugin.getLogger().log(Level.INFO, player.getName() + " was DENIED from placing " + material.name() + " at " + location);
-    }
-    break;
-   case ALERT:
-    // Send an alert message to all staff with the alert permission
-    messageUtil.sendAlert(player, "action-alert",
-            "{player}", player.getName(),
-            "{material}", material.name(),
+            "{zone_name}", zoneName,
             "{world}", location.getWorld().getName(),
             "{x}", String.valueOf(location.getBlockX()),
             "{y}", String.valueOf(location.getBlockY()),
             "{z}", String.valueOf(location.getBlockZ()));
-
-    // Log the action to CoreProtect if enabled
+    // Log to CoreProtect if available
     if (coreProtectAPI != null) {
      // CoreProtect log for block placement
-     if (event instanceof BlockPlaceEvent) {
-      Block blockForLogging = ((BlockPlaceEvent) event).getBlock(); // Explicitly get Block
-      coreProtectAPI.logPlacement(player.getName(), location, material, blockForLogging.getBlockData());
-     } else if (event instanceof PlayerBucketEmptyEvent) {
-      coreProtectAPI.logPlacement(player.getName(), location, material, Bukkit.createBlockData(material));
-     }
-     // Console log for alerted action
-     plugin.getLogger().log(Level.INFO, player.getName() + " triggered an ALERT placing " + material.name() + " at " + location);
+     // Note: blockData is null for PlayerBucketEmptyEvent as there's no specific block data for liquid placement.
+     // For BlockPlaceEvent, we can get it from event.getBlockPlaced().getBlockData() if needed.
+     // For now, setting to null as it's optional for logPlacement.
+     coreProtectAPI.logPlacement(player.getName(), location, material, null);
     }
+    messageUtil.log(Level.INFO, "action-denied-console",
+            "{player}", player.getName(),
+            "{material}", material.name(),
+            "{zone_name}", zoneName,
+            "{world}", location.getWorld().getName(),
+            "{x}", String.valueOf(location.getBlockX()),
+            "{y}", String.valueOf(location.getBlockY()),
+            "{z}", String.valueOf(location.getBlockZ()));
+    break;
+   case ALERT:
+    messageUtil.sendAlert(player, "action-alert",
+            "{player}", player.getName(),
+            "{material}", material.name(),
+            "{zone_name}", zoneName,
+            "{world}", location.getWorld().getName(),
+            "{x}", String.valueOf(location.getBlockX()),
+            "{y}", String.valueOf(location.getBlockY()),
+            "{z}", String.valueOf(location.getBlockZ()));
+    if (coreProtectAPI != null) {
+     coreProtectAPI.logPlacement(player.getName(), location, material, null);
+    }
+    messageUtil.log(Level.INFO, "action-alert-console",
+            "{player}", player.getName(),
+            "{material}", material.name(),
+            "{zone_name}", zoneName,
+            "{world}", location.getWorld().getName(),
+            "{x}", String.valueOf(location.getBlockX()),
+            "{y}", String.valueOf(location.getBlockY()),
+            "{z}", String.valueOf(location.getBlockZ()));
     break;
    case ALLOW:
     // No action needed, the event proceeds as normal.
-    // Console log for allowed action (optional, for debugging)
-    plugin.getLogger().log(Level.FINE, player.getName() + " was ALLOWED to place " + material.name() + " at + location.toString());
+    messageUtil.log(Level.FINE, "action-allowed-console",
+            "{player}", player.getName(),
+            "{material}", material.name(),
+            "{zone_name}", zoneName,
+            "{world}", location.getWorld().getName(),
+            "{x}", String.valueOf(location.getBlockX()),
+            "{y}", String.valueOf(location.getBlockY()),
+            "{z}", String.valueOf(location.getBlockZ()));
     break;
   }
  }

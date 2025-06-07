@@ -4,7 +4,7 @@ import net.Alexxiconify.alexxAutoWarn.AlexxAutoWarn;
 import net.Alexxiconify.alexxAutoWarn.managers.ZoneManager;
 import net.Alexxiconify.alexxAutoWarn.objects.AutoInformZone;
 import net.Alexxiconify.alexxAutoWarn.objects.ZoneAction;
-import net.Alexxiconify.alexxAutoWarn.utils.MessageUtil;
+import net.Alexxiconify.alexxAutoWarn.util.MessageUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -14,13 +14,14 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -32,9 +33,12 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
  private final AlexxAutoWarn plugin;
  private final ZoneManager zoneManager;
  private final MessageUtil messageUtil;
+ // Regex pattern for validating material names
+ private static final Pattern MATERIAL_PATTERN = Pattern.compile("^[A-Z_]+$");
 
  // NamespacedKey for storing wand selection data on player's persistent data container
  private final NamespacedKey wandSelectionKey;
+ private final ConcurrentHashMap<java.util.UUID, PlayerSelections> playerSelectionsMap;
 
  /**
   * Constructor for AutoInformCommandExecutor.
@@ -47,6 +51,7 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
   this.messageUtil = plugin.getMessageUtil();
   // Initialize NamespacedKey for wand selections
   this.wandSelectionKey = new NamespacedKey(plugin, "autoinform_wand_selections");
+  this.playerSelectionsMap = new ConcurrentHashMap<>();
  }
 
  /**
@@ -66,25 +71,20 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
    return true;
   }
 
-  if (args.length == 0) {
-   // If no arguments, show general help
-   messageUtil.sendMessage(sender, "main-help-header");
-   messageUtil.sendMessage(sender, "main-help-wand", "{command}", label);
-   messageUtil.sendMessage(sender, "main-help-pos1", "{command}", label);
-   messageUtil.sendMessage(sender, "main-help-pos2", "{command}", label);
-   messageUtil.sendMessage(sender, "main-help-define", "{command}", label);
-   messageUtil.sendMessage(sender, "main-help-defaultaction", "{command}", label);
-   messageUtil.sendMessage(sender, "main-help-setaction", "{command}", label);
-   messageUtil.sendMessage(sender, "main-help-remove", "{command}", label);
-   messageUtil.sendMessage(sender, "main-help-info", "{command}", label);
-   messageUtil.sendMessage(sender, "main-help-list", "{command}", label);
-   messageUtil.sendMessage(sender, "main-help-clearwand", "{command}", label);
-   messageUtil.sendMessage(sender, "main-help-reload", "{command}", label);
-   messageUtil.sendMessage(sender, "main-help-banned", "{command}", label);
+  if (args.length == 0 || args[0].equalsIgnoreCase("help")) {
+   sendHelpMessage(sender);
    return true;
   }
 
   String subCommand = args[0].toLowerCase();
+
+  // Commands that require a player sender
+  if (!(sender instanceof Player) && !subCommand.equalsIgnoreCase("reload") && !subCommand.equalsIgnoreCase("debug")) {
+   messageUtil.sendMessage(sender, "error-player-only-command");
+   return true;
+  }
+
+  Player player = (sender instanceof Player) ? (Player) sender : null;
 
   switch (subCommand) {
    case "wand":
@@ -121,8 +121,15 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
    case "banned":
     handleBannedCommand(sender, args);
     break;
+   case "togglechestmonitor":
+    handleToggleChestMonitorCommand(sender);
+    break;
+   case "debug":
+    handleDebugCommand(sender);
+    break;
    default:
     messageUtil.sendMessage(sender, "error-unknown-subcommand", "{command}", label);
+    sendHelpMessage(sender);
     break;
   }
   return true;
@@ -138,68 +145,113 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
   * @return A list of possible tab completions.
   */
  @Override
- public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-  if (!sender.hasPermission("autoinform.admin.set")) {
-   return Collections.emptyList(); // No completion if no permission
+ public @NotNull List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
+  if (!sender.hasPermission("autoinform.admin.set") && !args[0].equalsIgnoreCase("help")) {
+   return Collections.emptyList(); // No completion if no permission, unless asking for help
+  }
+  // If console and not reload/debug/help, return empty list (console can't use pos1/pos2 etc.)
+  if (!(sender instanceof Player) && args.length > 0 && !(args[0].equalsIgnoreCase("reload") || args[0].equalsIgnoreCase("debug") || args[0].equalsIgnoreCase("help"))) {
+   return Collections.emptyList();
   }
 
   List<String> completions = new ArrayList<>();
   if (args.length == 1) {
-   // First argument: subcommands
-   StringUtil.copyPartialMatches(args[0], Arrays.asList(
-           "wand", "pos1", "pos2", "define", "defaultaction", "setaction",
-           "remove", "info", "list", "clearwand", "reload", "banned"
-   ), completions);
+   // Main subcommands
+   if (sender.hasPermission("autoinform.command.wand")) completions.add("wand");
+   if (sender.hasPermission("autoinform.command.pos1")) completions.add("pos1");
+   if (sender.hasPermission("autoinform.command.pos2")) completions.add("pos2");
+   if (sender.hasPermission("autoinform.command.define")) completions.add("define");
+   if (sender.hasPermission("autoinform.command.defaultaction")) completions.add("defaultaction");
+   if (sender.hasPermission("autoinform.command.setaction")) completions.add("setaction");
+   if (sender.hasPermission("autoinform.command.remove")) completions.add("remove");
+   if (sender.hasPermission("autoinform.command.info")) completions.add("info");
+   if (sender.hasPermission("autoinform.command.list")) completions.add("list");
+   if (sender.hasPermission("autoinform.command.clearwand")) completions.add("clearwand");
+   if (sender.hasPermission("autoinform.command.reload")) completions.add("reload");
+   if (sender.hasPermission("autoinform.command.banned")) completions.add("banned");
+   if (sender.hasPermission("autoinform.command.togglechestmonitor")) completions.add("togglechestmonitor");
+   if (sender.hasPermission("autoinform.command.debug")) completions.add("debug");
+   completions.add("help"); // Always suggest help
+
+   return completions.stream()
+           .filter(s -> s.startsWith(args[0].toLowerCase()))
+           .collect(Collectors.toList());
+
   } else if (args.length >= 2) {
    String subCommand = args[0].toLowerCase();
+   String zoneName = args.length > 2 ? args[2] : "";
+   String materialName = args.length > 3 ? args[3] : "";
+
    switch (subCommand) {
-    case "pos1":
-    case "pos2":
     case "define":
+     if (args.length == 2) { // Expected zone name
+      // No completions here as define takes a new zone name
+     } else if (args.length == 3) { // Expected default action
+      return Arrays.stream(ZoneAction.values())
+              .map(Enum::name)
+              .filter(s -> s.toLowerCase().startsWith(args[2].toLowerCase()))
+              .collect(Collectors.toList());
+     }
+     break;
     case "defaultaction":
     case "setaction":
     case "remove":
     case "info":
-     // Second argument for these commands is zone name
-     StringUtil.copyPartialMatches(args[1], zoneManager.getZoneNames(), completions);
+     if (args.length == 2) { // Second argument is zone name
+      return zoneManager.getZoneNames().stream()
+              .filter(name -> name.toLowerCase().startsWith(args[1].toLowerCase()))
+              .collect(Collectors.toList());
+     }
+     if (subCommand.equals("defaultaction")) {
+      if (args.length == 3) { // Third argument is ZoneAction
+       return Arrays.stream(ZoneAction.values())
+               .map(Enum::name)
+               .filter(s -> s.toLowerCase().startsWith(args[2].toLowerCase()))
+               .collect(Collectors.toList());
+      }
+     }
+     if (subCommand.equals("setaction")) {
+      if (args.length == 3) { // Third argument is Material
+       return Arrays.stream(Material.values())
+               .map(Enum::name)
+               .filter(name -> name.toLowerCase().startsWith(args[2].toLowerCase()))
+               .collect(Collectors.toList());
+      } else if (args.length == 4) { // Fourth argument is ZoneAction
+       return Arrays.stream(ZoneAction.values())
+               .map(Enum::name)
+               .filter(s -> s.toLowerCase().startsWith(args[3].toLowerCase()))
+               .collect(Collectors.toList());
+      }
+     }
+     if (subCommand.equals("remove") && args.length == 3) {
+      // Third arg for remove material action from zone
+      // Only suggest materials that actually have specific actions in that zone
+      AutoInformZone zone = zoneManager.getZone(args[1]);
+      if (zone != null) {
+       return zone.getMaterialSpecificActions().keySet().stream()
+               .map(Enum::name)
+               .filter(name -> name.toLowerCase().startsWith(args[2].toLowerCase()))
+               .collect(Collectors.toList());
+      }
+     }
      break;
     case "banned":
-     if (args.length == 2) {
+     if (args.length == 2) { // Second argument for 'banned' is sub-action (add, remove, list)
       StringUtil.copyPartialMatches(args[1], Arrays.asList("add", "remove", "list"), completions);
      } else if (args.length == 3 && (args[1].equalsIgnoreCase("add") || args[1].equalsIgnoreCase("remove"))) {
       // Third argument for 'banned add/remove' is material name
       StringUtil.copyPartialMatches(args[2], Arrays.stream(Material.values())
               .map(Enum::name)
+              .filter(name -> name.toLowerCase().startsWith(args[2].toLowerCase()))
               .collect(Collectors.toList()), completions);
      }
      break;
    }
-
-   if (args.length >= 3) {
-    switch (subCommand) {
-     case "defaultaction":
-      if (args.length == 3) {
-       // Third argument for 'defaultaction' is ZoneAction (DENY, ALERT, ALLOW)
-       StringUtil.copyPartialMatches(args[2], Arrays.asList("DENY", "ALERT", "ALLOW"), completions);
-      }
-      break;
-     case "setaction":
-      if (args.length == 3) {
-       // Third argument for 'setaction' is Material
-       StringUtil.copyPartialMatches(args[2], Arrays.stream(Material.values())
-               .map(Enum::name)
-               .collect(Collectors.toList()), completions);
-      } else if (args.length == 4) {
-       // Fourth argument for 'setaction' is ZoneAction
-       StringUtil.copyPartialMatches(args[3], Arrays.asList("DENY", "ALERT", "ALLOW"), completions);
-      }
-      break;
-    }
-   }
   }
-  Collections.sort(completions); // Sort completions alphabetically
+  Collections.sort(completions);
   return completions;
  }
+
 
  /**
   * Handles the '/autoinform wand' command. Gives the player the selection wand.
@@ -211,18 +263,7 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
    messageUtil.sendMessage(sender, "error-player-only-command");
    return;
   }
-
-  ItemStack wand = new ItemStack(Material.BLAZE_ROD);
-  ItemMeta meta = wand.getItemMeta();
-  if (meta != null) {
-   // Deprecated setDisplayName/setLore are used here, but still functional.
-   meta.setDisplayName(MessageUtil.colorize("&6&lAutoInform Wand"));
-   meta.setLore(Collections.singletonList(MessageUtil.colorize("&eRight-Click: Set Pos1 | Left-Click: Set Pos2")));
-   // Add a persistent tag to identify this as the AutoInform wand
-   meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "autoinform_wand"), PersistentDataType.BYTE, (byte) 1);
-   wand.setItemMeta(meta);
-  }
-  player.getInventory().addItem(wand);
+  plugin.giveAutoInformWand(player);
   messageUtil.sendMessage(player, "wand-given");
  }
 
@@ -246,26 +287,22 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
   String zoneName = args[1];
   Location playerLocation = player.getLocation();
 
-  // Store location in player's persistent data container
-  String selectionTag = (subCommand.equals("pos1") ? "pos1" : "pos2");
-  String locationString = String.format("%s,%.2f,%.2f,%.2f",
-          playerLocation.getWorld().getName(),
-          playerLocation.getX(),
-          playerLocation.getY(),
-          playerLocation.getZ());
-
-  // Get existing selections map or create a new one, passing the plugin instance
+  // Retrieve selections from player's persistent data container
   String selectionsJson = player.getPersistentDataContainer().get(wandSelectionKey, PersistentDataType.STRING);
-  PlayerSelections selections = PlayerSelections.fromJson(selectionsJson, plugin); // Pass plugin here
+  PlayerSelections selections = PlayerSelections.fromJson(selectionsJson, plugin);
 
-  selections.addSelection(zoneName, selectionTag, locationString);
+  selections.addSelection(zoneName, subCommand.equals("pos1") ? "pos1" : "pos2",
+          String.format("%s,%.2f,%.2f,%.2f", playerLocation.getWorld().getName(), playerLocation.getX(), playerLocation.getY(), playerLocation.getZ()));
+
   player.getPersistentDataContainer().set(wandSelectionKey, PersistentDataType.STRING, selections.toJson());
 
-  messageUtil.sendMessage(player, "pos-set", "{zone_name}", zoneName, "{position}", selectionTag.toUpperCase(), "{location}", String.format("%.0f, %.0f, %.0f", playerLocation.getX(), playerLocation.getY(), playerLocation.getZ()));
+  messageUtil.sendMessage(player, "pos-set", "{zone_name}", zoneName, "{position}", subCommand.toUpperCase(),
+          "{location}", String.format("%.0f, %.0f, %.0f", playerLocation.getX(), playerLocation.getY(), playerLocation.getZ()));
  }
 
  /**
-  * Handles the '/autoinform define <zone_name>' command. Defines or updates a zone.
+  * Handles the '/autoinform define <zone_name> <default_action>' command. Defines or updates a zone.
+  * This command now also takes a default action when defining.
   *
   * @param sender The command sender.
   */
@@ -274,16 +311,26 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
    messageUtil.sendMessage(sender, "error-player-only-command");
    return;
   }
-  if (args.length < 2) {
+  if (args.length < 3) { // Expecting /define <zone_name> <default_action>
    messageUtil.sendMessage(player, "error-usage-define", "{command}", args[0]);
    return;
   }
 
   String zoneName = args[1];
+  String defaultActionString = args[2].toUpperCase();
 
-  // Retrieve selections from player's persistent data container, passing the plugin instance
+  ZoneAction defaultAction;
+  try {
+   defaultAction = ZoneAction.valueOf(defaultActionString);
+  } catch (IllegalArgumentException e) {
+   messageUtil.sendMessage(player, "error-invalid-action", "{action}", defaultActionString);
+   return;
+  }
+
+
+  // Retrieve selections from player's persistent data container
   String selectionsJson = player.getPersistentDataContainer().get(wandSelectionKey, PersistentDataType.STRING);
-  PlayerSelections selections = PlayerSelections.fromJson(selectionsJson, plugin); // Pass plugin here
+  PlayerSelections selections = PlayerSelections.fromJson(selectionsJson, plugin);
 
   Location pos1 = selections.getSelection(zoneName, "pos1", plugin);
   Location pos2 = selections.getSelection(zoneName, "pos2", plugin);
@@ -299,7 +346,8 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
   }
 
   // Define/update the zone in ZoneManager and save to config
-  zoneManager.defineZone(zoneName, pos1, pos2);
+  // Corrected: Pass the defaultAction argument
+  zoneManager.defineZone(zoneName, pos1, pos2, defaultAction);
   messageUtil.sendMessage(player, "zone-defined", "{zone_name}", zoneName);
 
   // Clear selections for this zone after definition
@@ -368,9 +416,11 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
  }
 
  /**
-  * Handles the '/autoinform remove <zone_name>' command. Removes a defined zone.
+  * Handles the '/autoinform remove <zone_name> [material]' command.
+  * Can remove an entire zone or a material-specific action from a zone.
   *
   * @param sender The command sender.
+  * @param args The command arguments.
   */
  private void handleRemoveCommand(CommandSender sender, String[] args) {
   if (args.length < 2) {
@@ -379,12 +429,32 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
   }
 
   String zoneName = args[1];
-  if (zoneManager.removeZone(zoneName)) {
-   messageUtil.sendMessage(sender, "zone-removed", "{zone_name}", zoneName);
+
+  if (args.length == 2) {
+   // Remove the entire zone
+   if (zoneManager.removeZone(zoneName)) {
+    messageUtil.sendMessage(sender, "zone-removed", "{zone_name}", zoneName);
+   } else {
+    messageUtil.sendMessage(sender, "error-zone-not-found", "{zone_name}", zoneName);
+   }
+  } else if (args.length == 3) {
+   // Remove a material-specific action from a zone
+   String materialString = args[2].toUpperCase();
+   try {
+    Material material = Material.valueOf(materialString);
+    if (zoneManager.removeZoneMaterialAction(zoneName, material)) {
+     messageUtil.sendMessage(sender, "material-action-removed", "{zone_name}", zoneName, "{material}", material.name());
+    } else {
+     messageUtil.sendMessage(sender, "error-material-action-not-found", "{zone_name}", zoneName, "{material}", material.name());
+    }
+   } catch (IllegalArgumentException e) {
+    messageUtil.sendMessage(sender, "error-invalid-material", "{material}", materialString);
+   }
   } else {
-   messageUtil.sendMessage(sender, "error-zone-not-found", "{zone_name}", zoneName);
+   messageUtil.sendMessage(sender, "error-usage-remove", "{command}", args[0]);
   }
  }
+
 
  /**
   * Handles the '/autoinform info [zone_name]' command. Displays information about a zone.
@@ -448,6 +518,15 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
    messageUtil.sendMessage(sender, "list-header");
    zoneNames.forEach(name -> messageUtil.sendMessage(sender, "list-entry", "{zone_name}", name));
   }
+
+  Set<Material> globallyBanned = zoneManager.getGloballyBannedMaterials();
+  if (!globallyBanned.isEmpty()) {
+   messageUtil.sendMessage(sender, "command-list-global-banned-header");
+   messageUtil.sendMessage(sender, "command-list-global-banned-entry",
+           "{materials}", globallyBanned.stream().map(Enum::name).collect(Collectors.joining(", ")));
+  } else {
+   messageUtil.sendMessage(sender, "command-list-no-global-banned");
+  }
  }
 
  /**
@@ -470,9 +549,9 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
   * @param sender The command sender.
   */
  private void handleReloadCommand(CommandSender sender) {
-  plugin.reloadConfig(); // Reload the config.yml file
-  zoneManager.loadZonesFromConfig(); // Reload zones from the reloaded config
-  messageUtil.loadMessages(); // Reload messages from messages.yml
+  plugin.reloadConfig();
+  zoneManager.loadZonesFromConfig();
+  messageUtil.loadMessages();
   messageUtil.sendMessage(sender, "plugin-config-reloaded");
  }
 
@@ -481,7 +560,6 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
   * Manages the global list of banned materials.
   *
   * @param sender The command sender.
-  * @param args The command arguments.
   */
  private void handleBannedCommand(CommandSender sender, String[] args) {
   if (args.length < 2) {
@@ -540,14 +618,74 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
  }
 
  /**
-  * Helper class to manage player's wand selections using JSON for persistent data.
+  * Handles the 'togglechestmonitor' command. Toggles the global chest monitoring setting.
+  * Syntax: /autoinform togglechestmonitor
+  *
+  * @param sender The sender of the command.
+  */
+ private void handleToggleChestMonitorCommand(CommandSender sender) {
+  boolean currentState = plugin.isMonitorChestAccess();
+  plugin.setMonitorChestAccess(!currentState);
+  messageUtil.sendMessage(sender, "command-togglechestmonitor-success",
+          "{state}", plugin.isMonitorChestAccess() ? "enabled" : "disabled");
+ }
+
+ /**
+  * Handles the 'debug' command. Toggles debug logging level.
+  * Syntax: /autoinform debug
+  *
+  * @param sender The sender of the command.
+  */
+ private void handleDebugCommand(CommandSender sender) {
+  Level currentLevel = plugin.getLogger().getLevel();
+  Level newLevel;
+  if (currentLevel == Level.FINE || currentLevel == Level.FINER || currentLevel == Level.FINEST) {
+   newLevel = Level.INFO;
+   messageUtil.sendMessage(sender, "command-debug-off");
+  } else {
+   newLevel = Level.FINE;
+   messageUtil.sendMessage(sender, "command-debug-on");
+  }
+  plugin.getLogger().setLevel(newLevel);
+ }
+
+ /**
+  * Sends the main help message to the sender.
+  *
+  * @param sender The recipient of the help message.
+  */
+ private void sendHelpMessage(CommandSender sender) {
+  messageUtil.sendMessage(sender, "main-help-header");
+  if (sender.hasPermission("autoinform.admin.set")) {
+   messageUtil.sendMessage(sender, "main-help-wand");
+   messageUtil.sendMessage(sender, "main-help-pos1");
+   messageUtil.sendMessage(sender, "main-help-pos2");
+   messageUtil.sendMessage(sender, "main-help-define");
+   messageUtil.sendMessage(sender, "main-help-defaultaction");
+   messageUtil.sendMessage(sender, "main-help-setaction");
+   messageUtil.sendMessage(sender, "main-help-remove");
+   messageUtil.sendMessage(sender, "main-help-info");
+   messageUtil.sendMessage(sender, "main-help-list");
+   messageUtil.sendMessage(sender, "main-help-clearwand");
+   messageUtil.sendMessage(sender, "main-help-reload");
+   messageUtil.sendMessage(sender, "main-help-banned");
+   messageUtil.sendMessage(sender, "main-help-togglechestmonitor");
+   messageUtil.sendMessage(sender, "main-help-debug");
+  }
+ }
+
+
+ /**
+  * Inner class to manage player's wand selections using JSON for persistent data.
+  * This class needs a reference to the main plugin to access its logger for warnings.
   */
  private static class PlayerSelections {
-  // Map: ZoneName -> Map: "pos1" or "pos2" -> LocationString (e.g., "world,X.Y,Z")
   private final java.util.Map<String, java.util.Map<String, String>> selections;
+  private final AlexxAutoWarn plugin;
 
-  private PlayerSelections() {
+  public PlayerSelections(AlexxAutoWarn plugin) {
    this.selections = new java.util.HashMap<>();
+   this.plugin = plugin;
   }
 
   /**
@@ -558,18 +696,18 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
    * @return A PlayerSelections object, or an empty one if JSON is null or invalid.
    */
   public static PlayerSelections fromJson(@Nullable String json, AlexxAutoWarn plugin) {
-   PlayerSelections playerSelections = new PlayerSelections();
+   PlayerSelections playerSelections = new PlayerSelections(plugin);
    if (json == null || json.isEmpty() || json.equals("{}")) {
     return playerSelections;
    }
    try {
-    // Manually parse JSON to a Map<String, Map<String, String>>
-    // This is a simplified parser for expected JSON structure
-    // For more complex JSON, a library like Gson or Jackson would be better
     json = json.trim();
     if (json.startsWith("{") && json.endsWith("}")) {
      String content = json.substring(1, json.length() - 1);
-     String[] zoneEntries = content.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)"); // Split by comma outside quotes
+     if (content.isEmpty()) {
+      return playerSelections;
+     }
+     String[] zoneEntries = content.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
 
      for (String zoneEntry : zoneEntries) {
       zoneEntry = zoneEntry.trim();
@@ -579,14 +717,19 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
       if (firstColon == -1) continue;
 
       String zoneNameKey = zoneEntry.substring(0, firstColon).trim();
-      if (!zoneNameKey.startsWith("\"") || !zoneNameKey.endsWith("\"")) continue; // Must be quoted
+      if (!zoneNameKey.startsWith("\"") || !zoneNameKey.endsWith("\"")) continue;
       String zoneName = zoneNameKey.substring(1, zoneNameKey.length() - 1);
 
       String zoneValuePart = zoneEntry.substring(firstColon + 1).trim();
       if (!zoneValuePart.startsWith("{") || !zoneValuePart.endsWith("}")) continue;
 
       String selectionContent = zoneValuePart.substring(1, zoneValuePart.length() - 1);
-      String[] posEntries = selectionContent.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)"); // Split by comma outside quotes
+      if (selectionContent.isEmpty()) {
+       playerSelections.selections.put(zoneName, new java.util.HashMap<>());
+       continue;
+      }
+
+      String[] posEntries = selectionContent.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
 
       java.util.Map<String, String> zoneSelections = new java.util.HashMap<>();
       for (String posEntry : posEntries) {
@@ -610,16 +753,14 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
      }
     }
    } catch (Exception e) {
-    // Now accessing getLogger() through the passed plugin instance
     plugin.getLogger().log(java.util.logging.Level.WARNING, "Failed to parse player selections JSON: " + json, e);
-    return new PlayerSelections(); // Return empty on error
+    return new PlayerSelections(plugin);
    }
    return playerSelections;
   }
 
   /**
    * Converts the PlayerSelections object to a JSON string.
-   * This is a simple manual JSON serializer. For complex objects, use a library.
    *
    * @return JSON string representation.
    */
@@ -676,7 +817,10 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
 
    try {
     String[] parts = locationString.split(",");
-    if (parts.length != 4) return null;
+    if (parts.length != 4) {
+     plugin.getLogger().warning("Invalid location string format for zone '" + zoneName + "', type '" + type + "': " + locationString);
+     return null;
+    }
 
     String worldName = parts[0];
     double x = Double.parseDouble(parts[1]);
@@ -707,7 +851,6 @@ public class AutoInformCommandExecutor implements CommandExecutor, TabCompleter 
 
  /**
   * Utility class for string operations, specifically for tab completion.
-  * Moved from org.bukkit.command.defaults.StringUtil.
   */
  private static class StringUtil {
   public static <T extends Collection<? super String>> T copyPartialMatches(@NotNull final String token, @NotNull final Iterable<String> completions, @NotNull final T collection) {

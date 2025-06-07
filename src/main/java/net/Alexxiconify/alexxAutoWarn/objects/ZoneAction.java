@@ -1,11 +1,19 @@
+package net.Alexxiconify.alexxAutoWarn.objects;
+
 /**
- * Defines the possible actions to take within a protected zone.
- * - DENY: Prevents the action from occurring.
- * - ALERT: Allows the action but sends an alert to staff.
- * - ALLOW: Explicitly allows the action, overriding any default denials.
+ * Defines the possible actions for a material interaction within an AutoInform zone.
  */
 public enum ZoneAction {
+ /**
+  * Deny the action. The event will be cancelled.
+  */
  DENY,
+ /**
+  * Allow the action, but alert staff members about it.
+  */
  ALERT,
+ /**
+  * Allow the action without any alerts or restrictions.
+  */
  ALLOW
 }

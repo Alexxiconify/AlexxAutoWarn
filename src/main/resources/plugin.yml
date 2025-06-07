@@ -1,33 +1,22 @@
-# plugin.yml
-# This file defines the core metadata for your Spigot/Paper plugin.
-# The main class of your plugin. This is where your plugin starts.
+#file: noinspection SpellCheckingInspection
 main: net.Alexxiconify.alexxAutoWarn.AlexxAutoWarn
-# The name of your plugin. This is what will appear in /plugins.
+version: 1.0.0
+api-version: 1.20
 name: AlexxAutoWarn
-# The version of your plugin. Update this for each new release.
-version: 1.0.0-SNAPSHOT
-# A brief description of your plugin's functionality.
-description: Advanced zone monitoring and material control for Spigot/Paper servers.
-# The author(s) of the plugin.
-author: Alexxiconify
-# The API version your plugin targets. This helps ensure compatibility.
-api-version: 1.21
-# Commands provided by your plugin.
 commands:
   autoinform:
-    description: Main command for AlexxAutoWarn plugin.
-    usage: /<command> [subcommand]
-    aliases: [ ainform ] # Alternative names for the command
-    permission: autoinform.admin.set # Default permission for the main command
+    description: Manages AutoInform zones and settings.
+    usage: /<command> <subcommand>
+    aliases: [ ainform ]
+    permission: autoinform.admin.set
     permission-message: You do not have permission to use this command.
-# Permissions used by your plugin.
 permissions:
   autoinform.admin.set:
-    description: Allows access to all /autoinform commands for managing zones and settings.
-    default: op # 'op' means only server operators have this permission by default.
+    description: Allows setting and managing AutoInform zones and plugin settings.
+    default: true
   autoinform.alert.receive:
     description: Allows a player to receive in-game alerts when a monitored action occurs.
-    default: op # 'op' means only server operators have this permission by default.
+    default: true
   autoinform.bypass:
     description: Allows a player to bypass all AutoInform zone restrictions (no denials or alerts).
-    default: false # 'false' means no one has this permission by default.
+    default: true

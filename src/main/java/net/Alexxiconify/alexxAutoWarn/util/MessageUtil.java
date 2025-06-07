@@ -1,4 +1,4 @@
-package net.Alexxiconify.alexxAutoWarn.utils;
+package net.Alexxiconify.alexxAutoWarn.util; // Changed from 'utils' to 'util' to match your error path
 
 import net.Alexxiconify.alexxAutoWarn.AlexxAutoWarn;
 import org.bukkit.Bukkit;

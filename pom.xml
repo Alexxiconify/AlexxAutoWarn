@@ -10,88 +10,51 @@
     <packaging>jar</packaging>
 
     <name>AlexxAutoWarn</name>
+    <description>A plugin to manage automated warnings and restrictions in zones.</description>
 
     <properties>
         <java.version>21</java.version>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.build.sourceEncoding>UTF-8</source-blend-mode>
     </properties>
 
     <build>
-        <defaultGoal>clean package</defaultGoal>
+        <defaultGoal>clean install</defaultGoal>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.13.0</version>
+                <version>3.11.0</version>
                 <configuration>
                     <source>${java.version}</source>
                     <target>${java.version}</target>
-                    <compilerArgs>
-                        <arg>--enable-preview</arg>
-                    </compilerArgs>
-
                 </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-resources-plugin</artifactId>
-                <version>3.3.1</version> <!-- Explicitly define the resources plugin -->
-                <executions>
-                    <execution>
-                        <id>copy-resources</id>
-                        <phase>process-resources</phase>
-                        <goals>
-                            <goal>copy-resources</goal>
-                        </goals>
-                        <configuration>
-                            <outputDirectory>${basedir}/target/classes</outputDirectory>
-                            <resources>
-                                <resource>
-                                    <directory>src/main/resources</directory>
-                                    <filtering>true
-                                    </filtering> <!-- Corrected closing tag from elements to filtering -->
-                                    <includes>
-                                        <include>plugin.yml</include>
-                                        <include>config.yml</include>
-                                        <include>messages.yml</include>
-                                    </includes>
-                                </resource>
-                            </resources>
-                        </configuration>
-                    </execution>
-                </executions>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.3.0</version>
+                <configuration>
+                    <outputDirectory>${project.build.directory}</outputDirectory>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>3.5.3</version>
-                <configuration>
-                    <createDependencyReducedPom>false</createDependencyReducedPom>
-                    <excludeScope>provided</excludeScope>
-                    <filters>
-                        <filter>
-                            <artifact>net.coreprotect:coreprotect</artifact>
-                            <excludes>
-                                <exclude>plugin.yml</exclude>
-                                <exclude>META-INF/MANIFEST.MF</exclude>
-                            </excludes>
-                        </filter>
-                    </filters>
-                </configuration>
+                <version>3.4.1</version>
                 <executions>
                     <execution>
                         <phase>package</phase>
                         <goals>
                             <goal>shade</goal>
                         </goals>
+                        <configuration>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <finalName>${project.artifactId}-${project.version}</finalName>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
         </plugins>
-        <!-- The <resources> section is usually sufficient, but explicitly defining
-             maven-resources-plugin can sometimes resolve stubborn issues.
-             I'm keeping the <resources> section here as a standard practice,
-             but the explicit plugin above takes precedence for includes. -->
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
@@ -109,23 +72,25 @@
             <id>sonatype</id>
             <url>https://oss.sonatype.org/content/groups/public/</url>
         </repository>
+        <!-- CoreProtect Repository -->
         <repository>
-            <id>coreprotect-maven</id>
-            <url>https://maven.playpro.com</url>
+            <id>coreprotect-repo</id>
+            <url>https://maven.playpro.com/release</url>
         </repository>
     </repositories>
 
     <dependencies>
         <dependency>
-            <groupId>net.coreprotect</groupId>
-            <artifactId>coreprotect</artifactId>
-            <version>22.4</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
             <groupId>io.papermc.paper</groupId>
             <artifactId>paper-api</artifactId>
-            <version>1.21.4-R0.1-SNAPSHOT</version>
+            <version>1.21.4-R0.1-SNAPSHOT</version> <!-- Use your specific Paper API version -->
+            <scope>provided</scope>
+        </dependency>
+        <!-- CoreProtect API dependency -->
+        <dependency>
+            <groupId>net.coreprotect</groupId>
+            <artifactId>coreprotect</artifactId>
+            <version>22.4</version> <!-- Use the correct CoreProtect API version -->
             <scope>provided</scope>
         </dependency>
     </dependencies>
