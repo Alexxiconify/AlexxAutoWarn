@@ -59,8 +59,36 @@ public class ZoneManager {
       continue;
      }
 
-     Vector corner1 = zoneConfig.getVector("corner1");
-     Vector corner2 = zoneConfig.getVector("corner2");
+     // FIX: Correctly read Vector from nested x, y, z values
+     // ConfigurationSection.getVector() expects a directly serialized Vector,
+     // but the config stores x, y, z as individual keys.
+     ConfigurationSection corner1Section = zoneConfig.getConfigurationSection("corner1");
+     ConfigurationSection corner2Section = zoneConfig.getConfigurationSection("corner2");
+
+     Vector corner1 = null;
+     if (corner1Section != null) {
+      corner1 = new Vector(
+              corner1Section.getDouble("x"),
+              corner1Section.getDouble("y"),
+              corner1Section.getDouble("z")
+      );
+     }
+
+     Vector corner2 = null;
+     if (corner2Section != null) {
+      corner2 = new Vector(
+              corner2Section.getDouble("x"),
+              corner2Section.getDouble("y"),
+              corner2Section.getDouble("z")
+      );
+     }
+
+     // Ensure both corners are not null before creating the Zone
+     if (corner1 == null || corner2 == null) {
+      plugin.getSettings().log(Level.SEVERE, "Failed to load zone '" + zoneName + "': Missing 'corner1' or 'corner2' coordinates.");
+      continue; // Skip this zone if corners are invalid
+     }
+
 
      Zone.Action defaultAction = Zone.Action.valueOf(zoneConfig.getString("default-action", "ALERT").toUpperCase());
 
@@ -69,9 +97,16 @@ public class ZoneManager {
      if (actionsSection != null) {
       for (String materialKey : actionsSection.getKeys(false)) {
        Material material = Material.getMaterial(materialKey.toUpperCase());
-       Zone.Action action = Zone.Action.valueOf(actionsSection.getString(materialKey).toUpperCase());
-       if (material != null) {
-        materialActions.put(material, action);
+       String actionString = actionsSection.getString(materialKey);
+       if (material != null && actionString != null) {
+        try {
+         Zone.Action action = Zone.Action.valueOf(actionString.toUpperCase());
+         materialActions.put(material, action);
+        } catch (IllegalArgumentException e) {
+         plugin.getSettings().log(Level.WARNING, "Invalid action '" + actionString + "' for material '" + materialKey + "' in zone '" + zoneName + "'. Skipping this material action.");
+        }
+       } else {
+        plugin.getSettings().log(Level.WARNING, "Invalid material or action string for '" + materialKey + "' in zone '" + zoneName + "'. Skipping.");
        }
       }
      }
@@ -80,7 +115,8 @@ public class ZoneManager {
      zones.put(zone.getName(), zone);
 
     } catch (Exception e) {
-     plugin.getSettings().log(Level.SEVERE, "Failed to load zone '" + zoneName + "': " + e.getMessage());
+     // Log the full stack trace for better debugging
+     plugin.getLogger().log(Level.SEVERE, "Failed to load zone '" + zoneName + "': " + e.getMessage(), e);
     }
    }
    plugin.getSettings().log(Level.INFO, "Loaded " + zones.size() + " zones.");
@@ -102,8 +138,16 @@ public class ZoneManager {
    for (Zone zone : zones.values()) {
     String zonePath = "zones." + zone.getName();
     config.set(zonePath + ".world", zone.getWorldName());
-    config.set(zonePath + ".corner1", zone.getMin());
-    config.set(zonePath + ".corner2", zone.getMax());
+
+    // FIX: Save Vectors as nested x, y, z for readability in config
+    config.set(zonePath + ".corner1.x", zone.getMin().getX());
+    config.set(zonePath + ".corner1.y", zone.getMin().getY());
+    config.set(zonePath + ".corner1.z", zone.getMin().getZ());
+    config.set(zonePath + ".corner2.x", zone.getMax().getX());
+    config.set(zonePath + ".corner2.y", zone.getMax().getY());
+    config.set(zonePath + ".corner2.z", zone.getMax().getZ());
+
+
     config.set(zonePath + ".default-action", zone.getDefaultAction().name());
 
     if (!zone.getMaterialActions().isEmpty()) {
@@ -117,7 +161,8 @@ public class ZoneManager {
   };
 
   if (async) {
-   plugin.getServer().getAsyncScheduler().runNow(plugin, (task) -> saveTask.run());
+   // Using Bukkit's scheduler for async tasks
+   plugin.getServer().getScheduler().runTaskAsynchronously(plugin, saveTask);
   } else {
    saveTask.run();
   }
