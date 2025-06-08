@@ -1,6 +1,6 @@
-package net.alexxiconify.autowarn.utils;
+package net.alexxiconify.alexxAutoWarn.utils;
 
-import net.alexxiconify.autowarn.AutoWarnPlugin;
+import net.Alexxiconify.alexxAutoWarn.AlexxAutoWarn;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
  */
 public class Settings {
 
- private final AutoWarnPlugin plugin;
+ private final AlexxAutoWarn plugin;
  private final MiniMessage miniMessage;
 
  // --- Settings ---
@@ -30,7 +30,7 @@ public class Settings {
  private Component pluginPrefix;
  private Set<Material> globallyBannedMaterials;
 
- public Settings(AutoWarnPlugin plugin) {
+ public Settings(AlexxAutoWarn plugin) {
   this.plugin = plugin;
   this.miniMessage = MiniMessage.miniMessage();
   this.plugin.saveDefaultConfig();

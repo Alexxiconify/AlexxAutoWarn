@@ -1,12 +1,14 @@
-package net.alexxiconify.autowarn.listeners;
+package net.alexxiconify.alexxAutoWarn.listeners;
 
-import net.alexxiconify.autowarn.AutoWarnPlugin;
-import net.alexxiconify.autowarn.commands.AutoWarnCommand;
-import net.alexxiconify.autowarn.managers.ZoneManager;
-import net.alexxiconify.autowarn.objects.Zone;
-import net.alexxiconify.autowarn.utils.Settings;
+import net.Alexxiconify.alexxAutoWarn.AlexxAutoWarn;
+import net.Alexxiconify.alexxAutoWarn.commands.AutoWarnCommand;
+import net.alexxiconify.alexxAutoWarn.managers.ZoneManager;
+import net.alexxiconify.alexxAutoWarn.objects.Zone;
+import net.alexxiconify.alexxAutoWarn.utils.Settings;
 import net.coreprotect.CoreProtectAPI;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
+import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -24,6 +26,7 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 
+import java.util.Objects;
 import java.util.logging.Level;
 
 /**
@@ -32,20 +35,18 @@ import java.util.logging.Level;
  */
 public class ZoneListener implements Listener {
 
- private final AutoWarnPlugin plugin;
  private final Settings settings;
  private final ZoneManager zoneManager;
  private final AutoWarnCommand command;
  private final NamespacedKey wandKey;
  private final CoreProtectAPI coreProtectAPI;
 
- public ZoneListener(AutoWarnPlugin plugin) {
-  this.plugin = plugin;
+ public ZoneListener(AlexxAutoWarn plugin) {
   this.settings = plugin.getSettings();
   this.zoneManager = plugin.getZoneManager();
   this.coreProtectAPI = plugin.getCoreProtectAPI();
   // A bit of a workaround to access command state, ideally use a separate selection manager
-  this.command = (AutoWarnCommand) plugin.getCommand("autowarn").getExecutor();
+  this.command = (AutoWarnCommand) Objects.requireNonNull(plugin.getCommand("autowarn")).getExecutor();
   this.wandKey = command.getWandKey();
  }
 

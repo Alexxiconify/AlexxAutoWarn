@@ -1,10 +1,10 @@
-package net.alexxiconify.autowarn.commands;
+package net.Alexxiconify.alexxAutoWarn.commands;
 
 import com.google.common.collect.ImmutableList;
-import net.alexxiconify.autowarn.AutoWarnPlugin;
-import net.alexxiconify.autowarn.managers.ZoneManager;
-import net.alexxiconify.autowarn.objects.Zone;
-import net.alexxiconify.autowarn.util.Settings;
+import net.Alexxiconify.alexxAutoWarn.AlexxAutoWarn;
+import net.alexxiconify.alexxAutoWarn.managers.ZoneManager;
+import net.alexxiconify.alexxAutoWarn.objects.Zone;
+import net.alexxiconify.alexxAutoWarn.utils.Settings;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
@@ -35,15 +35,15 @@ import java.util.stream.Stream;
  */
 public class AutoWarnCommand implements CommandExecutor, TabCompleter {
  private static final Pattern ZONE_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_-]{3,32}$");
- private final AutoWarnPlugin plugin;
  private final Settings settings;
  private final ZoneManager zoneManager;
  private final NamespacedKey wandKey;
  private final Map<UUID, Vector> pos1Selections = new ConcurrentHashMap<>();
  private final Map<UUID, Vector> pos2Selections = new ConcurrentHashMap<>();
+ private final AlexxAutoWarn plugin;
 
 
- public AutoWarnCommand(AutoWarnPlugin plugin) {
+ public AutoWarnCommand(AlexxAutoWarn plugin) {
   this.plugin = plugin;
   this.settings = plugin.getSettings();
   this.zoneManager = plugin.getZoneManager();
@@ -228,13 +228,9 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
 
  // --- More command handlers needed for full functionality ---
  private void handleInfo(Player player, String[] args) { /* ... */ }
-
  private void handleDefaultAction(Player player, String[] args) { /* ... */ }
-
  private void handleSetAction(Player player, String[] args) { /* ... */ }
-
  private void handleRemoveAction(Player player, String[] args) { /* ... */ }
-
  private void handleBanned(Player player, String[] args) { /* ... */ }
 
  @Nullable
@@ -256,10 +252,10 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
     case "defaultaction" ->
             StringUtil.copyPartialMatches(args[2], Stream.of(Zone.Action.values()).map(Enum::name).collect(Collectors.toList()), completions);
     case "setaction", "removeaction" ->
-            StringUtil.copyPartialMatches(args[2], Arrays.stream(Material.values()).map(Enum::name).filter(Material::isBlock).collect(Collectors.toList()), completions);
+            StringUtil.copyPartialMatches(args[2], Arrays.stream(Material.values()).filter(m -> m.isBlock()).map(Enum::name).collect(Collectors.toList()), completions);
     case "banned" -> {
      if ("add".equalsIgnoreCase(args[1])) {
-      StringUtil.copyPartialMatches(args[2], Arrays.stream(Material.values()).map(Enum::name).filter(Material::isItem).collect(Collectors.toList()), completions);
+      StringUtil.copyPartialMatches(args[2], Arrays.stream(Material.values()).filter(m -> m.isItem()).map(Enum::name).collect(Collectors.toList()), completions);
      } else if ("remove".equalsIgnoreCase(args[1])) {
       StringUtil.copyPartialMatches(args[2], settings.getGloballyBannedMaterials().stream().map(Enum::name).collect(Collectors.toList()), completions);
      }

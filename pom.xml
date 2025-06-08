@@ -26,7 +26,6 @@
                 <configuration>
                     <source>21</source>
                     <target>21</target>
-                    <!-- Removed compilerArgs to disable Java preview features -->
                 </configuration>
             </plugin>
             <plugin>

@@ -1,7 +1,7 @@
-package net.alexxiconify.autowarn.managers;
+package net.alexxiconify.alexxAutoWarn.managers;
 
-import net.alexxiconify.autowarn.AutoWarnPlugin;
-import net.alexxiconify.autowarn.objects.Zone;
+import net.Alexxiconify.alexxAutoWarn.AlexxAutoWarn;
+import net.alexxiconify.alexxAutoWarn.objects.Zone;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -25,10 +25,10 @@ import java.util.logging.Level;
  */
 public class ZoneManager {
 
- private final AutoWarnPlugin plugin;
+ private final AlexxAutoWarn plugin;
  private final Map<String, Zone> zones = new ConcurrentHashMap<>();
 
- public ZoneManager(AutoWarnPlugin plugin) {
+ public ZoneManager(AlexxAutoWarn plugin) {
   this.plugin = plugin;
  }
 
@@ -84,7 +84,7 @@ public class ZoneManager {
     }
    }
    plugin.getSettings().log(Level.INFO, "Loaded " + zones.size() + " zones.");
-  }, plugin.getServer().getAsyncScheduler().getMainExecutor(plugin));
+  });
  }
 
  /**

@@ -1,10 +1,10 @@
-package net.alexxiconify.autowarn;
+package net.Alexxiconify.alexxAutoWarn;
 
 import com.google.common.base.Stopwatch;
-import net.alexxiconify.autowarn.commands.AutoWarnCommand;
-import net.alexxiconify.autowarn.listeners.ZoneListener;
-import net.alexxiconify.autowarn.managers.ZoneManager;
-import net.alexxiconify.autowarn.util.Settings;
+import net.Alexxiconify.alexxAutoWarn.commands.AutoWarnCommand;
+import net.alexxiconify.alexxAutoWarn.listeners.ZoneListener;
+import net.alexxiconify.alexxAutoWarn.managers.ZoneManager;
+import net.alexxiconify.alexxAutoWarn.utils.Settings;
 import net.coreprotect.CoreProtect;
 import net.coreprotect.CoreProtectAPI;
 import org.bukkit.plugin.Plugin;
@@ -17,13 +17,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
 /**
- * Main class for the AutoWarn plugin.
+ * Main class for the AlexxAutoWarn plugin.
  * Handles plugin lifecycle, configuration loading, CoreProtect integration,
  * and registration of commands and event listeners.
  */
-public final .
-
-class AutoWarnPlugin extends JavaPlugin {
+public final class AlexxAutoWarn extends JavaPlugin {
 
  private Settings settings;
  private ZoneManager zoneManager;
@@ -32,7 +30,7 @@ class AutoWarnPlugin extends JavaPlugin {
  @Override
  public void onEnable() {
   final Stopwatch stopwatch = Stopwatch.createStarted();
-  this.getLogger().info("Starting AutoWarn...");
+  this.getLogger().info("Starting AlexxAutoWarn...");
 
   // Initialize settings and managers
   this.settings = new Settings(this);
@@ -57,17 +55,17 @@ class AutoWarnPlugin extends JavaPlugin {
 
 
   long time = stopwatch.stop().elapsed(TimeUnit.MILLISECONDS);
-  this.getLogger().log(Level.INFO, "AutoWarn enabled successfully in {0}ms.", time);
+  this.getLogger().log(Level.INFO, "AlexxAutoWarn enabled successfully in {0}ms.", time);
  }
 
  @Override
  public void onDisable() {
-  this.getLogger().info("Disabling AutoWarn...");
+  this.getLogger().info("Disabling AlexxAutoWarn...");
   // Synchronously save zones on disable to ensure data is written before shutdown
   if (this.zoneManager != null) {
    this.zoneManager.saveZones(false); // Perform a blocking save on disable
   }
-  this.getLogger().info("AutoWarn has been disabled.");
+  this.getLogger().info("AlexxAutoWarn has been disabled.");
  }
 
  /**
