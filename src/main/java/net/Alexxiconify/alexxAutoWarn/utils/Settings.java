@@ -13,7 +13,6 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
-import java.util.stream.Collectors;
 
 /**
  * Manages loading and providing access to all plugin settings and messages from config.yml.
@@ -100,10 +99,11 @@ public class Settings {
   return Collections.unmodifiableSet(globallyBannedMaterials);
  }
 
- public void setGloballyBannedMaterials(Set<Material> materials) {
-  this.globallyBannedMaterials = materials;
-  List<String> materialNames = materials.stream().map(Enum::name).collect(Collectors.toList());
+ public boolean setGloballyBannedMaterials(Material materials) {
+  this.globallyBannedMaterials = Collections.singleton(materials);
+  boolean materialNames = materials.isItem();
   plugin.getConfig().set("settings.globally-banned-materials", materialNames);
   plugin.saveConfig();
+  return false;
  }
 }

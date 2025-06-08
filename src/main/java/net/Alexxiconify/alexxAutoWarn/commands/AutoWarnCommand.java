@@ -8,6 +8,7 @@ import net.alexxiconify.alexxAutoWarn.utils.Settings;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -458,7 +459,7 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
     player.sendMessage(settings.getMessage("error.invalid-material"));
     return;
    }
-   if (settings.addGloballyBannedMaterial(material)) { // Assuming Settings has this method
+   if (settings.setGloballyBannedMaterials(material)) { // Assuming Settings has this method
     player.sendMessage(settings.getMessage("command.banned-add-success", // Assuming you add this to config.yml
             Placeholder.unparsed("material", material.name().toLowerCase().replace('_', ' '))));
     plugin.getLogger().log(Level.INFO, "Player '{0}' added '{1}' to globally banned materials.", new Object[]{player.getName(), material.name()});
