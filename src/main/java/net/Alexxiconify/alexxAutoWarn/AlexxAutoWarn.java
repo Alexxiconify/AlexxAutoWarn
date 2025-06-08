@@ -1,4 +1,4 @@
-package net.Alexxiconify.alexxAutoWarn;
+package net.alexxiconify.alexxAutoWarn; // Reverted to user's specified casing: Uppercase 'A' in Alexxiconify
 
 import com.google.common.base.Stopwatch;
 import net.Alexxiconify.alexxAutoWarn.commands.AutoWarnCommand;
@@ -26,13 +26,23 @@ public final class AlexxAutoWarn extends JavaPlugin {
  private Settings settings;
  private ZoneManager zoneManager;
  private CoreProtectAPI coreProtectAPI;
+ private AutoWarnCommand autoWarnCommand; // Added field to hold the command instance
 
  @Override
  public void onEnable() {
   final Stopwatch stopwatch = Stopwatch.createStarted();
   this.getLogger().info("Starting AlexxAutoWarn...");
 
+  // FIX: Ensure default config is saved and loaded
+  // This will create the plugin's data folder (plugins/AlexxAutoWarn)
+  // and copy the bundled config.yml if it doesn't exist.
+  saveDefaultConfig();
+  // Reload config to ensure the Settings class reads the correct, potentially new, config.
+  reloadConfig();
+
+
   // Initialize settings and managers
+  // Pass the plugin instance to Settings, which will then use getConfig() internally.
   this.settings = new Settings(this);
   this.zoneManager = new ZoneManager(this);
 
@@ -44,14 +54,15 @@ public final class AlexxAutoWarn extends JavaPlugin {
   // Setup CoreProtect API
   setupCoreProtect();
 
-  // Register commands and listeners
-  this.getServer().getPluginManager().registerEvents(new ZoneListener(this), this);
-  AutoWarnCommand commandManager = new AutoWarnCommand(this);
+  // Initialize and register commands
+  this.autoWarnCommand = new AutoWarnCommand(this); // Initialize the command instance
 
-  // Using Paper's modern command registration
   var command = Objects.requireNonNull(this.getCommand("autowarn"));
-  command.setExecutor(commandManager);
-  command.setTabCompleter(commandManager);
+  command.setExecutor(this.autoWarnCommand); // Set the executor to our specific instance
+  command.setTabCompleter(this.autoWarnCommand); // Set the tab completer to our specific instance
+
+  // Register listeners
+  this.getServer().getPluginManager().registerEvents(new ZoneListener(this, this.autoWarnCommand), this);
 
 
   long time = stopwatch.stop().elapsed(TimeUnit.MILLISECONDS);
@@ -71,10 +82,17 @@ public final class AlexxAutoWarn extends JavaPlugin {
  /**
   * Reloads the plugin's configuration and all associated components.
   */
- public void reload() {
-  this.settings.reload();
-  this.zoneManager.loadZones();
+ @Override // Added @Override annotation as this method overrides JavaPlugin's reloadConfig()
+ public void reloadConfig() {
+  super.reloadConfig(); // Call the parent method to reload the underlying configuration file
+  if (this.settings != null) {
+   this.settings.reload(); // Tell your custom Settings class to reload its cached data
+  }
+  if (this.zoneManager != null) {
+   this.zoneManager.loadZones(); // Reload zones after config is reloaded
+  }
  }
+
 
  /**
   * Sets up the CoreProtect API hook.

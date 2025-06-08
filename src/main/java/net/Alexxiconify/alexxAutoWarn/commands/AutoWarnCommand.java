@@ -1,7 +1,7 @@
 package net.Alexxiconify.alexxAutoWarn.commands;
 
 import com.google.common.collect.ImmutableList;
-import net.Alexxiconify.alexxAutoWarn.AlexxAutoWarn;
+import net.alexxiconify.alexxAutoWarn.AlexxAutoWarn;
 import net.alexxiconify.alexxAutoWarn.managers.ZoneManager;
 import net.alexxiconify.alexxAutoWarn.objects.Zone;
 import net.alexxiconify.alexxAutoWarn.utils.Settings;
@@ -189,7 +189,7 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
    player.sendMessage(settings.getMessage("error.no-permission"));
    return;
   }
-  plugin.reload();
+  plugin.reloadConfig();
   player.sendMessage(settings.getMessage("command.reload-success"));
  }
 

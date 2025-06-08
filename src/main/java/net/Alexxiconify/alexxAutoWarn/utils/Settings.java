@@ -1,6 +1,6 @@
 package net.alexxiconify.alexxAutoWarn.utils;
 
-import net.Alexxiconify.alexxAutoWarn.AlexxAutoWarn;
+import net.alexxiconify.alexxAutoWarn.AlexxAutoWarn;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
