@@ -1,226 +1,126 @@
-package net.Alexxiconify.alexxAutoWarn;
+package net.alexxiconify.autowarn;
 
-import net.Alexxiconify.alexxAutoWarn.commands.AutoInformCommandExecutor;
-import net.Alexxiconify.alexxAutoWarn.listeners.AutoInformEventListener;
-import net.Alexxiconify.alexxAutoWarn.managers.ZoneManager;
-import net.Alexxiconify.alexxAutoWarn.utils.MessageUtil;
+import com.google.common.base.Stopwatch;
+import net.alexxiconify.autowarn.commands.AutoWarnCommand;
+import net.alexxiconify.autowarn.listeners.ZoneListener;
+import net.alexxiconify.autowarn.managers.ZoneManager;
+import net.alexxiconify.autowarn.util.Settings;
 import net.coreprotect.CoreProtect;
 import net.coreprotect.CoreProtectAPI;
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
-import org.bukkit.command.*;
-import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
+import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
-import java.util.stream.Collectors;
 
 /**
- * Main class for the AlexxAutoWarn plugin.
+ * Main class for the AutoWarn plugin.
  * Handles plugin lifecycle, configuration loading, CoreProtect integration,
- * command and event registration, and provides utility methods.
+ * and registration of commands and event listeners.
  */
-public class AlexxAutoWarn extends JavaPlugin implements CommandExecutor, TabCompleter {
+public final .
 
- // Configuration constants for the wand
- private static final Material WAND_MATERIAL = Material.BLAZE_ROD; // Default material
- private MessageUtil messageUtil;
+class AutoWarnPlugin extends JavaPlugin {
+
+ private Settings settings;
  private ZoneManager zoneManager;
- private static final String WAND_DISPLAY_NAME = ChatColor.RESET + "" + ChatColor.GOLD + "AutoInform Wand"; // Display name
- private static final List<String> WAND_LORE = Arrays.asList(ChatColor.GRAY + "Left-Click to set Pos1", ChatColor.GRAY + "Right-Click to set Pos2"); // Lore
  private CoreProtectAPI coreProtectAPI;
- private FileConfiguration config;
- private AutoInformCommandExecutor commandExecutor;
- private AutoInformEventListener eventListener;
- // NamespacedKey for identifying the custom wand item
- private NamespacedKey wandKey;
 
  @Override
  public void onEnable() {
-  // Plugin startup logic
-  getLogger().log(Level.INFO, "Plugin starting...");
+  final Stopwatch stopwatch = Stopwatch.createStarted();
+  this.getLogger().info("Starting AutoWarn...");
 
-  // Load configuration
-  saveDefaultConfig(); // Creates config.yml if it doesn't exist
-  this.config = getConfig();
+  // Initialize settings and managers
+  this.settings = new Settings(this);
+  this.zoneManager = new ZoneManager(this);
 
-  // Initialize utility and manager classes
-  this.messageUtil = new MessageUtil(this);
-  this.zoneManager = new ZoneManager(this, messageUtil);
+  // Asynchronously load zones from config
+  this.zoneManager.loadZones().thenRun(() -> {
+   this.getLogger().info("All zones loaded successfully.");
+  });
 
-  // Load messages for messageUtil after config is loaded
-  messageUtil.loadMessages();
-
-  // Initialize CoreProtectAPI
+  // Setup CoreProtect API
   setupCoreProtect();
 
-  // Initialize NamespacedKey for the wand
-  this.wandKey = new NamespacedKey(this, "autoinform_wand");
+  // Register commands and listeners
+  this.getServer().getPluginManager().registerEvents(new ZoneListener(this), this);
+  AutoWarnCommand commandManager = new AutoWarnCommand(this);
 
-  // Initialize command executor and event listener
-  this.commandExecutor = new AutoInformCommandExecutor(this, zoneManager, messageUtil);
-  this.eventListener = new AutoInformEventListener(this, zoneManager, messageUtil);
+  // Using Paper's modern command registration
+  var command = Objects.requireNonNull(this.getCommand("autowarn"));
+  command.setExecutor(commandManager);
+  command.setTabCompleter(commandManager);
 
-  // Register commands and tab completer
-  PluginCommand command = getCommand("autoinform");
-  if (command != null) {
-   command.setExecutor(commandExecutor);
-   command.setTabCompleter(commandExecutor); // AutoInformCommandExecutor also implements TabCompleter
-   getLogger().log(Level.INFO, "Command 'autoinform' registered.");
-  } else {
-   getLogger().log(Level.SEVERE, "Failed to register command 'autoinform'. Is it defined in plugin.yml?");
-  }
 
-  // Register event listener
-  Bukkit.getPluginManager().registerEvents(eventListener, this);
-  getLogger().log(Level.INFO, "Event listener registered.");
-
-  // Load zones after all components are initialized
-  zoneManager.loadZones();
-
-  getLogger().log(Level.INFO, "Plugin enabled!");
+  long time = stopwatch.stop().elapsed(TimeUnit.MILLISECONDS);
+  this.getLogger().log(Level.INFO, "AutoWarn enabled successfully in {0}ms.", time);
  }
 
  @Override
  public void onDisable() {
-  // Plugin shutdown logic
-  getLogger().log(Level.INFO, "Plugin shutting down...");
-
-  // Save zones to config
-  zoneManager.saveZones();
-
-  getLogger().log(Level.INFO, "Plugin disabled!");
+  this.getLogger().info("Disabling AutoWarn...");
+  // Synchronously save zones on disable to ensure data is written before shutdown
+  if (this.zoneManager != null) {
+   this.zoneManager.saveZones(false); // Perform a blocking save on disable
+  }
+  this.getLogger().info("AutoWarn has been disabled.");
  }
 
  /**
-  * Reloads the plugin's configuration and associated managers.
+  * Reloads the plugin's configuration and all associated components.
   */
- public void reloadPluginConfig() {
-  reloadConfig(); // Reloads the config.yml from disk
-  this.config = getConfig(); // Update the config object
-  messageUtil.loadMessages(); // Reload messages in MessageUtil
-  zoneManager.loadZones(); // Reload zones from the updated config
-  getLogger().log(Level.INFO, "Configuration and zones reloaded.");
+ public void reload() {
+  this.settings.reload();
+  this.zoneManager.loadZones();
  }
 
  /**
-  * Sets up CoreProtect API if the plugin is available.
+  * Sets up the CoreProtect API hook.
   */
  private void setupCoreProtect() {
-  Plugin coreProtectPlugin = Bukkit.getPluginManager().getPlugin("CoreProtect");
-  if (coreProtectPlugin instanceof CoreProtect) {
-   coreProtectAPI = ((CoreProtect) coreProtectPlugin).getAPI();
-   if (coreProtectAPI.isEnabled()) {
-    getLogger().log(Level.INFO, "CoreProtect found! Logging enabled.");
-   } else {
-    getLogger().log(Level.WARNING, "CoreProtect found, but API is not enabled. Logging features will be disabled.");
-    coreProtectAPI = null;
-   }
-  } else {
-   getLogger().log(Level.WARNING, "CoreProtect not found! Logging features will be disabled.");
-   coreProtectAPI = null;
+  final Plugin coreProtectPlugin = getServer().getPluginManager().getPlugin("CoreProtect");
+  if (!(coreProtectPlugin instanceof CoreProtect)) {
+   getLogger().warning("CoreProtect not found! Logging features will be disabled.");
+   this.coreProtectAPI = null;
+   return;
   }
+
+  final CoreProtectAPI api = ((CoreProtect) coreProtectPlugin).getAPI();
+  if (!api.isEnabled()) {
+   getLogger().warning("CoreProtect found, but the API is not enabled. Logging disabled.");
+   this.coreProtectAPI = null;
+   return;
+  }
+
+  // Check for a compatible CoreProtect version
+  if (api.APIVersion() < 9) {
+   getLogger().warning("Unsupported CoreProtect version found. Please update CoreProtect. Logging disabled.");
+   this.coreProtectAPI = null;
+   return;
+  }
+
+  this.coreProtectAPI = api;
+  getLogger().info("Successfully hooked into CoreProtect API.");
  }
 
- /**
-  * Retrieves the CoreProtectAPI instance.
-  *
-  * @return The CoreProtectAPI instance, or null if not available.
-  */
- @Nullable
- public CoreProtectAPI getCoreProtectAPI() {
-  return coreProtectAPI;
+ // --- Getters ---
+
+ @NotNull
+ public Settings getSettings() {
+  return settings;
  }
 
- /**
-  * Retrieves the MessageUtil instance.
-  *
-  * @return The MessageUtil instance.
-  */
- public MessageUtil getMessageUtil() {
-  return messageUtil;
- }
-
- /**
-  * Retrieves the ZoneManager instance.
-  *
-  * @return The ZoneManager instance.
-  */
+ @NotNull
  public ZoneManager getZoneManager() {
   return zoneManager;
  }
 
- /**
-  * Retrieves the AutoInformCommandExecutor instance.
-  *
-  * @return The AutoInformCommandExecutor instance.
-  */
- public AutoInformCommandExecutor getCommandExecutor() {
-  return commandExecutor;
- }
-
- /**
-  * Checks if chest access monitoring is enabled in the config.
-  *
-  * @return true if monitor-chest-access is true, false otherwise.
-  */
- public boolean isMonitorChestAccess() {
-  return getConfig().getBoolean("monitor-chest-access", false);
- }
-
- /**
-  * Gives the player the custom AutoInform wand item.
-  *
-  * @param player The player to give the wand to.
-  */
- public void giveSelectionWand(Player player) {
-  ItemStack wand = new ItemStack(WAND_MATERIAL);
-  ItemMeta meta = wand.getItemMeta();
-  if (meta != null) {
-   meta.setDisplayName(WAND_DISPLAY_NAME);
-   meta.setLore(WAND_LORE);
-   meta.getPersistentDataContainer().set(wandKey, PersistentDataType.BYTE, (byte) 1);
-   wand.setItemMeta(meta);
-  }
-  player.getInventory().addItem(wand);
- }
-
- /**
-  * Formats a set of Materials into a comma-separated string.
-  * Made public for access from AutoInformCommandExecutor.
-  */
- public String formatMaterialList(Set<Material> materials) {
-  if (materials.isEmpty()) return "None";
-  return materials.stream().map(Enum::name).collect(Collectors.joining(", "));
- }
-
- // --- Dummy/Placeholder implementations for Listener and CommandExecutor for this main class ---
- // The actual logic is in AutoInformEventListener and AutoInformCommandExecutor
-
- @Override
- public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-  // This is handled by AutoInformCommandExecutor, but JavaPlugin requires this method if it implements CommandExecutor.
-  // It should delegate or simply return true as the actual executor is set.
-  return true;
- }
-
- @Override
- public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
-  // This is handled by AutoInformCommandExecutor, but JavaPlugin requires this method if it implements TabCompleter.
-  // It should delegate or simply return an empty list as the actual tab completer is set.
-  return Collections.emptyList();
+ @Nullable
+ public CoreProtectAPI getCoreProtectAPI() {
+  return coreProtectAPI;
  }
 }
