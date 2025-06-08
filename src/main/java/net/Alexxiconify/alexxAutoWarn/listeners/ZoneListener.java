@@ -1,7 +1,7 @@
 package net.alexxiconify.alexxAutoWarn.listeners;
 
-import net.Alexxiconify.alexxAutoWarn.AlexxAutoWarn;
 import net.Alexxiconify.alexxAutoWarn.commands.AutoWarnCommand;
+import net.alexxiconify.alexxAutoWarn.AlexxAutoWarn;
 import net.alexxiconify.alexxAutoWarn.managers.ZoneManager;
 import net.alexxiconify.alexxAutoWarn.objects.Zone;
 import net.alexxiconify.alexxAutoWarn.utils.Settings;
@@ -26,7 +26,6 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 
-import java.util.Objects;
 import java.util.logging.Level;
 
 /**
@@ -37,16 +36,25 @@ public class ZoneListener implements Listener {
 
  private final Settings settings;
  private final ZoneManager zoneManager;
- private final AutoWarnCommand command;
+ private final AutoWarnCommand command; // This now holds the actual AutoWarnCommand instance
  private final NamespacedKey wandKey;
  private final CoreProtectAPI coreProtectAPI;
 
- public ZoneListener(AlexxAutoWarn plugin) {
+ /**
+  * Constructor for ZoneListener.
+  *
+  * @param plugin          The main AlexxAutoWarn plugin instance.
+  * @param autoWarnCommand The AutoWarnCommand instance responsible for wand selections.
+  */
+ public ZoneListener(AlexxAutoWarn plugin, AutoWarnCommand autoWarnCommand) {
   this.settings = plugin.getSettings();
   this.zoneManager = plugin.getZoneManager();
   this.coreProtectAPI = plugin.getCoreProtectAPI();
-  // A bit of a workaround to access command state, ideally use a separate selection manager
-  this.command = (AutoWarnCommand) Objects.requireNonNull(plugin.getCommand("autowarn")).getExecutor();
+  // FIX: Directly assign the AutoWarnCommand instance passed from the main plugin class.
+  // This resolves the ClassCastException that occurred when trying to cast a CommandExecutor
+  // (which was likely the main plugin instance itself if AlexxAutoWarn was set as the command executor)
+  // to AutoWarnCommand.
+  this.command = autoWarnCommand;
   this.wandKey = command.getWandKey();
  }
 

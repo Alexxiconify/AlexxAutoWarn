@@ -1,7 +1,7 @@
 package net.Alexxiconify.alexxAutoWarn.commands;
 
 import com.google.common.collect.ImmutableList;
-import net.Alexxiconify.alexxAutoWarn.AlexxAutoWarn;
+import net.alexxiconify.alexxAutoWarn.AlexxAutoWarn;
 import net.alexxiconify.alexxAutoWarn.managers.ZoneManager;
 import net.alexxiconify.alexxAutoWarn.objects.Zone;
 import net.alexxiconify.alexxAutoWarn.utils.Settings;

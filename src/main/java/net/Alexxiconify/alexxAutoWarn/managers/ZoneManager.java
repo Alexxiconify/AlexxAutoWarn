@@ -1,6 +1,6 @@
 package net.alexxiconify.alexxAutoWarn.managers;
 
-import net.Alexxiconify.alexxAutoWarn.AlexxAutoWarn;
+import net.alexxiconify.alexxAutoWarn.AlexxAutoWarn;
 import net.alexxiconify.alexxAutoWarn.objects.Zone;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
