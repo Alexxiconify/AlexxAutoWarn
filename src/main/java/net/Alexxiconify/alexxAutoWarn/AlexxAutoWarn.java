@@ -1,10 +1,10 @@
-package net.alexxiconify.autowarn;
+package net.Alexxiconify.alexxAutoWarn;
 
 import com.google.common.base.Stopwatch;
-import net.alexxiconify.autowarn.commands.AutoWarnCommand;
-import net.alexxiconify.autowarn.listeners.ZoneListener;
-import net.alexxiconify.autowarn.managers.ZoneManager;
-import net.alexxiconify.autowarn.util.Settings;
+import net.Alexxiconify.alexxAutoWarn.commands.AutoWarnCommand;
+import net.Alexxiconify.alexxAutoWarn.listeners.ZoneListener;
+import net.Alexxiconify.alexxAutoWarn.managers.ZoneManager;
+import net.Alexxiconify.alexxAutoWarn.utils.Settings;
 import net.coreprotect.CoreProtect;
 import net.coreprotect.CoreProtectAPI;
 import org.bukkit.plugin.Plugin;
@@ -21,9 +21,7 @@ import java.util.logging.Level;
  * Handles plugin lifecycle, configuration loading, CoreProtect integration,
  * and registration of commands and event listeners.
  */
-public final .
-
-class AutoWarnPlugin extends JavaPlugin {
+public final class AlexxAutoWarn extends JavaPlugin {
 
  private Settings settings;
  private ZoneManager zoneManager;
