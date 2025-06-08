@@ -43,6 +43,10 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
  private final Map<UUID, Vector> pos1Selections = new ConcurrentHashMap<>();
  private final Map<UUID, Vector> pos2Selections = new ConcurrentHashMap<>();
  private final AlexxAutoWarn plugin;
+ private CommandSender sender;
+ private Command command;
+ private String label;
+ private String[] args;
 
 
  public AutoWarnCommand(AlexxAutoWarn plugin) {
@@ -53,7 +57,11 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
  }
 
  @Override
- public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
+ public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String @NotNull [] args) {
+  this.sender = sender;
+  this.command = command;
+  this.label = label;
+  this.args = args;
   // Log that the command was received and by whom
   plugin.getLogger().log(Level.INFO, "AutoWarnCommand received: Label='{0}', Args='{1}', Sender='{2}'", new Object[]{label, String.join(" ", args), sender.getName()});
 
@@ -348,7 +356,7 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
   try {
    Zone.Action action = Zone.Action.valueOf(actionString);
    // Recreate zone with new default action, keeping existing material actions
-   Zone updatedZone = new Zone(zone.getName(), Bukkit.getWorld(zone.getWorldName()), zone.getMin(), zone.getMax(), action, zone.getMaterialActions());
+   Zone updatedZone = new Zone(zone.getName(), Objects.requireNonNull(Bukkit.getWorld(zone.getWorldName())), zone.getMin(), zone.getMax(), action, zone.getMaterialActions());
    zoneManager.addOrUpdateZone(updatedZone);
    player.sendMessage(settings.getMessage("command.defaultaction-success", // Assuming you add this to config.yml
            Placeholder.unparsed("zone", zoneName),
@@ -388,7 +396,7 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
    Map<Material, Zone.Action> updatedMaterialActions = new EnumMap<>(zone.getMaterialActions());
    updatedMaterialActions.put(material, action);
    // Recreate zone with updated material actions
-   Zone updatedZone = new Zone(zone.getName(), Bukkit.getWorld(zone.getWorldName()), zone.getMin(), zone.getMax(), zone.getDefaultAction(), updatedMaterialActions);
+   Zone updatedZone = new Zone(zone.getName(), Objects.requireNonNull(Bukkit.getWorld(zone.getWorldName())), zone.getMin(), zone.getMax(), zone.getDefaultAction(), updatedMaterialActions);
    zoneManager.addOrUpdateZone(updatedZone);
    player.sendMessage(settings.getMessage("command.setaction-success", // Assuming you add this to config.yml
            Placeholder.unparsed("zone", zoneName),
@@ -426,7 +434,7 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
   Map<Material, Zone.Action> updatedMaterialActions = new EnumMap<>(zone.getMaterialActions());
   if (updatedMaterialActions.remove(material) != null) {
    // Recreate zone with updated material actions
-   Zone updatedZone = new Zone(zone.getName(), Bukkit.getWorld(zone.getWorldName()), zone.getMin(), zone.getMax(), zone.getDefaultAction(), updatedMaterialActions);
+   Zone updatedZone = new Zone(zone.getName(), Objects.requireNonNull(Bukkit.getWorld(zone.getWorldName())), zone.getMin(), zone.getMax(), zone.getDefaultAction(), updatedMaterialActions);
    zoneManager.addOrUpdateZone(updatedZone);
    player.sendMessage(settings.getMessage("command.removeaction-success", // Assuming you add this to config.yml
            Placeholder.unparsed("zone", zoneName),
@@ -449,65 +457,68 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
   }
 
   String sub = args[1].toLowerCase();
-  if (sub.equals("add")) {
-   if (args.length < 3) {
-    player.sendMessage(settings.getMessage("error.usage.banned-add")); // Assuming you add this to config.yml
-    return;
-   }
-   Material material = Material.getMaterial(args[2].toUpperCase());
-   if (material == null) {
-    player.sendMessage(settings.getMessage("error.invalid-material"));
-    return;
-   }
-   if (settings.setGloballyBannedMaterials(material)) { // Assuming Settings has this method
-    player.sendMessage(settings.getMessage("command.banned-add-success", // Assuming you add this to config.yml
-            Placeholder.unparsed("material", material.name().toLowerCase().replace('_', ' '))));
-    plugin.getLogger().log(Level.INFO, "Player '{0}' added '{1}' to globally banned materials.", new Object[]{player.getName(), material.name()});
-   } else {
-    player.sendMessage(settings.getMessage("error.material-already-banned")); // Assuming you add this to config.yml
-   }
-  } else if (sub.equals("remove")) {
-   if (args.length < 3) {
-    player.sendMessage(settings.getMessage("error.usage.banned-remove")); // Assuming you add this to config.yml
-    return;
-   }
-   Material material = Material.getMaterial(args[2].toUpperCase());
-   if (material == null) {
-    player.sendMessage(settings.getMessage("error.invalid-material"));
-    return;
-   }
-   if (settings.removeGloballyBannedMaterial(material)) { // Assuming Settings has this method
-    player.sendMessage(settings.getMessage("command.banned-remove-success", // Assuming you add this to config.yml
-            Placeholder.unparsed("material", material.name().toLowerCase().replace('_', ' '))));
-    plugin.getLogger().log(Level.INFO, "Player '{0}' removed '{1}' from globally banned materials.", new Object[]{player.getName(), material.name()});
-   } else {
-    player.sendMessage(settings.getMessage("error.material-not-banned")); // Assuming you add this to config.yml
-   }
-  } else if (sub.equals("list")) {
-   Collection<Material> bannedMaterials = settings.getGloballyBannedMaterials();
-   if (bannedMaterials.isEmpty()) {
-    player.sendMessage(settings.getMessage("command.banned-list-empty")); // Assuming you add this to config.yml
-    plugin.getLogger().log(Level.INFO, "Player '{0}' requested banned materials list; list is empty.", player.getName());
-   } else {
-    player.sendMessage(settings.getMessage("command.banned-list-header", // Assuming you add this to config.yml
-            Placeholder.unparsed("count", String.valueOf(bannedMaterials.size()))));
-    for (Material material : bannedMaterials) {
-     player.sendMessage(Component.text("- " + material.name().toLowerCase().replace('_', ' ')).color(NamedTextColor.YELLOW));
+  switch (sub) {
+   case "add" -> {
+    if (args.length < 3) {
+     player.sendMessage(settings.getMessage("error.usage.banned-add")); // Assuming you add this to config.yml
+     return;
     }
-    plugin.getLogger().log(Level.INFO, "Player '{0}' requested banned materials list. Sent {1} materials.", new Object[]{player.getName(), bannedMaterials.size()});
+    Material material = Material.getMaterial(args[2].toUpperCase());
+    if (material == null) {
+     player.sendMessage(settings.getMessage("error.invalid-material"));
+     return;
+    }
+    if (settings.setGloballyBannedMaterials(material)) { // Assuming Settings has this method
+     player.sendMessage(settings.getMessage("command.banned-add-success", // Assuming you add this to config.yml
+             Placeholder.unparsed("material", material.name().toLowerCase().replace('_', ' '))));
+     plugin.getLogger().log(Level.INFO, "Player '{0}' added '{1}' to globally banned materials.", new Object[]{player.getName(), material.name()});
+    } else {
+     player.sendMessage(settings.getMessage("error.material-already-banned")); // Assuming you add this to config.yml
+    }
    }
-  } else {
-   player.sendMessage(settings.getMessage("error.usage.banned")); // Assuming you add this to config.yml
+   case "remove" -> {
+    if (args.length < 3) {
+     player.sendMessage(settings.getMessage("error.usage.banned-remove")); // Assuming you add this to config.yml
+     return;
+    }
+    Material material = Material.getMaterial(args[2].toUpperCase());
+    if (material == null) {
+     player.sendMessage(settings.getMessage("error.invalid-material"));
+     return;
+    }
+    if (settings.removeGloballyBannedMaterial(material)) { // Assuming Settings has this method
+     player.sendMessage(settings.getMessage("command.banned-remove-success", // Assuming you add this to config.yml
+             Placeholder.unparsed("material", material.name().toLowerCase().replace('_', ' '))));
+     plugin.getLogger().log(Level.INFO, "Player '{0}' removed '{1}' from globally banned materials.", new Object[]{player.getName(), material.name()});
+    } else {
+     player.sendMessage(settings.getMessage("error.material-not-banned")); // Assuming you add this to config.yml
+    }
+   }
+   case "list" -> {
+    Collection<Material> bannedMaterials = settings.getGloballyBannedMaterials();
+    if (bannedMaterials.isEmpty()) {
+     player.sendMessage(settings.getMessage("command.banned-list-empty")); // Assuming you add this to config.yml
+     plugin.getLogger().log(Level.INFO, "Player '{0}' requested banned materials list; list is empty.", player.getName());
+    } else {
+     player.sendMessage(settings.getMessage("command.banned-list-header", // Assuming you add this to config.yml
+             Placeholder.unparsed("count", String.valueOf(bannedMaterials.size()))));
+     for (Material material : bannedMaterials) {
+      player.sendMessage(Component.text("- " + material.name().toLowerCase().replace('_', ' ')).color(NamedTextColor.YELLOW));
+     }
+     plugin.getLogger().log(Level.INFO, "Player '{0}' requested banned materials list. Sent {1} materials.", new Object[]{player.getName(), bannedMaterials.size()});
+    }
+   }
+   default -> player.sendMessage(settings.getMessage("error.usage.banned")); // Assuming you add this to config.yml
   }
  }
 
 
  @Nullable
  @Override
- public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
+ public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String @NotNull [] args) {
   final List<String> completions = new ArrayList<>();
-  if (args.length == 1) {
-   StringUtil.copyPartialMatches(args[0],
+  if (1 == args.length) {
+   List<String> completions1 = StringUtil.copyPartialMatches(args[0],
            ImmutableList.of("wand", "pos1", "pos2", "define", "remove", "info", "list", "defaultaction", "setaction", "removeaction", "reload", "banned"),
            completions);
   } else if (args.length == 2) {

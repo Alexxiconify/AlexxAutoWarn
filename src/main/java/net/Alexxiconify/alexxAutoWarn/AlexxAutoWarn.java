@@ -7,12 +7,12 @@ import net.alexxiconify.alexxAutoWarn.managers.ZoneManager;
 import net.alexxiconify.alexxAutoWarn.utils.Settings;
 import net.coreprotect.CoreProtect;
 import net.coreprotect.CoreProtectAPI;
+import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
@@ -57,9 +57,15 @@ public final class AlexxAutoWarn extends JavaPlugin {
   // Initialize and register commands
   this.autoWarnCommand = new AutoWarnCommand(this); // Initialize the command instance
 
-  var command = Objects.requireNonNull(this.getCommand("autowarn"));
-  command.setExecutor(this.autoWarnCommand); // Set the executor to our specific instance
-  command.setTabCompleter(this.autoWarnCommand); // Set the tab completer to our specific instance
+  // FIX: Add explicit null check and logging for command registration
+  PluginCommand command = this.getCommand("autowarn"); // Use PluginCommand type
+  if (command == null) {
+   getLogger().severe("Command 'autowarn' not found in plugin.yml! Commands will not work.");
+  } else {
+   command.setExecutor(this.autoWarnCommand); // Set the executor to our specific instance
+   command.setTabCompleter(this.autoWarnCommand); // Set the tab completer to our specific instance
+   getLogger().info("Command 'autowarn' registered successfully.");
+  }
 
   // Register listeners
   this.getServer().getPluginManager().registerEvents(new ZoneListener(this, this.autoWarnCommand), this);
@@ -81,8 +87,10 @@ public final class AlexxAutoWarn extends JavaPlugin {
 
  /**
   * Reloads the plugin's configuration and all associated components.
+  * This method overrides JavaPlugin's reloadConfig() and should be used
+  * as the primary entry point for plugin reloads.
   */
- @Override // Added @Override annotation as this method overrides JavaPlugin's reloadConfig()
+ @Override
  public void reloadConfig() {
   super.reloadConfig(); // Call the parent method to reload the underlying configuration file
   if (this.settings != null) {
@@ -92,7 +100,6 @@ public final class AlexxAutoWarn extends JavaPlugin {
    this.zoneManager.loadZones(); // Reload zones after config is reloaded
   }
  }
-
 
  /**
   * Sets up the CoreProtect API hook.
