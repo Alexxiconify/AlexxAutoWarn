@@ -1,4 +1,4 @@
-package net.alexxiconify.alexxAutoWarn.commands; // Ensure this matches your directory structure
+package net.alexxiconify.alexxAutoWarn.commands; // Consistent casing
 
 import com.google.common.collect.ImmutableList;
 import net.alexxiconify.alexxAutoWarn.AlexxAutoWarn;
@@ -24,564 +24,493 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Level;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * Handles all logic for the /autowarn command using Paper's command API.
+ * Handles all commands for the AlexxAutoWarn plugin.
  * Implements CommandExecutor for command handling and TabCompleter for tab completion.
  */
 public class AutoWarnCommand implements CommandExecutor, TabCompleter {
+
+ // Regex for valid zone names
  private static final Pattern ZONE_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_-]{3,32}$");
  private final Settings settings;
  private final ZoneManager zoneManager;
- private final NamespacedKey wandKey;
- private final Map<UUID, Vector> pos1Selections = new ConcurrentHashMap<>();
- private final Map<UUID, Vector> pos2Selections = new ConcurrentHashMap<>();
- private final AlexxAutoWarn plugin;
+ // Key for the selection wand's persistent data
+ private static final NamespacedKey WAND_KEY;
 
- /**
-  * Constructs a new AutoWarnCommand.
-  * @param plugin The main AlexxAutoWarn plugin instance.
-  */
+ static {
+  // Initialize WAND_KEY in a static block.
+  // It's important that "alexxautowarn" matches the plugin's name in plugin.yml.
+  WAND_KEY = new NamespacedKey("alexxautowarn", "selection_wand");
+ }
+
+ private final AlexxAutoWarn plugin;
+ // Changed to store Vector directly for consistency with Zone constructor
+ private final Map<UUID, Vector> pos1 = new ConcurrentHashMap<>();
+ private final Map<UUID, Vector> pos2 = new ConcurrentHashMap<>();
+
  public AutoWarnCommand(AlexxAutoWarn plugin) {
   this.plugin = plugin;
-  this.settings = plugin.getSettings();
-  this.zoneManager = plugin.getZoneManager();
-  this.wandKey = new NamespacedKey(plugin, "autowarn_wand");
+  this.settings = plugin.getSettings(); // Get settings from the plugin instance
+  this.zoneManager = plugin.getZoneManager(); // Get zone manager from the plugin instance
  }
 
  @Override
- public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-  // Log that the command was received and by whom
-  plugin.getLogger().log(Level.INFO, "AutoWarnCommand received: Label='{0}', Args='{1}', Sender='{2}'", new Object[]{label, String.join(" ", args), sender.getName()});
-
-  // Check if the sender is a player
-  if (!(sender instanceof Player player)) {
-   sender.sendMessage(settings.getMessage("error.player-only"));
-   plugin.getLogger().log(Level.INFO, "Command '/{0}' attempted by console/non-player.", label);
-   return true;
-  }
-
-  // Check base permission for using any autowarn command
-  // Note: Specific sub-commands might have their own more granular permission checks below
-  if (!player.hasPermission("autowarn.admin.use")) {
-   player.sendMessage(settings.getMessage("error.no-permission"));
-   plugin.getLogger().log(Level.INFO, "Player '{0}' does not have 'autowarn.admin.use' permission for command '/{1}'.", new Object[]{player.getName(), label});
-   return true;
-  }
-
-  // If no arguments are provided, send help message
+ public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String @NotNull [] args) {
   if (args.length == 0) {
-   plugin.getLogger().log(Level.INFO, "Player '{0}' issued '/{1}' with no arguments. Sending help.", new Object[]{player.getName(), label});
-   sendHelp(player);
+   sendHelp(sender);
    return true;
   }
 
-  String subCommand = args[0].toLowerCase();
-  plugin.getLogger().log(Level.INFO, "Player '{0}' issued subcommand: '{1}'.", new Object[]{player.getName(), subCommand});
+  // --- Handle subcommands ---
+  switch (args[0].toLowerCase()) {
+   case "wand":
+    if (sender instanceof Player player) {
+     if (!player.hasPermission("autowarn.wand")) {
+      player.sendMessage(settings.getMessage("error.no-permission"));
+      return true;
+     }
+     giveSelectionWand(player);
+    } else {
+     sender.sendMessage(settings.getMessage("error.player-only"));
+    }
+    return true;
 
-  // Sub-command routing
-  switch (subCommand) {
-   case "wand" -> handleWand(player);
-   case "pos1" -> handlePos(player, 1);
-   case "pos2" -> handlePos(player, 2);
-   case "define" -> handleDefine(player, args);
-   case "remove" -> handleRemove(player, args);
-   case "info" -> handleInfo(player, args);
-   case "list" -> handleList(player);
-   case "defaultaction" -> handleDefaultAction(player, args);
-   case "setaction" -> handleSetAction(player, args);
-   case "removeaction" -> handleRemoveAction(player, args);
-   case "reload" -> handleReload(player);
-   case "banned" -> handleBanned(player, args);
-   default -> {
-    plugin.getLogger().log(Level.INFO, "Player '{0}' issued unknown subcommand '{1}'. Sending help.", new Object[]{player.getName(), subCommand});
-    sendHelp(player);
-   }
+   case "pos1":
+   case "pos2":
+    if (sender instanceof Player player) {
+     if (!player.hasPermission("autowarn.pos")) {
+      player.sendMessage(settings.getMessage("error.no-permission"));
+      return true;
+     }
+     // Store the block location as a Vector directly
+     Vector blockLoc = player.getLocation().toVector().toBlockVector();
+     if (args[0].equalsIgnoreCase("pos1")) {
+      pos1.put(player.getUniqueId(), blockLoc);
+      player.sendMessage(settings.getMessage("command.pos-set",
+              Placeholder.unparsed("pos", "1"),
+              Placeholder.unparsed("coords", formatVector(blockLoc))));
+     } else {
+      pos2.put(player.getUniqueId(), blockLoc);
+      player.sendMessage(settings.getMessage("command.pos-set",
+              Placeholder.unparsed("pos", "2"),
+              Placeholder.unparsed("coords", formatVector(blockLoc))));
+     }
+    } else {
+     sender.sendMessage(settings.getMessage("error.player-only"));
+    }
+    return true;
+
+   case "define":
+    if (sender instanceof Player player) {
+     if (!player.hasPermission("autowarn.define")) {
+      player.sendMessage(settings.getMessage("error.no-permission"));
+      return true;
+     }
+     if (args.length != 2) {
+      player.sendMessage(settings.getMessage("error.usage.define"));
+      return true;
+     }
+
+     String zoneName = args[1].toLowerCase(); // Store zone names in lowercase for consistent lookup
+     if (!ZONE_NAME_PATTERN.matcher(zoneName).matches()) {
+      player.sendMessage(settings.getMessage("error.invalid-zone-name"));
+      return true;
+     }
+
+     // Retrieve Vectors directly
+     Vector p1Vector = pos1.get(player.getUniqueId());
+     Vector p2Vector = pos2.get(player.getUniqueId());
+
+     if (p1Vector == null || p2Vector == null) {
+      player.sendMessage(settings.getMessage("error.define-no-selection"));
+      return true;
+     }
+
+     // To get the world for the zone, we use the player's current world
+     // For more advanced usage, you might want to store world with the selection points
+     World playerWorld = player.getWorld();
+
+     // Check if both vectors logically refer to the same world (if you were storing world with selection)
+     // For simplicity, defining a zone uses the player's current world.
+     // If selection was made in another world, the player would need to be in that world to define.
+
+     // Create the zone and add it
+     Zone newZone = new Zone(zoneName, playerWorld, p1Vector, p2Vector,
+             Zone.Action.ALERT, new EnumMap<>(Material.class)); // Default to ALERT, empty material actions
+     zoneManager.addOrUpdateZone(newZone);
+
+     player.sendMessage(settings.getMessage("command.define-success",
+             Placeholder.unparsed("zone", zoneName)));
+     pos1.remove(player.getUniqueId()); // Clear selection after defining
+     pos2.remove(player.getUniqueId());
+    } else {
+     sender.sendMessage(settings.getMessage("error.player-only"));
+    }
+    return true;
+
+   case "remove":
+    if (!sender.hasPermission("autowarn.remove")) {
+     sender.sendMessage(settings.getMessage("error.no-permission"));
+     return true;
+    }
+    if (args.length != 2) {
+     sender.sendMessage(settings.getMessage("error.usage.remove"));
+     return true;
+    }
+    String zoneNameToRemove = args[1].toLowerCase();
+    if (zoneManager.removeZone(zoneNameToRemove)) {
+     sender.sendMessage(settings.getMessage("command.remove-success",
+             Placeholder.unparsed("zone", zoneNameToRemove)));
+    } else {
+     sender.sendMessage(settings.getMessage("error.zone-not-found",
+             Placeholder.unparsed("zone", zoneNameToRemove)));
+    }
+    return true;
+
+   case "list":
+    if (!sender.hasPermission("autowarn.list")) {
+     sender.sendMessage(settings.getMessage("error.no-permission"));
+     return true;
+    }
+    Collection<Zone> zones = zoneManager.getAllZones();
+    if (zones.isEmpty()) {
+     sender.sendMessage(settings.getMessage("command.list-empty"));
+    } else {
+     sender.sendMessage(settings.getMessage("command.list-header",
+             Placeholder.unparsed("count", String.valueOf(zones.size()))));
+     zones.forEach(zone ->
+             sender.sendMessage(Component.text(" - " + zone.getName()).color(NamedTextColor.GRAY)));
+    }
+    return true;
+
+   case "info":
+    if (!sender.hasPermission("autowarn.info")) {
+     sender.sendMessage(settings.getMessage("error.no-permission"));
+     return true;
+    }
+    if (args.length != 2) {
+     sender.sendMessage(settings.getMessage("error.usage.info"));
+     return true;
+    }
+    String infoZoneName = args[1].toLowerCase();
+    Zone infoZone = zoneManager.getZone(infoZoneName);
+    if (infoZone == null) {
+     sender.sendMessage(settings.getMessage("error.zone-not-found",
+             Placeholder.unparsed("zone", infoZoneName)));
+     return true;
+    }
+    sendZoneInfo(sender, infoZone);
+    return true;
+
+   case "defaultaction":
+    if (!sender.hasPermission("autowarn.defaultaction")) {
+     sender.sendMessage(settings.getMessage("error.no-permission"));
+     return true;
+    }
+    if (args.length != 3) {
+     sender.sendMessage(settings.getMessage("error.usage.defaultaction"));
+     return true;
+    }
+    String daZoneName = args[1].toLowerCase();
+    String daActionName = args[2];
+
+    Zone daZone = zoneManager.getZone(daZoneName);
+    if (daZone == null) {
+     sender.sendMessage(settings.getMessage("error.zone-not-found",
+             Placeholder.unparsed("zone", daZoneName)));
+     return true;
+    }
+
+    Zone.Action newDefaultAction;
+    try {
+     // Trim whitespace and convert to uppercase for robust parsing
+     newDefaultAction = Zone.Action.valueOf(daActionName.trim().toUpperCase());
+    } catch (IllegalArgumentException e) {
+     sender.sendMessage(settings.getMessage("error.invalid-action"));
+     return true;
+    }
+
+    // Get the World object using Bukkit.getWorld(worldName)
+    World daWorld = Bukkit.getWorld(daZone.getWorldName());
+    if (daWorld == null) {
+     sender.sendMessage(Component.text("Error: World '" + daZone.getWorldName() + "' for zone '" + daZoneName + "' not found.").color(NamedTextColor.RED));
+     return true;
+    }
+
+    Zone updatedDaZone = new Zone(daZone.getName(), daWorld, daZone.getMin(), daZone.getMax(),
+            newDefaultAction, daZone.getMaterialActions());
+    zoneManager.addOrUpdateZone(updatedDaZone); // This will save the updated zone
+
+    sender.sendMessage(settings.getMessage("command.defaultaction-success",
+            Placeholder.unparsed("zone", daZoneName),
+            Placeholder.unparsed("action", newDefaultAction.name())));
+    return true;
+
+   case "setaction":
+    if (!sender.hasPermission("autowarn.setaction")) {
+     sender.sendMessage(settings.getMessage("error.no-permission"));
+     return true;
+    }
+    if (args.length != 4) {
+     sender.sendMessage(settings.getMessage("error.usage.setaction"));
+     return true;
+    }
+    String saZoneName = args[1].toLowerCase();
+    String saMaterialName = args[2];
+    String saActionName = args[3];
+
+    Zone saZone = zoneManager.getZone(saZoneName);
+    if (saZone == null) {
+     sender.sendMessage(settings.getMessage("error.zone-not-found",
+             Placeholder.unparsed("zone", saZoneName)));
+     return true;
+    }
+
+    Material saMaterial = Material.matchMaterial(saMaterialName.toUpperCase());
+    if (saMaterial == null || !saMaterial.isBlock()) { // Ensure it's a block-like material
+     sender.sendMessage(settings.getMessage("error.invalid-material"));
+     return true;
+    }
+
+    Zone.Action saAction;
+    try {
+     // Trim whitespace and convert to uppercase for robust parsing
+     saAction = Zone.Action.valueOf(saActionName.trim().toUpperCase());
+    } catch (IllegalArgumentException e) {
+     sender.sendMessage(settings.getMessage("error.invalid-action"));
+     return true;
+    }
+
+    // Create a new map to avoid modifying the original zone's map directly
+    // FIX: Initialize EnumMap explicitly with Material.class
+    Map<Material, Zone.Action> updatedMaterialActions = new EnumMap<>(Material.class);
+    updatedMaterialActions.putAll(saZone.getMaterialActions()); // Copy existing actions
+    updatedMaterialActions.put(saMaterial, saAction); // Add/overwrite the specific action
+
+    // Get the World object using Bukkit.getWorld(worldName)
+    World saWorld = Bukkit.getWorld(saZone.getWorldName());
+    if (saWorld == null) {
+     sender.sendMessage(Component.text("Error: World '" + saZone.getWorldName() + "' for zone '" + saZoneName + "' not found.").color(NamedTextColor.RED));
+     return true;
+    }
+
+    Zone updatedSaZone = new Zone(saZone.getName(), saWorld, saZone.getMin(), saZone.getMax(),
+            saZone.getDefaultAction(), updatedMaterialActions);
+    zoneManager.addOrUpdateZone(updatedSaZone); // This will save the updated zone
+
+    sender.sendMessage(settings.getMessage("command.setaction-success",
+            Placeholder.unparsed("material", saMaterial.name()),
+            Placeholder.unparsed("zone", saZoneName),
+            Placeholder.unparsed("action", saAction.name())));
+    return true;
+
+   case "removeaction":
+    if (!sender.hasPermission("autowarn.removeaction")) {
+     sender.sendMessage(settings.getMessage("error.no-permission"));
+     return true;
+    }
+    if (args.length != 3) {
+     sender.sendMessage(settings.getMessage("error.usage.removeaction"));
+     return true;
+    }
+    String raZoneName = args[1].toLowerCase();
+    String raMaterialName = args[2];
+
+    Zone raZone = zoneManager.getZone(raZoneName);
+    if (raZone == null) {
+     sender.sendMessage(settings.getMessage("error.zone-not-found",
+             Placeholder.unparsed("zone", raZoneName)));
+     return true;
+    }
+
+    Material raMaterial = Material.matchMaterial(raMaterialName.toUpperCase());
+    if (raMaterial == null || !raMaterial.isBlock()) { // Ensure it's a block-like material
+     sender.sendMessage(settings.getMessage("error.invalid-material"));
+     return true;
+    }
+
+    // Create a new map to avoid modifying the original zone's map directly
+    // FIX: Initialize EnumMap explicitly with Material.class
+    Map<Material, Zone.Action> currentMaterialActions = new EnumMap<>(Material.class);
+    currentMaterialActions.putAll(raZone.getMaterialActions()); // Copy existing actions
+
+    if (!currentMaterialActions.containsKey(raMaterial)) {
+     sender.sendMessage(settings.getMessage("error.no-material-action"));
+     return true;
+    }
+    currentMaterialActions.remove(raMaterial);
+
+    // Get the World object using Bukkit.getWorld(worldName)
+    World raWorld = Bukkit.getWorld(raZone.getWorldName());
+    if (raWorld == null) {
+     sender.sendMessage(Component.text("Error: World '" + raZone.getWorldName() + "' for zone '" + raZoneName + "' not found.").color(NamedTextColor.RED));
+     return true;
+    }
+
+    Zone updatedRaZone = new Zone(raZone.getName(), raWorld, raZone.getMin(), raZone.getMax(),
+            raZone.getDefaultAction(), currentMaterialActions);
+    zoneManager.addOrUpdateZone(updatedRaZone); // This will save the updated zone
+
+    sender.sendMessage(settings.getMessage("command.removeaction-success",
+            Placeholder.unparsed("material", raMaterial.name()),
+            Placeholder.unparsed("zone", raZoneName)));
+    return true;
+
+   case "banned":
+    if (!sender.hasPermission("autowarn.banned")) {
+     sender.sendMessage(settings.getMessage("error.no-permission"));
+     return true;
+    }
+    if (args.length < 2 || args.length > 3) {
+     sender.sendMessage(settings.getMessage("error.usage.banned"));
+     return true;
+    }
+
+    String bannedSubcommand = args[1].toLowerCase();
+    switch (bannedSubcommand) {
+     case "add":
+      if (args.length != 3) {
+       sender.sendMessage(settings.getMessage("error.usage.banned-add"));
+       return true;
+      }
+      Material materialToAdd = Material.matchMaterial(args[2].toUpperCase());
+      if (materialToAdd == null || !materialToAdd.isItem()) { // Can be any item or block
+       sender.sendMessage(settings.getMessage("error.invalid-material"));
+       return true;
+      }
+      if (settings.getGloballyBannedMaterials().contains(materialToAdd)) {
+       sender.sendMessage(settings.getMessage("error.material-already-banned"));
+       return true;
+      }
+      settings.addGloballyBannedMaterial(materialToAdd); // Add to settings, saves automatically
+      sender.sendMessage(settings.getMessage("command.banned-add-success",
+              Placeholder.unparsed("material", materialToAdd.name())));
+      return true;
+
+     case "remove":
+      if (args.length != 3) {
+       sender.sendMessage(settings.getMessage("error.usage.banned-remove"));
+       return true;
+      }
+      Material materialToRemove = Material.matchMaterial(args[2].toUpperCase());
+      if (materialToRemove == null) {
+       sender.sendMessage(settings.getMessage("error.invalid-material"));
+       return true;
+      }
+      if (!settings.getGloballyBannedMaterials().contains(materialToRemove)) {
+       sender.sendMessage(settings.getMessage("error.material-not-banned"));
+       return true;
+      }
+      settings.removeGloballyBannedMaterial(materialToRemove); // Remove from settings, saves automatically
+      sender.sendMessage(settings.getMessage("command.banned-remove-success",
+              Placeholder.unparsed("material", materialToRemove.name())));
+      return true;
+
+     case "list":
+      if (args.length != 2) {
+       sender.sendMessage(settings.getMessage("error.usage.banned"));
+       return true;
+      }
+      Set<Material> bannedMaterials = settings.getGloballyBannedMaterials();
+      if (bannedMaterials.isEmpty()) {
+       sender.sendMessage(settings.getMessage("command.banned-list-empty"));
+      } else {
+       sender.sendMessage(settings.getMessage("command.banned-list-header",
+               Placeholder.unparsed("count", String.valueOf(bannedMaterials.size()))));
+       bannedMaterials.forEach(material ->
+               sender.sendMessage(Component.text(" - " + material.name()).color(NamedTextColor.GRAY)));
+      }
+      return true;
+
+     default:
+      sender.sendMessage(settings.getMessage("error.usage.banned"));
+      return true;
+    }
+
+   case "reload":
+    if (!sender.hasPermission("autowarn.reload")) {
+     sender.sendMessage(settings.getMessage("error.no-permission"));
+     return true;
+    }
+    plugin.reloadConfig(); // Call the main plugin's reload method
+    sender.sendMessage(settings.getMessage("command.reload-success"));
+    return true;
+
+   default:
+    sendHelp(sender);
+    return true;
   }
-
-  return true;
  }
 
- // --- Command Handlers ---
-
- /**
-  * Handles the /autowarn wand command, giving the player the selection wand.
-  * @param player The player executing the command.
-  */
- private void handleWand(Player player) {
-  if (!player.hasPermission("autowarn.admin.wand")) {
-   player.sendMessage(settings.getMessage("error.no-permission"));
-   return;
-  }
-  ItemStack wand = new ItemStack(Material.BLAZE_ROD);
+ private void giveSelectionWand(Player player) {
+  ItemStack wand = new ItemStack(Material.BLAZE_ROD); // Or any other suitable item
   ItemMeta meta = wand.getItemMeta();
-  // Set display name and lore for the wand
-  meta.displayName(settings.getMessage("wand.name"));
-  meta.lore(Arrays.asList(
-          settings.getMessage("wand.lore1"),
-          settings.getMessage("wand.lore2")
-  ));
-  // Add persistent data to identify the wand
-  meta.getPersistentDataContainer().set(wandKey, PersistentDataType.BYTE, (byte) 1);
-  wand.setItemMeta(meta);
+  if (meta != null) {
+   meta.displayName(settings.getMessage("wand.name"));
+   meta.lore(Arrays.asList(
+           settings.getMessage("wand.lore1"),
+           settings.getMessage("wand.lore2")
+   ));
+   // Add persistent data to identify it as the selection wand
+   meta.getPersistentDataContainer().set(WAND_KEY, PersistentDataType.STRING, "autowarn_wand");
+   wand.setItemMeta(meta);
+  }
   player.getInventory().addItem(wand);
   player.sendMessage(settings.getMessage("command.wand-given"));
-  plugin.getLogger().log(Level.INFO, "Player '{0}' given AutoWarn wand.", player.getName());
  }
 
- /**
-  * Handles /autowarn pos1 and /autowarn pos2 commands, setting selection points.
-  * @param player The player executing the command.
-  * @param posNumber The position number (1 or 2).
-  */
- private void handlePos(Player player, int posNumber) {
-  if (!player.hasPermission("autowarn.admin.define")) {
-   player.sendMessage(settings.getMessage("error.no-permission"));
-   return;
-  }
-  Location loc = player.getLocation();
-  if (posNumber == 1) {
-   pos1Selections.put(player.getUniqueId(), loc.toVector());
+ private String formatLocation(Location loc) {
+  return String.format("%s, %s, %s", loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
+ }
+
+ private void sendZoneInfo(CommandSender sender, Zone zone) {
+  sender.sendMessage(settings.getMessage("command.info-header", Placeholder.unparsed("zone", zone.getName()))); // Assuming you add this message
+  sender.sendMessage(Component.text("  World: ").append(Component.text(zone.getWorldName()).color(NamedTextColor.GRAY)));
+  sender.sendMessage(Component.text("  Min: ").append(Component.text(formatVector(zone.getMin())).color(NamedTextColor.GRAY)));
+  sender.sendMessage(Component.text("  Max: ").append(Component.text(formatVector(zone.getMax())).color(NamedTextColor.GRAY)));
+  sender.sendMessage(Component.text("  Default Action: ").append(Component.text(zone.getDefaultAction().name()).color(NamedTextColor.GRAY)));
+
+  Map<Material, Zone.Action> materialActions = zone.getMaterialActions();
+  if (!materialActions.isEmpty()) {
+   sender.sendMessage(Component.text("  Material Actions:").color(NamedTextColor.GOLD));
+   materialActions.forEach((material, action) ->
+           sender.sendMessage(Component.text("    - " + material.name() + ": " + action.name()).color(NamedTextColor.GRAY)));
   } else {
-   pos2Selections.put(player.getUniqueId(), loc.toVector());
-  }
-  player.sendActionBar(settings.getMessage("command.pos-set",
-          Placeholder.unparsed("pos", String.valueOf(posNumber)),
-          Placeholder.unparsed("coords", formatVector(loc.toVector()))));
-  plugin.getLogger().log(Level.INFO, "Player '{0}' set pos{1} to {2}.", new Object[]{player.getName(), posNumber, formatVector(loc.toVector())});
- }
-
- /**
-  * Handles the /autowarn define <zone_name> command, creating or updating a zone.
-  * @param player The player executing the command.
-  * @param args Command arguments.
-  */
- private void handleDefine(Player player, String[] args) {
-  if (!player.hasPermission("autowarn.admin.define")) {
-   player.sendMessage(settings.getMessage("error.no-permission"));
-   return;
-  }
-  if (args.length < 2) {
-   player.sendMessage(settings.getMessage("error.usage.define"));
-   return;
-  }
-  String zoneName = args[1];
-  if (!ZONE_NAME_PATTERN.matcher(zoneName).matches()) {
-   player.sendMessage(settings.getMessage("error.invalid-zone-name"));
-   return;
-  }
-  Vector pos1 = pos1Selections.get(player.getUniqueId());
-  Vector pos2 = pos2Selections.get(player.getUniqueId());
-
-  if (pos1 == null || pos2 == null) {
-   player.sendMessage(settings.getMessage("error.define-no-selection"));
-   return;
-  }
-
-  // If zone exists, use its current default action and material actions
-  Zone existing = zoneManager.getZone(zoneName);
-  Zone.Action defaultAction = existing != null ? existing.getDefaultAction() : Zone.Action.ALERT;
-  Map<Material, Zone.Action> materialActions = existing != null ? new EnumMap<>(existing.getMaterialActions()) : new EnumMap<>(Material.class);
-
-  Zone newZone = new Zone(zoneName, player.getWorld(), pos1, pos2, defaultAction, materialActions);
-  zoneManager.addOrUpdateZone(newZone);
-  player.sendMessage(settings.getMessage("command.define-success", Placeholder.unparsed("zone", zoneName)));
-  plugin.getLogger().log(Level.INFO, "Player '{0}' defined zone '{1}'.", new Object[]{player.getName(), zoneName});
- }
-
- /**
-  * Handles the /autowarn remove <zone_name> command, deleting a zone.
-  * @param player The player executing the command.
-  * @param args Command arguments.
-  */
- private void handleRemove(Player player, String[] args) {
-  if (!player.hasPermission("autowarn.admin.remove")) {
-   player.sendMessage(settings.getMessage("error.no-permission"));
-   return;
-  }
-  if (args.length < 2) {
-   player.sendMessage(settings.getMessage("error.usage.remove"));
-   return;
-  }
-  String zoneName = args[1];
-  if (zoneManager.removeZone(zoneName)) {
-   player.sendMessage(settings.getMessage("command.remove-success", Placeholder.unparsed("zone", zoneName)));
-   plugin.getLogger().log(Level.INFO, "Player '{0}' removed zone '{1}'.", new Object[]{player.getName(), zoneName});
-  } else {
-   player.sendMessage(settings.getMessage("error.zone-not-found", Placeholder.unparsed("zone", zoneName)));
-   plugin.getLogger().log(Level.INFO, "Player '{0}' failed to remove zone '{1}': not found.", new Object[]{player.getName(), zoneName});
+   sender.sendMessage(Component.text("  No specific material actions defined.").color(NamedTextColor.GRAY));
   }
  }
 
- /**
-  * Handles the /autowarn list command, displaying all defined zones.
-  * @param player The player executing the command.
-  */
- private void handleList(Player player) {
-  if (!player.hasPermission("autowarn.admin.list")) {
-   player.sendMessage(settings.getMessage("error.no-permission"));
-   return;
-  }
-  Collection<Zone> zones = zoneManager.getAllZones();
-  if (zones.isEmpty()) {
-   player.sendMessage(settings.getMessage("command.list-empty"));
-   plugin.getLogger().log(Level.INFO, "Player '{0}' requested zone list, but no zones defined.", player.getName());
-   return;
-  }
-
-  player.sendMessage(settings.getMessage("command.list-header", Placeholder.unparsed("count", String.valueOf(zones.size()))));
-  for (Zone zone : zones) {
-   player.sendMessage(Component.text("- " + zone.getName()).color(NamedTextColor.YELLOW));
-  }
-  plugin.getLogger().log(Level.INFO, "Player '{0}' requested zone list. Sent {1} zones.", new Object[]{player.getName(), zones.size()});
- }
-
- /**
-  * Handles the /autowarn reload command, reloading the plugin's configuration.
-  * @param player The player executing the command.
-  */
- private void handleReload(Player player) {
-  if (!player.hasPermission("autowarn.admin.reload")) {
-   player.sendMessage(settings.getMessage("error.no-permission"));
-   return;
-  }
-  plugin.reloadConfig(); // Call the standard reloadConfig() method in the main plugin class
-  player.sendMessage(settings.getMessage("command.reload-success"));
-  plugin.getLogger().log(Level.INFO, "Player '{0}' reloaded plugin configuration.", player.getName());
- }
-
- /**
-  * Handles the /autowarn info <zone_name> command, displaying detailed zone information.
-  * @param player The player executing the command.
-  * @param args Command arguments.
-  */
- private void handleInfo(Player player, String[] args) {
-  if (!player.hasPermission("autowarn.admin.info")) {
-   player.sendMessage(settings.getMessage("error.no-permission"));
-   return;
-  }
-  if (args.length < 2) {
-   player.sendMessage(settings.getMessage("error.usage.info")); // Assuming you add this to config.yml
-   return;
-  }
-  String zoneName = args[1];
-  Zone zone = zoneManager.getZone(zoneName);
-  if (zone == null) {
-   player.sendMessage(settings.getMessage("error.zone-not-found", Placeholder.unparsed("zone", zoneName)));
-   return;
-  }
-
-  // Display zone info (example, customize as needed)
-  player.sendMessage(Component.text("--- Zone Info: " + zone.getName() + " ---").color(NamedTextColor.GOLD));
-  player.sendMessage(Component.text("World: " + zone.getWorldName()).color(NamedTextColor.YELLOW));
-  player.sendMessage(Component.text("Corner1: " + formatVector(zone.getMin())).color(NamedTextColor.YELLOW));
-  player.sendMessage(Component.text("Corner2: " + formatVector(zone.getMax())).color(NamedTextColor.YELLOW));
-  player.sendMessage(Component.text("Default Action: " + zone.getDefaultAction().name()).color(NamedTextColor.YELLOW));
-
-  if (!zone.getMaterialActions().isEmpty()) {
-   player.sendMessage(Component.text("Material Actions:").color(NamedTextColor.YELLOW));
-   zone.getMaterialActions().forEach((material, action) ->
-           player.sendMessage(Component.text("  - " + material.name().toLowerCase().replace('_', ' ') + ": " + action.name()).color(NamedTextColor.GRAY))
-   );
-  } else {
-   player.sendMessage(Component.text("Material Actions: None").color(NamedTextColor.GRAY));
-  }
-  plugin.getLogger().log(Level.INFO, "Player '{0}' requested info for zone '{1}'.", new Object[]{player.getName(), zoneName});
- }
-
- /**
-  * Handles the /autowarn defaultaction <zone_name> <action> command.
-  * @param player The player executing the command.
-  * @param args Command arguments.
-  */
- private void handleDefaultAction(Player player, String[] args) {
-  if (!player.hasPermission("autowarn.admin.defaultaction")) {
-   player.sendMessage(settings.getMessage("error.no-permission"));
-   return;
-  }
-  if (args.length < 3) {
-   player.sendMessage(settings.getMessage("error.usage.defaultaction")); // Assuming you add this to config.yml
-   return;
-  }
-  String zoneName = args[1];
-  String actionString = args[2].toUpperCase();
-  Zone zone = zoneManager.getZone(zoneName);
-  if (zone == null) {
-   player.sendMessage(settings.getMessage("error.zone-not-found", Placeholder.unparsed("zone", zoneName)));
-   return;
-  }
-  try {
-   Zone.Action action = Zone.Action.valueOf(actionString);
-   // Recreate zone with new default action, keeping existing material actions
-   // Need to get the World object to pass to the Zone constructor
-   World world = Bukkit.getWorld(zone.getWorldName());
-   if (world == null) {
-    player.sendMessage(Component.text("Error: World for zone '" + zoneName + "' not found.").color(NamedTextColor.RED));
-    plugin.getLogger().warning("World for zone '" + zoneName + "' not found during defaultaction command.");
-    return;
-   }
-   Zone updatedZone = new Zone(zone.getName(), world, zone.getMin(), zone.getMax(), action, zone.getMaterialActions());
-   zoneManager.addOrUpdateZone(updatedZone);
-   player.sendMessage(settings.getMessage("command.defaultaction-success", // Assuming you add this to config.yml
-           Placeholder.unparsed("zone", zoneName),
-           Placeholder.unparsed("action", action.name().toLowerCase())));
-   plugin.getLogger().log(Level.INFO, "Player '{0}' set default action for zone '{1}' to '{2}'.", new Object[]{player.getName(), zoneName, action.name()});
-  } catch (IllegalArgumentException e) {
-   player.sendMessage(settings.getMessage("error.invalid-action")); // Assuming you add this to config.yml
-   plugin.getLogger().log(Level.WARNING, "Player '{0}' attempted to set invalid action '{1}' for zone '{2}'.", new Object[]{player.getName(), actionString, zoneName});
-  }
- }
-
- /**
-  * Handles the /autowarn setaction <zone_name> <material> <action> command.
-  * @param player The player executing the command.
-  * @param args Command arguments.
-  */
- private void handleSetAction(Player player, String[] args) {
-  if (!player.hasPermission("autowarn.admin.setaction")) {
-   player.sendMessage(settings.getMessage("error.no-permission"));
-   return;
-  }
-  if (args.length < 4) {
-   player.sendMessage(settings.getMessage("error.usage.setaction")); // Assuming you add this to config.yml
-   return;
-  }
-  String zoneName = args[1];
-  String materialKey = args[2].toUpperCase();
-  String actionString = args[3].toUpperCase();
-
-  Zone zone = zoneManager.getZone(zoneName);
-  if (zone == null) {
-   player.sendMessage(settings.getMessage("error.zone-not-found", Placeholder.unparsed("zone", zoneName)));
-   return;
-  }
-  Material material = Material.getMaterial(materialKey);
-  if (material == null) {
-   player.sendMessage(settings.getMessage("error.invalid-material")); // Assuming you add this to config.yml
-   return;
-  }
-  try {
-   Zone.Action action = Zone.Action.valueOf(actionString);
-   Map<Material, Zone.Action> updatedMaterialActions = new EnumMap<>(zone.getMaterialActions());
-   updatedMaterialActions.put(material, action);
-   // Recreate zone with updated material actions
-   World world = Bukkit.getWorld(zone.getWorldName());
-   if (world == null) {
-    player.sendMessage(Component.text("Error: World for zone '" + zoneName + "' not found.").color(NamedTextColor.RED));
-    plugin.getLogger().warning("World for zone '" + zoneName + "' not found during setaction command.");
-    return;
-   }
-   Zone updatedZone = new Zone(zone.getName(), world, zone.getMin(), zone.getMax(), zone.getDefaultAction(), updatedMaterialActions);
-   zoneManager.addOrUpdateZone(updatedZone);
-   player.sendMessage(settings.getMessage("command.setaction-success", // Assuming you add this to config.yml
-           Placeholder.unparsed("zone", zoneName),
-           Placeholder.unparsed("material", material.name().toLowerCase().replace('_', ' ')),
-           Placeholder.unparsed("action", action.name().toLowerCase())));
-   plugin.getLogger().log(Level.INFO, "Player '{0}' set action for material '{1}' in zone '{2}' to '{3}'.", new Object[]{player.getName(), materialKey, zoneName, actionString});
-  } catch (IllegalArgumentException e) {
-   player.sendMessage(settings.getMessage("error.invalid-action"));
-   plugin.getLogger().log(Level.WARNING, "Player '{0}' attempted to set invalid action '{1}' for material '{2}' in zone '{3}'.", new Object[]{player.getName(), actionString, materialKey, zoneName});
-  }
- }
-
- /**
-  * Handles the /autowarn removeaction <zone_name> <material> command.
-  * @param player The player executing the command.
-  * @param args Command arguments.
-  */
- private void handleRemoveAction(Player player, String[] args) {
-  if (!player.hasPermission("autowarn.admin.removeaction")) {
-   player.sendMessage(settings.getMessage("error.no-permission"));
-   return;
-  }
-  if (args.length < 3) {
-   player.sendMessage(settings.getMessage("error.usage.removeaction")); // Assuming you add this to config.yml
-   return;
-  }
-  String zoneName = args[1];
-  String materialKey = args[2].toUpperCase();
-
-  Zone zone = zoneManager.getZone(zoneName);
-  if (zone == null) {
-   player.sendMessage(settings.getMessage("error.zone-not-found", Placeholder.unparsed("zone", zoneName)));
-   return;
-  }
-  Material material = Material.getMaterial(materialKey);
-  if (material == null) {
-   player.sendMessage(settings.getMessage("error.invalid-material"));
-   return;
-  }
-  Map<Material, Zone.Action> updatedMaterialActions = new EnumMap<>(zone.getMaterialActions());
-  if (updatedMaterialActions.remove(material) != null) {
-   // Recreate zone with updated material actions
-   World world = Bukkit.getWorld(zone.getWorldName());
-   if (world == null) {
-    player.sendMessage(Component.text("Error: World for zone '" + zoneName + "' not found.").color(NamedTextColor.RED));
-    plugin.getLogger().warning("World for zone '" + zoneName + "' not found during removeaction command.");
-    return;
-   }
-   Zone updatedZone = new Zone(zone.getName(), world, zone.getMin(), zone.getMax(), zone.getDefaultAction(), updatedMaterialActions);
-   zoneManager.addOrUpdateZone(updatedZone);
-   player.sendMessage(settings.getMessage("command.removeaction-success", // Assuming you add this to config.yml
-           Placeholder.unparsed("zone", zoneName),
-           Placeholder.unparsed("material", material.name().toLowerCase().replace('_', ' '))));
-   plugin.getLogger().log(Level.INFO, "Player '{0}' removed action for material '{1}' from zone '{2}'.", new Object[]{player.getName(), materialKey, zoneName});
-  } else {
-   player.sendMessage(settings.getMessage("error.no-material-action")); // Assuming you add this to config.yml
-   plugin.getLogger().log(Level.INFO, "Player '{0}' attempted to remove non-existent action for material '{1}' from zone '{2}'.", new Object[]{player.getName(), materialKey, zoneName});
-  }
- }
-
- /**
-  * Handles the /autowarn banned [add|remove|list] command for global material bans.
-  * @param player The player executing the command.
-  * @param args Command arguments.
-  */
- private void handleBanned(Player player, String[] args) {
-  if (!player.hasPermission("autowarn.admin.banned")) {
-   player.sendMessage(settings.getMessage("error.no-permission"));
-   return;
-  }
-  if (args.length < 2) {
-   player.sendMessage(settings.getMessage("error.usage.banned")); // Assuming you add this to config.yml
-   return;
-  }
-
-  String sub = args[1].toLowerCase();
-  if (sub.equals("add")) {
-   if (args.length < 3) {
-    player.sendMessage(settings.getMessage("error.usage.banned-add")); // Assuming you add this to config.yml
-    return;
-   }
-   Material material = Material.getMaterial(args[2].toUpperCase());
-   if (material == null) {
-    player.sendMessage(settings.getMessage("error.invalid-material"));
-    return;
-   }
-   if (settings.addGloballyBannedMaterial(material)) { // Assuming Settings has this method
-    player.sendMessage(settings.getMessage("command.banned-add-success", // Assuming you add this to config.yml
-            Placeholder.unparsed("material", material.name().toLowerCase().replace('_', ' '))));
-    plugin.getLogger().log(Level.INFO, "Player '{0}' added '{1}' to globally banned materials.", new Object[]{player.getName(), material.name()});
-   } else {
-    player.sendMessage(settings.getMessage("error.material-already-banned")); // Assuming you add this to config.yml
-    plugin.getLogger().log(Level.INFO, "Player '{0}' attempted to add already banned material '{1}'.", new Object[]{player.getName(), material.name()});
-   }
-  } else if (sub.equals("remove")) {
-   if (args.length < 3) {
-    player.sendMessage(settings.getMessage("error.usage.banned-remove")); // Assuming you add this to config.yml
-    return;
-   }
-   Material material = Material.getMaterial(args[2].toUpperCase());
-   if (material == null) {
-    player.sendMessage(settings.getMessage("error.invalid-material"));
-    return;
-   }
-   if (settings.removeGloballyBannedMaterial(material)) { // Assuming Settings has this method
-    player.sendMessage(settings.getMessage("command.banned-remove-success", // Assuming you add this to config.yml
-            Placeholder.unparsed("material", material.name().toLowerCase().replace('_', ' '))));
-    plugin.getLogger().log(Level.INFO, "Player '{0}' removed '{1}' from globally banned materials.", new Object[]{player.getName(), material.name()});
-   } else {
-    player.sendMessage(settings.getMessage("error.material-not-banned")); // Assuming you add this to config.yml
-    plugin.getLogger().log(Level.INFO, "Player '{0}' attempted to remove non-banned material '{1}'.", new Object[]{player.getName(), material.name()});
-   }
-  } else if (sub.equals("list")) {
-   Collection<Material> bannedMaterials = settings.getGloballyBannedMaterials();
-   if (bannedMaterials.isEmpty()) {
-    player.sendMessage(settings.getMessage("command.banned-list-empty")); // Assuming you add this to config.yml
-    plugin.getLogger().log(Level.INFO, "Player '{0}' requested banned materials list; list is empty.", player.getName());
-   } else {
-    player.sendMessage(settings.getMessage("command.banned-list-header", // Assuming you add this to config.yml
-            Placeholder.unparsed("count", String.valueOf(bannedMaterials.size()))));
-    for (Material material : bannedMaterials) {
-     player.sendMessage(Component.text("- " + material.name().toLowerCase().replace('_', ' ')).color(NamedTextColor.YELLOW));
-    }
-    plugin.getLogger().log(Level.INFO, "Player '{0}' requested banned materials list. Sent {1} materials.", new Object[]{player.getName(), bannedMaterials.size()});
-   }
-  } else {
-   player.sendMessage(settings.getMessage("error.usage.banned")); // Assuming you add this to config.yml
-   plugin.getLogger().log(Level.INFO, "Player '{0}' issued invalid 'banned' subcommand '{1}'.", new Object[]{player.getName(), sub});
-  }
- }
-
- // --- Utility Methods ---
-
- /**
-  * Formats a Vector into a human-readable string (X, Y, Z).
-  * @param vec The Vector to format.
-  * @return A formatted string.
-  */
  private String formatVector(Vector vec) {
   return String.format("%d, %d, %d", vec.getBlockX(), vec.getBlockY(), vec.getBlockZ());
  }
 
- /**
-  * Sends the comprehensive help message to the player.
-  * @param player The player to send help to.
-  */
- private void sendHelp(Player player) {
-  plugin.getLogger().log(Level.INFO, "Sending help messages to player '{0}'.", player.getName());
-  // Retrieve and send each help message from settings.
-  // Added null checks for safety, although settings.getMessage should ideally never return null.
-  Component header = settings.getMessage("command.help-header");
-  if (header != null) player.sendMessage(header);
-  else plugin.getLogger().warning("Help header message is null!");
-
-  Component wandHelp = settings.getMessage("command.help.wand");
-  if (wandHelp != null) player.sendMessage(wandHelp);
-  else plugin.getLogger().warning("Wand help message is null!");
-
-  Component posHelp = settings.getMessage("command.help.pos");
-  if (posHelp != null) player.sendMessage(posHelp);
-  else plugin.getLogger().warning("Pos help message is null!");
-
-  Component defineHelp = settings.getMessage("command.help.define");
-  if (defineHelp != null) player.sendMessage(defineHelp);
-  else plugin.getLogger().warning("Define help message is null!");
-
-  Component removeHelp = settings.getMessage("command.help.remove");
-  if (removeHelp != null) player.sendMessage(removeHelp);
-  else plugin.getLogger().warning("Remove help message is null!");
-
-  Component listHelp = settings.getMessage("command.help.list");
-  if (listHelp != null) player.sendMessage(listHelp);
-  else plugin.getLogger().warning("List help message is null!");
-
-  Component infoHelp = settings.getMessage("command.help.info");
-  if (infoHelp != null) player.sendMessage(infoHelp);
-  else plugin.getLogger().warning("Info help message is null!");
-
-  Component setActionHelp = settings.getMessage("command.help.setaction");
-  if (setActionHelp != null) player.sendMessage(setActionHelp);
-  else plugin.getLogger().warning("Set action help message is null!");
-
-  Component removeActionHelp = settings.getMessage("command.help.removeaction");
-  if (removeActionHelp != null) player.sendMessage(removeActionHelp);
-  else plugin.getLogger().warning("Remove action help message is null!");
-
-  Component defaultActionHelp = settings.getMessage("command.help.defaultaction");
-  if (defaultActionHelp != null) player.sendMessage(defaultActionHelp);
-  else plugin.getLogger().warning("Default action help message is null!");
-
-  Component bannedHelp = settings.getMessage("command.help.banned");
-  if (bannedHelp != null) player.sendMessage(bannedHelp);
-  else plugin.getLogger().warning("Banned help message is null!");
-
-  Component reloadHelp = settings.getMessage("command.help.reload");
-  if (reloadHelp != null) player.sendMessage(reloadHelp);
-  else plugin.getLogger().warning("Reload help message is null!");
+ private void sendHelp(CommandSender sender) {
+  sender.sendMessage(settings.getMessage("command.help-header"));
+  sender.sendMessage(settings.getMessage("command.help.wand"));
+  sender.sendMessage(settings.getMessage("command.help.pos"));
+  sender.sendMessage(settings.getMessage("command.help.define"));
+  sender.sendMessage(settings.getMessage("command.help.remove"));
+  sender.sendMessage(settings.getMessage("command.help.list"));
+  sender.sendMessage(settings.getMessage("command.help.info"));
+  sender.sendMessage(settings.getMessage("command.help.setaction"));
+  sender.sendMessage(settings.getMessage("command.help.removeaction"));
+  sender.sendMessage(settings.getMessage("command.help.defaultaction"));
+  sender.sendMessage(settings.getMessage("command.help.banned"));
+  sender.sendMessage(settings.getMessage("command.help.reload"));
  }
 
- // --- Getters for ZoneListener ---
+ // --- Public methods for ZoneListener to interact with ---
+
  /**
   * Gets the NamespacedKey used to identify the AutoWarn wand.
   * @return The NamespacedKey for the wand.
   */
  public NamespacedKey getWandKey() {
-  return wandKey;
+  return WAND_KEY;
  }
 
  /**
@@ -590,7 +519,7 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
   * @param pos The Vector representing the position.
   */
  public void setPos1(UUID uuid, Vector pos) {
-  pos1Selections.put(uuid, pos);
+  pos1.put(uuid, pos);
  }
 
  /**
@@ -599,21 +528,20 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
   * @param pos The Vector representing the position.
   */
  public void setPos2(UUID uuid, Vector pos) {
-  pos2Selections.put(uuid, pos);
+  pos2.put(uuid, pos);
  }
 
 
- @Nullable
  @Override
- public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
-  final List<String> completions = new ArrayList<>();
+ public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String @NotNull [] args) {
+  List<String> completions = new ArrayList<>();
+  List<String> commands = ImmutableList.of("wand", "pos1", "pos2", "define", "remove", "list", "info", "defaultaction", "setaction", "removeaction", "banned", "reload");
+
   if (args.length == 1) {
-   StringUtil.copyPartialMatches(args[0],
-           ImmutableList.of("wand", "pos1", "pos2", "define", "remove", "info", "list", "defaultaction", "setaction", "removeaction", "reload", "banned"),
-           completions);
+   StringUtil.copyPartialMatches(args[0], commands, completions);
   } else if (args.length == 2) {
    switch (args[0].toLowerCase()) {
-    case "define", "remove", "info", "defaultaction", "setaction", "removeaction" ->
+    case "remove", "info", "defaultaction", "setaction", "removeaction" ->
             StringUtil.copyPartialMatches(args[1], zoneManager.getAllZones().stream().map(Zone::getName).collect(Collectors.toList()), completions);
     case "banned" -> StringUtil.copyPartialMatches(args[1], ImmutableList.of("add", "remove", "list"), completions);
    }
@@ -622,11 +550,9 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
     case "defaultaction" ->
             StringUtil.copyPartialMatches(args[2], Stream.of(Zone.Action.values()).map(Enum::name).collect(Collectors.toList()), completions);
     case "setaction", "removeaction" ->
-     // Filter for block materials only (materials that can be placed as blocks)
             StringUtil.copyPartialMatches(args[2], Arrays.stream(Material.values()).filter(Material::isBlock).map(Enum::name).collect(Collectors.toList()), completions);
     case "banned" -> {
      if ("add".equalsIgnoreCase(args[1])) {
-      // Filter for item materials only (materials that can be held as items)
       StringUtil.copyPartialMatches(args[2], Arrays.stream(Material.values()).filter(Material::isItem).map(Enum::name).collect(Collectors.toList()), completions);
      } else if ("remove".equalsIgnoreCase(args[1])) {
       StringUtil.copyPartialMatches(args[2], settings.getGloballyBannedMaterials().stream().map(Enum::name).collect(Collectors.toList()), completions);
@@ -638,7 +564,6 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
     StringUtil.copyPartialMatches(args[3], Stream.of(Zone.Action.values()).map(Enum::name).collect(Collectors.toList()), completions);
    }
   }
-
   Collections.sort(completions);
   return completions;
  }

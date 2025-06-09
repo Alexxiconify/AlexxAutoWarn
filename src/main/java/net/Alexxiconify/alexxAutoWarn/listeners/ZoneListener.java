@@ -1,4 +1,4 @@
-package net.alexxiconify.alexxAutoWarn.listeners; // Consistent casing: lowercase 'a' in alexxiconify
+package net.alexxiconify.alexxAutoWarn.listeners; // Consistent casing
 
 import net.alexxiconify.alexxAutoWarn.AlexxAutoWarn;
 import net.alexxiconify.alexxAutoWarn.commands.AutoWarnCommand;
@@ -24,7 +24,9 @@ import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.player.PlayerBucketEmptyEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.util.Vector;
 
 import java.util.logging.Level;
 
@@ -50,7 +52,7 @@ public class ZoneListener implements Listener {
   this.zoneManager = plugin.getZoneManager();
   this.coreProtectAPI = plugin.getCoreProtectAPI();
   this.command = autoWarnCommand;
-  this.wandKey = command.getWandKey();
+  this.wandKey = command.getWandKey(); // Get the NamespacedKey from AutoWarnCommand
  }
 
  @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -71,20 +73,28 @@ public class ZoneListener implements Listener {
 
   // --- Wand Functionality ---
   // Check if the item in hand is the AutoWarn wand
-  if (handItem != null && handItem.hasItemMeta() && handItem.getItemMeta().getPersistentDataContainer().has(wandKey, PersistentDataType.BYTE)) {
-   event.setCancelled(true); // Always cancel event when using the wand to prevent unintended block interactions
-   Block clickedBlock = event.getClickedBlock();
-   if (clickedBlock == null) return; // Ensure a block was actually clicked
+  if (handItem != null && handItem.hasItemMeta()) {
+   ItemMeta meta = handItem.getItemMeta();
+   // FIX: Check for PersistentDataType.STRING as set in AutoWarnCommand
+   if (meta.getPersistentDataContainer().has(wandKey, PersistentDataType.STRING)) {
+    event.setCancelled(true); // Always cancel event when using the wand to prevent unintended block interactions
+    Block clickedBlock = event.getClickedBlock();
+    if (clickedBlock == null) return; // Ensure a block was actually clicked
 
-   // Handle left-click for pos1 and right-click for pos2
-   if (event.getAction() == Action.LEFT_CLICK_BLOCK) {
-    command.setPos1(player.getUniqueId(), clickedBlock.getLocation().toVector());
-    player.sendActionBar(settings.getMessage("wand.pos1-set", Placeholder.unparsed("coords", formatLocation(clickedBlock.getLocation()))));
-   } else if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
-    command.setPos2(player.getUniqueId(), clickedBlock.getLocation().toVector());
-    player.sendActionBar(settings.getMessage("wand.pos2-set", Placeholder.unparsed("coords", formatLocation(clickedBlock.getLocation()))));
+    // Store the block location as a Vector
+    // Using .toBlockVector() to ensure coordinates are integer-based for block selection
+    Vector clickedBlockVector = clickedBlock.getLocation().toVector().toBlockVector();
+
+    // Handle left-click for pos1 and right-click for pos2
+    if (event.getAction() == Action.LEFT_CLICK_BLOCK) {
+     command.setPos1(player.getUniqueId(), clickedBlockVector); // Pass Vector
+     player.sendActionBar(settings.getMessage("wand.pos1-set", Placeholder.unparsed("coords", formatLocation(clickedBlock.getLocation()))));
+    } else if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
+     command.setPos2(player.getUniqueId(), clickedBlockVector); // Pass Vector
+     player.sendActionBar(settings.getMessage("wand.pos2-set", Placeholder.unparsed("coords", formatLocation(clickedBlock.getLocation()))));
+    }
+    return; // Stop processing further if the wand was used
    }
-   return; // Stop processing further if the wand was used
   }
 
   // --- Container Access Monitoring ---
@@ -177,8 +187,7 @@ public class ZoneListener implements Listener {
 
  /**
   * Logs an action to the CoreProtect API if it's available.
-  *
-  * @param user     The user performing the action.
+  * @param user The user performing the action.
   * @param location The location of the action.
   * @param material The material involved.
   */
@@ -190,7 +199,6 @@ public class ZoneListener implements Listener {
 
  /**
   * Formats a Location object into a human-readable string (World: X, Y, Z).
-  *
   * @param loc The Location to format.
   * @return A formatted string.
   */

@@ -17,6 +17,8 @@ import java.util.Objects;
  */
 public final class Zone {
 
+ private Map<Material, Action> currentMaterialActions;
+ private Map<Material, Action> updatedMaterialActions;
  private final String name;
  private final String worldName;
  private final Vector min;
@@ -34,7 +36,7 @@ public final class Zone {
   * @param defaultAction   The default action for materials not specifically defined.
   * @param materialActions A map of materials to their specific actions.
   */
- public Zone(@NotNull String name, @NotNull World world, @NotNull Vector corner1, @NotNull Vector corner2,
+ public Zone(@NotNull String name, World world, @NotNull Vector corner1, @NotNull Vector corner2,
              @NotNull Action defaultAction, @NotNull Map<Material, Action> materialActions) {
   this.name = name.toLowerCase(); // Store zone name in lowercase for consistent lookups
   this.worldName = world.getName();
@@ -47,6 +49,7 @@ public final class Zone {
   // to maintain immutability from the outside.
   this.materialActions = Collections.unmodifiableMap(new EnumMap<>(materialActions));
  }
+
 
  /**
   * Checks if a given location is within the bounds of this zone.
