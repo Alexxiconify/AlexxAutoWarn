@@ -1,4 +1,4 @@
-package net.alexxiconify.alexxAutoWarn.commands; // Consistent casing: lowercase 'a' in alexxiconify
+package net.alexxiconify.alexxAutoWarn.commands; // Ensure this matches your directory structure
 
 import com.google.common.collect.ImmutableList;
 import net.alexxiconify.alexxAutoWarn.AlexxAutoWarn;
@@ -44,7 +44,6 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
 
  /**
   * Constructs a new AutoWarnCommand.
-  *
   * @param plugin The main AlexxAutoWarn plugin instance.
   */
  public AutoWarnCommand(AlexxAutoWarn plugin) {
@@ -111,7 +110,6 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
 
  /**
   * Handles the /autowarn wand command, giving the player the selection wand.
-  *
   * @param player The player executing the command.
   */
  private void handleWand(Player player) {
@@ -513,7 +511,6 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
 
  /**
   * Formats a Vector into a human-readable string (X, Y, Z).
-  *
   * @param vec The Vector to format.
   * @return A formatted string.
   */
@@ -523,7 +520,6 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
 
  /**
   * Sends the comprehensive help message to the player.
-  *
   * @param player The player to send help to.
   */
  private void sendHelp(Player player) {
@@ -580,10 +576,8 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
  }
 
  // --- Getters for ZoneListener ---
-
  /**
   * Gets the NamespacedKey used to identify the AutoWarn wand.
-  *
   * @return The NamespacedKey for the wand.
   */
  public NamespacedKey getWandKey() {
@@ -592,9 +586,8 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
 
  /**
   * Sets the first selection point for a player.
-  *
   * @param uuid The UUID of the player.
-  * @param pos  The Vector representing the position.
+  * @param pos The Vector representing the position.
   */
  public void setPos1(UUID uuid, Vector pos) {
   pos1Selections.put(uuid, pos);
@@ -602,9 +595,8 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
 
  /**
   * Sets the second selection point for a player.
-  *
   * @param uuid The UUID of the player.
-  * @param pos  The Vector representing the position.
+  * @param pos The Vector representing the position.
   */
  public void setPos2(UUID uuid, Vector pos) {
   pos2Selections.put(uuid, pos);

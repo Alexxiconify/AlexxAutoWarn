@@ -69,4 +69,42 @@ messages:
     setaction-success: "<green>Action for <material> in zone '<gold><zone></gold>' set to <action>."
     removeaction-success: "<green>Action for <material> removed from zone '<gold><zone></gold>'."
     banned-add-success: "<green><material> added to globally banned materials."
-    banned-remove-success: "<green><material> removed f
+    banned-remove-success: "<green><material> removed from globally banned materials." # THIS LINE WAS THE ISSUE
+    banned-list-empty: "<yellow>There are no globally banned materials."
+    banned-list-header: "<gold>Globally Banned Materials (<count>):"
+    # Help messages (UPDATED TO INCLUDE ALL MISSING ENTRIES)
+    help-header: "<gold>--- AutoWarn Help ---"
+    help:
+      wand: "<yellow>/aw wand</yellow> <gray>- Gives you the selection wand."
+      pos: "<yellow>/aw pos1|pos2</yellow> <gray>- Sets a selection point."
+      define: "<yellow>/aw define <zone_name></yellow> <gray>- Defines a new zone."
+      remove: "<yellow>/aw remove <zone_name></yellow> <gray>- Removes an existing zone."
+      list: "<yellow>/aw list</yellow> <gray>- Lists all defined zones."
+      info: "<yellow>/aw info <zone_name></yellow> <gray>- Shows info about a zone."
+      defaultaction: "<yellow>/aw defaultaction <zone_name> <action></yellow> <gray>- Sets default action for a zone."
+      setaction: "<yellow>/aw setaction <zone_name> <material> <action></yellow> <gray>- Sets material action in a zone."
+      removeaction: "<yellow>/aw removeaction <zone_name> <material></yellow> <gray>- Removes material action from a zone."
+      banned: "<yellow>/aw banned [add|remove|list]</yellow> <gray>- Manages globally banned materials."
+      reload: "<yellow>/aw reload</yellow> <gray>- Reloads plugin configuration."
+
+# -------------------------------------------------- #
+#                   Zone Definitions                 #
+#  This section is managed by the plugin. Do not     #
+#          edit manually unless you know what        #
+#                  you are doing!                    #
+# -------------------------------------------------- #
+zones:
+  example_zone:
+    world: "world"
+    corner1:
+      x: 0.0
+      y: 64.0
+      z: 0.0
+    corner2:
+      x: 100.0
+      y: 80.0
+      z: 100.0
+    default-action: "ALERT"
+    material-actions:
+      DIAMOND_BLOCK: "DENY"
+      LAVA: "DENY"
