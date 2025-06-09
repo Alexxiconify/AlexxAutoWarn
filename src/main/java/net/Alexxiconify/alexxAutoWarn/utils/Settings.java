@@ -28,7 +28,6 @@ public class Settings {
  private boolean debugLogAllowedActions;
  private Component pluginPrefix;
  private Set<Material> globallyBannedMaterials;
- private Material material;
 
  public Settings(AlexxAutoWarn plugin) {
   this.plugin = plugin;
@@ -109,7 +108,10 @@ public class Settings {
  }
 
  public boolean removeGloballyBannedMaterial(Material material) {
-  this.material = material;
+  return false;
+ }
+
+ public boolean addGloballyBannedMaterial(Material material) {
   return false;
  }
 }

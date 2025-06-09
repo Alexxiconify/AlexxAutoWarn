@@ -1,7 +1,7 @@
 package net.alexxiconify.alexxAutoWarn; // Reverted to user's specified casing: Uppercase 'A' in Alexxiconify
 
 import com.google.common.base.Stopwatch;
-import net.Alexxiconify.alexxAutoWarn.commands.AutoWarnCommand;
+import net.alexxiconify.alexxAutoWarn.commands.AutoWarnCommand;
 import net.alexxiconify.alexxAutoWarn.listeners.ZoneListener;
 import net.alexxiconify.alexxAutoWarn.managers.ZoneManager;
 import net.alexxiconify.alexxAutoWarn.utils.Settings;

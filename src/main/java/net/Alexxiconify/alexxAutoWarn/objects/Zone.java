@@ -1,4 +1,4 @@
-package net.alexxiconify.alexxAutoWarn.objects;
+package net.alexxiconify.alexxAutoWarn.objects; // Consistent casing: lowercase 'a' in alexxiconify
 
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -23,6 +23,7 @@ public final class Zone {
  private final Vector max;
  private final Action defaultAction;
  private final Map<Material, Action> materialActions;
+
  /**
   * Constructs a new protection zone.
   *
@@ -35,13 +36,16 @@ public final class Zone {
   */
  public Zone(@NotNull String name, @NotNull World world, @NotNull Vector corner1, @NotNull Vector corner2,
              @NotNull Action defaultAction, @NotNull Map<Material, Action> materialActions) {
-  this.name = name.toLowerCase();
+  this.name = name.toLowerCase(); // Store zone name in lowercase for consistent lookups
   this.worldName = world.getName();
+  // Calculate min/max vectors from corners to define the true bounding box,
+  // ensuring min <= max for all axes regardless of corner input order.
   this.min = Vector.getMinimum(corner1, corner2);
   this.max = Vector.getMaximum(corner1, corner2);
   this.defaultAction = defaultAction;
-  // Use EnumMap for performance with Material keys
-  this.materialActions = new EnumMap<>(materialActions);
+  // Use EnumMap for performance with Material keys, and create an unmodifiable copy
+  // to maintain immutability from the outside.
+  this.materialActions = Collections.unmodifiableMap(new EnumMap<>(materialActions));
  }
 
  /**
@@ -51,12 +55,13 @@ public final class Zone {
   * @return true if the location is inside the zone, false otherwise.
   */
  public boolean contains(@NotNull Location loc) {
+  // Check if the world matches and the location's vector is within the zone's AABB (Axis-Aligned Bounding Box)
   return loc.getWorld().getName().equals(this.worldName) && loc.toVector().isInAABB(min, max);
  }
 
  /**
-  * Gets the specific action for a given material.
-  * If no specific action is defined, the zone's default action is returned.
+  * Gets the specific action for a given material within this zone.
+  * If no specific action is defined for the material, the zone's default action is returned.
   *
   * @param material The material to check.
   * @return The Action for the material.
@@ -66,36 +71,62 @@ public final class Zone {
   return materialActions.getOrDefault(material, defaultAction);
  }
 
+ /**
+  * Gets the unique name of the zone.
+  *
+  * @return The zone's name.
+  */
  @NotNull
  public String getName() {
   return name;
  }
 
- // --- Getters ---
+ // --- Getters for immutable fields ---
 
+ /**
+  * Gets the name of the world this zone resides in.
+  *
+  * @return The world name.
+  */
  @NotNull
  public String getWorldName() {
   return worldName;
  }
 
+ /**
+  * Gets the minimum corner vector of the zone's bounding box.
+  * @return The minimum Vector.
+  */
  @NotNull
  public Vector getMin() {
   return min;
  }
 
+ /**
+  * Gets the maximum corner vector of the zone's bounding box.
+  * @return The maximum Vector.
+  */
  @NotNull
  public Vector getMax() {
   return max;
  }
 
+ /**
+  * Gets the default action for materials not specifically defined in this zone.
+  * @return The default Action.
+  */
  @NotNull
  public Action getDefaultAction() {
   return defaultAction;
  }
 
+ /**
+  * Gets an unmodifiable map of material-specific actions.
+  * @return An unmodifiable map of Material to Action.
+  */
  @NotNull
  public Map<Material, Action> getMaterialActions() {
-  return Collections.unmodifiableMap(materialActions);
+  return materialActions;
  }
 
  @Override
@@ -103,7 +134,7 @@ public final class Zone {
   if (this == o) return true;
   if (o == null || getClass() != o.getClass()) return false;
   Zone zone = (Zone) o;
-  return name.equals(zone.name);
+  return name.equals(zone.name); // Equality based on unique zone name
  }
 
  @Override
@@ -115,7 +146,7 @@ public final class Zone {
   * Defines the possible actions for materials within a zone.
   */
  public enum Action {
-  DENY,   // Deny the action (e.g., block placement)
+  DENY,   // Deny the action (e.g., block placement, container access)
   ALERT,  // Allow the action, but alert staff/console
   ALLOW   // Allow the action without any special alerts
  }
