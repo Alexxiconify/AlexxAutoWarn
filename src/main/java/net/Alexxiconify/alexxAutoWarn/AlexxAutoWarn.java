@@ -23,56 +23,9 @@ public final class AlexxAutoWarn extends JavaPlugin {
  private ZoneManager zoneManager;
  private CoreProtectAPI coreProtectAPI;
  private AutoWarnCommand autoWarnCommand; // Added field to hold the command instance
+ private static AutoWarnAPI api;
 
- @Override
- public void onEnable() {
-  final Stopwatch stopwatch = Stopwatch.createStarted();
-  this.getLogger().info("Starting AlexxAutoWarn...");
-
-  // FIX: Ensure Settings and ZoneManager are initialized BEFORE reloadConfig()
-  // This ensures 'settings' and 'zoneManager' objects exist when reloadConfig() calls their reload/load methods.
-  this.settings = new Settings(this);
-  this.zoneManager = new ZoneManager(this);
-
-  // Ensure default config is saved and loaded
-  saveDefaultConfig();
-  // Reload config. This will now correctly call settings.reload() and zoneManager.loadZones()
-  // because 'settings' and 'zoneManager' are already initialized.
-  reloadConfig();
-
-  // Asynchronously load zones from config (this call in onEnable becomes redundant if reloadConfig() does it)
-  // However, keep it here for explicit asynchronous loading after the initial sync load via reloadConfig()
-  // or if zones need to be reloaded after some initial sync setup in onEnable.
-  // No, it's better to let reloadConfig() handle the initial load,
-  // and only call zoneManager.loadZones() directly if it's a separate async operation later.
-  // For initial setup, reloadConfig() handles it. Removed this redundant call.
-  // this.zoneManager.loadZones().thenRun(() -> {
-  //     this.getLogger().info("All zones loaded successfully.");
-  // });
-
-  // Setup CoreProtect API hook
-  setupCoreProtect();
-
-  // Initialize and register commands
-  this.autoWarnCommand = new AutoWarnCommand(this); // Initialize the command instance
-
-  // Get the command from plugin.yml and set its executor and tab completer.
-  // Add explicit null check and logging for command registration.
-  PluginCommand command = this.getCommand("autowarn");
-  if (command == null) {
-   getLogger().severe("Command 'autowarn' not found in plugin.yml! Commands will not work. Ensure 'autowarn' is defined in your plugin.yml under the 'commands' section.");
-  } else {
-   command.setExecutor(this.autoWarnCommand); // Set the executor to our specific instance
-   command.setTabCompleter(this.autoWarnCommand); // Set the tab completer to our specific instance
-   getLogger().info("Command 'autowarn' registered successfully.");
-  }
-
-  // Register event listeners
-  this.getServer ( ).getPluginManager ( ).registerEvents ( new ZoneListener ( this ) , this );
-
-  long time = stopwatch.stop().elapsed(TimeUnit.MILLISECONDS);
-  this.getLogger().log(Level.INFO, "AlexxAutoWarn enabled successfully in {0}ms.", time);
- }
+ public static AutoWarnAPI getAPI ( ) { return api; }
 
  @Override
  public void onDisable() {
@@ -170,5 +123,57 @@ public final class AlexxAutoWarn extends JavaPlugin {
  @NotNull
  public AutoWarnCommand getAutoWarnCommand ( ) {
   return autoWarnCommand;
+ }
+
+ @Override
+ public void onEnable() {
+  final Stopwatch stopwatch = Stopwatch.createStarted();
+  this.getLogger().info("Starting AlexxAutoWarn...");
+
+  // FIX: Ensure Settings and ZoneManager are initialized BEFORE reloadConfig()
+  // This ensures 'settings' and 'zoneManager' objects exist when reloadConfig() calls their reload/load methods.
+  this.settings = new Settings(this);
+  this.zoneManager = new ZoneManager(this);
+
+  // Ensure default config is saved and loaded
+  saveDefaultConfig();
+  // Reload config. This will now correctly call settings.reload() and zoneManager.loadZones()
+  // because 'settings' and 'zoneManager' are already initialized.
+  reloadConfig();
+
+  // Asynchronously load zones from config (this call in onEnable becomes redundant if reloadConfig() does it)
+  // However, keep it here for explicit asynchronous loading after the initial sync load via reloadConfig()
+  // or if zones need to be reloaded after some initial sync setup in onEnable.
+  // No, it's better to let reloadConfig() handle the initial load,
+  // and only call zoneManager.loadZones() directly if it's a separate async operation later.
+  // For initial setup, reloadConfig() handles it. Removed this redundant call.
+  // this.zoneManager.loadZones().thenRun(() -> {
+  //     this.getLogger().info("All zones loaded successfully.");
+  // });
+
+  // Setup CoreProtect API hook
+  setupCoreProtect();
+
+  // Initialize and register commands
+  this.autoWarnCommand = new AutoWarnCommand(this); // Initialize the command instance
+
+  // Get the command from plugin.yml and set its executor and tab completer.
+  // Add explicit null check and logging for command registration.
+  PluginCommand command = this.getCommand("autowarn");
+  if (command == null) {
+   getLogger().severe("Command 'autowarn' not found in plugin.yml! Commands will not work. Ensure 'autowarn' is defined in your plugin.yml under the 'commands' section.");
+  } else {
+   command.setExecutor(this.autoWarnCommand); // Set the executor to our specific instance
+   command.setTabCompleter(this.autoWarnCommand); // Set the tab completer to our specific instance
+   getLogger().info("Command 'autowarn' registered successfully.");
+  }
+
+  // Register event listeners
+  this.getServer ( ).getPluginManager ( ).registerEvents ( new ZoneListener ( this ) , this );
+
+  api = new AutoWarnAPIImpl ( this.zoneManager );
+
+  long time = stopwatch.stop().elapsed(TimeUnit.MILLISECONDS);
+  this.getLogger().log(Level.INFO, "AlexxAutoWarn enabled successfully in {0}ms.", time);
  }
 }
