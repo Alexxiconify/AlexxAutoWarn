@@ -68,7 +68,7 @@ public final class AlexxAutoWarn extends JavaPlugin {
   }
 
   // Register event listeners
-  this.getServer().getPluginManager().registerEvents(new ZoneListener(this, this.autoWarnCommand), this);
+  this.getServer ( ).getPluginManager ( ).registerEvents ( new ZoneListener ( this ) , this );
 
   long time = stopwatch.stop().elapsed(TimeUnit.MILLISECONDS);
   this.getLogger().log(Level.INFO, "AlexxAutoWarn enabled successfully in {0}ms.", time);
