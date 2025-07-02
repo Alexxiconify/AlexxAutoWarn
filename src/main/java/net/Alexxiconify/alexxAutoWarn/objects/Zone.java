@@ -59,7 +59,10 @@ public final class Zone {
   */
  public boolean contains(@NotNull Location loc) {
   // Check if the world matches and the location's vector is within the zone's AABB (Axis-Aligned Bounding Box)
-  return loc.getWorld().getName().equals(this.worldName) && loc.toVector().isInAABB(min, max);
+  return loc.getWorld ( ).getName ( ).equals ( this.worldName ) &&
+    loc.getX ( ) >= min.getX ( ) && loc.getX ( ) <= max.getX ( ) &&
+    loc.getY ( ) >= min.getY ( ) && loc.getY ( ) <= max.getY ( ) &&
+    loc.getZ ( ) >= min.getZ ( ) && loc.getZ ( ) <= max.getZ ( );
  }
 
  /**

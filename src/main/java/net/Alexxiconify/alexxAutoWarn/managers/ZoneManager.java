@@ -117,9 +117,17 @@ public class ZoneManager {
      ConfigurationSection actionsSection = zoneConfig.getConfigurationSection("material-actions");
      if (actionsSection != null) {
       for (String materialKey : actionsSection.getKeys(false)) {
-       Material material = Material.valueOf(materialKey.toUpperCase());
+       Material material;
+       try {
+        material = Material.valueOf ( materialKey.toUpperCase ( ) );
+       } catch ( IllegalArgumentException e ) {
+        plugin.getSettings ( ).log ( Level.WARNING ,
+                                     "Invalid material name '" + materialKey + "' in zone '" + zoneName + "'. " +
+                                       "Skipping." );
+        continue;
+       }
        String actionString = actionsSection.getString(materialKey);
-       if (material != null && actionString != null) {
+       if ( actionString != null ) {
         try {
          Zone.Action action = Zone.Action.valueOf(actionString.toUpperCase());
          materialActions.put(material, action);
