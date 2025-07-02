@@ -1,10 +1,6 @@
 package net.Alexxiconify.alexxAutoWarn;
 
 import com.google.common.base.Stopwatch;
-import net.Alexxiconify.alexxAutoWarn.commands.AutoWarnCommand;
-import net.Alexxiconify.alexxAutoWarn.listeners.ZoneListener;
-import net.Alexxiconify.alexxAutoWarn.managers.ZoneManager;
-import net.Alexxiconify.alexxAutoWarn.utils.Settings;
 import net.coreprotect.CoreProtect;
 import net.coreprotect.CoreProtectAPI;
 import org.bukkit.command.PluginCommand;
@@ -164,5 +160,15 @@ public final class AlexxAutoWarn extends JavaPlugin {
  @Nullable
  public CoreProtectAPI getCoreProtectAPI() {
   return coreProtectAPI;
+ }
+
+ /**
+  * Provides access to the plugin's command instance.
+  *
+  * @return The AutoWarnCommand instance.
+  */
+ @NotNull
+ public AutoWarnCommand getAutoWarnCommand ( ) {
+  return autoWarnCommand;
  }
 }
