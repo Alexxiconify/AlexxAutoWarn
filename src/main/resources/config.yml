@@ -42,7 +42,6 @@ messages:
     material-already-banned: <yellow>That material is already globally banned.
     material-not-banned: <yellow>That material is not currently globally banned.
 
-
   # Action Feedback
   action:
     denied: '<red>You cannot do that here! (Zone: <zone>)'
@@ -65,34 +64,37 @@ messages:
     reload-success: <green>AutoWarn configuration and zones have been reloaded.
     list-empty: <yellow>There are no zones defined yet.
     list-header: '<gold>AutoWarn Zones (<count>):'
-    defaultaction-success: <green>Default action for zone '<gold><zone></gold>' set
-      to <action>.
-    setaction-success: <green>Action for <material> in zone '<gold><zone></gold>'
-      set to <action>.
+    defaultaction-success: >-
+      <green>Default action for zone '<gold><zone></gold>' set to <action>.
+    setaction-success: >-
+      <green>Action for <material> in zone '<gold><zone></gold>' set to <action>.
     removeaction-success: <green>Action for <material> removed from zone '<gold><zone></gold>'.
     banned-add-success: <green><material> added to globally banned materials.
-    banned-remove-success: <green><material> removed from globally banned materials. # THIS LINE WAS THE ISSUE
+    banned-remove-success: <green><material> removed from globally banned materials.
     banned-list-empty: <yellow>There are no globally banned materials.
     banned-list-header: '<gold>Globally Banned Materials (<count>):'
-    # Help messages (UPDATED TO INCLUDE ALL MISSING ENTRIES)
+    # Help messages
     help-header: <gold>--- AutoWarn Help ---
     help:
       wand: <yellow>/aw wand</yellow> <gray>- Gives you the selection wand.
       pos: <yellow>/aw pos1|pos2</yellow> <gray>- Sets a selection point.
-      define: <yellow>/aw define <zone_name></yellow> <gray>- Defines a new zone.
-      remove: <yellow>/aw remove <zone_name></yellow> <gray>- Removes an existing
-        zone.
+      define: >-
+        <yellow>/aw define <zone_name></yellow> <gray>- Defines a new zone.
+      remove: >-
+        <yellow>/aw remove <zone_name></yellow> <gray>- Removes an existing zone.
       list: <yellow>/aw list</yellow> <gray>- Lists all defined zones.
-      info: <yellow>/aw info <zone_name></yellow> <gray>- Shows info about a zone.
-      defaultaction: <yellow>/aw defaultaction <zone_name> <action></yellow> <gray>-
-        Sets default action for a zone.
-      setaction: <yellow>/aw setaction <zone_name> <material> <action></yellow> <gray>-
-        Sets material action in a zone.
-      removeaction: <yellow>/aw removeaction <zone_name> <material></yellow> <gray>-
-        Removes material action from a zone.
-      banned: <yellow>/aw banned [add|remove|list]</yellow> <gray>- Manages globally
-        banned materials.
+      info: >-
+        <yellow>/aw info <zone_name></yellow> <gray>- Shows info about a zone.
+      defaultaction: >-
+        <yellow>/aw defaultaction <zone_name> <action></yellow> <gray>- Sets default action for a zone.
+      setaction: >-
+        <yellow>/aw setaction <zone_name> <material> <action></yellow> <gray>- Sets material action in a zone.
+      removeaction: >-
+        <yellow>/aw removeaction <zone_name> <material></yellow> <gray>- Removes material action from a zone.
+      banned: >-
+        <yellow>/aw banned [add|remove|list]</yellow> <gray>- Manages globally banned materials.
       reload: <yellow>/aw reload</yellow> <gray>- Reloads plugin configuration.
+
 zones:
   test:
     world: world
