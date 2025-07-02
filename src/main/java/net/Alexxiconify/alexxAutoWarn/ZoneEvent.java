@@ -185,9 +185,12 @@ class ZoneListener implements Listener {
         if ( zone != null ) {
             ZoneActionEvent actionEvent = new ZoneActionEvent ( player , zone , material , "INTERACT" );
             AutoWarnAPI api = AlexxAutoWarn.getAPI ( );
-            if ( api != null && !api.isActionAllowed ( player , location , material , "INTERACT" ) ) {
-                event.setCancelled ( true );
-                return;
+            if ( api != null ) {
+                api.isActionAllowed ( player , location , material , "INTERACT" );
+                if ( actionEvent.isCancelled ( ) ) {
+                    event.setCancelled ( true );
+                    return;
+                }
             }
         }
 
