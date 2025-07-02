@@ -4,7 +4,6 @@ import com.google.common.collect.ImmutableList;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
@@ -244,7 +243,7 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
     }
 
     // Get the World object using Bukkit.getWorld(worldName)
-    World daWorld = Bukkit.getWorld ( daZone.getWorldName ( ) );
+    World daWorld = plugin.getServer ( ).getWorld ( daZone.getWorldName ( ) );
     if ( daWorld == null ) {
      sender.sendMessage ( Component.text ( "Error: World '" + daZone.getWorldName ( ) + "' for zone '" + daZoneName + "' not found." ).color ( NamedTextColor.RED ) );
      return true;
@@ -311,7 +310,7 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
     updatedMaterialActions.put ( saMaterial , saAction );
 
     // Get the World object using Bukkit.getWorld(worldName)
-    World saWorld = Bukkit.getWorld ( saZone.getWorldName ( ) );
+    World saWorld = plugin.getServer ( ).getWorld ( saZone.getWorldName ( ) );
     if ( saWorld == null ) {
      sender.sendMessage ( Component.text ( "Error: World '" + saZone.getWorldName ( ) + "' for zone '" + saZoneName + "' not found." ).color ( NamedTextColor.RED ) );
      return true;
@@ -374,7 +373,7 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
     currentMaterialActions.remove ( raMaterial );
 
     // Get the World object using Bukkit.getWorld(worldName)
-    World raWorld = Bukkit.getWorld ( raZone.getWorldName ( ) );
+    World raWorld = plugin.getServer ( ).getWorld ( raZone.getWorldName ( ) );
     if ( raWorld == null ) {
      sender.sendMessage ( Component.text ( "Error: World '" + raZone.getWorldName ( ) + "' for zone '" + raZoneName + "' not found." ).color ( NamedTextColor.RED ) );
      return true;
@@ -505,7 +504,7 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
      return true;
     }
 
-    World priorityWorld = Bukkit.getWorld ( priorityZone.getWorldName ( ) );
+    World priorityWorld = plugin.getServer ( ).getWorld ( priorityZone.getWorldName ( ) );
     if ( priorityWorld == null ) {
      sender.sendMessage ( Component.text ( "Error: World '" + priorityZone.getWorldName ( ) + "' for zone '" + priorityZoneName + "' not found." ).color ( NamedTextColor.RED ) );
      return true;

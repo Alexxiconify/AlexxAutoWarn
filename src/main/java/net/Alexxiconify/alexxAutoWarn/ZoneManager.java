@@ -1,6 +1,5 @@
 package net.Alexxiconify.alexxAutoWarn;
 
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -46,7 +45,7 @@ public class ZoneManager {
      String worldName = zoneConfig.getString ( "world" );
      World world = null;
      if ( worldName != null ) {
-      world = Bukkit.getWorld ( worldName );
+      world = plugin.getServer ( ).getWorld ( worldName );
      }
      if ( world == null ) {
       plugin.getSettings ( ).log (

@@ -3,7 +3,6 @@ package net.Alexxiconify.alexxAutoWarn;
 import net.coreprotect.CoreProtectAPI;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -227,7 +226,7 @@ class ZoneListener implements Listener {
                 logToCoreProtect ( player.getName ( ) , loc , mat );
                 break;
             case ALERT:
-                Bukkit.getOnlinePlayers ( ).forEach ( p -> {
+             plugin.getServer ( ).getOnlinePlayers ( ).forEach ( p -> {
                     if ( p.hasPermission ( "autowarn.notify" ) ) {
                         p.sendMessage ( settings.getMessage ( "action.alert" , placeholders ) );
                     }
