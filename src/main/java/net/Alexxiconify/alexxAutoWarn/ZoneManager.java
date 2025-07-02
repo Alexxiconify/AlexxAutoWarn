@@ -149,23 +149,15 @@ public class ZoneManager {
   } );
  }
 
- /**
-  * Saves all zones to the configuration file.
-  * Can be run asynchronously or synchronously.
-  *
-  * @param async If true, the save operation will be performed on an async thread.
-  */
  public void saveZones ( boolean async ) {
   Runnable saveTask = ( ) -> {
    FileConfiguration config = plugin.getConfig ( );
-   // Clear the old "zones" section before writing to prevent stale data
    config.set ( "zones" , null );
 
    for ( Zone zone : zones.values ( ) ) {
     String zonePath = "zones." + zone.getName ( );
     config.set ( zonePath + ".world" , zone.getWorldName ( ) );
 
-    // Save Vectors as nested x, y, z for readability in config
     config.set ( zonePath + ".corner1.x" , zone.getMin ( ).getX ( ) );
     config.set ( zonePath + ".corner1.y" , zone.getMin ( ).getY ( ) );
     config.set ( zonePath + ".corner1.z" , zone.getMin ( ).getZ ( ) );
@@ -182,68 +174,38 @@ public class ZoneManager {
      } );
     }
    }
-   // Save the configuration file to disk
    plugin.saveConfig ( );
    plugin.getSettings ( ).log ( Level.INFO , "Successfully saved " + zones.size ( ) + " zones." );
   };
 
-  // Execute the save task either asynchronously or synchronously
   if ( async ) {
-   // Using Bukkit's scheduler for async tasks to ensure thread safety with Bukkit API calls
    plugin.getServer ( ).getScheduler ( ).runTaskAsynchronously ( plugin , saveTask );
   } else {
-   saveTask.run ( ); // Execute on the current thread
+   saveTask.run ( );
   }
  }
 
- /**
-  * Adds or updates a zone in memory and triggers an asynchronous save to config.
-  *
-  * @param zone The zone to add or update.
-  */
  public void addOrUpdateZone ( @NotNull Zone zone ) {
   zones.put ( zone.getName ( ) , zone );
-  saveZones ( true ); // Save asynchronously to prevent server lag
+  saveZones ( true );
  }
 
- /**
-  * Removes a zone from memory and triggers an asynchronous save to config.
-  *
-  * @param zoneName The name of the zone to remove.
-  * @return true if the zone was found and removed, false otherwise.
-  */
  public boolean removeZone ( @NotNull String zoneName ) {
-  Zone removed = zones.remove ( zoneName.toLowerCase ( ) ); // Ensure case-insensitive removal
+  Zone removed = zones.remove ( zoneName.toLowerCase ( ) );
   if ( removed != null ) {
-   saveZones ( true ); // Save asynchronously
+   saveZones ( true );
    return true;
   }
   return false;
  }
 
- /**
-  * Retrieves a zone by its name.
-  *
-  * @param zoneName The name of the zone (case-insensitive).
-  * @return The Zone object if found, otherwise null.
-  */
  @Nullable
  public Zone getZone ( @NotNull String zoneName ) {
-  return zones.get ( zoneName.toLowerCase ( ) ); // Ensure case-insensitive retrieval
+  return zones.get ( zoneName.toLowerCase ( ) );
  }
 
- /**
-  * Finds the first zone that contains the given location.
-  * This method performs a linear scan through all loaded zones.
-  *
-  * @param location The location to check.
-  * @return The Zone object if found, otherwise null.
-  */
  @Nullable
  public Zone getZoneAt ( @NotNull Location location ) {
-  // This linear scan is acceptable for a moderate number of zones.
-  // For servers with hundreds/thousands of zones, a spatial partitioning data structure (e.g., Quadtree/Octree)
-  // would be more performant.
   for ( Zone zone : zones.values ( ) ) {
    if ( zone.contains ( location ) ) {
     return zone;
@@ -252,12 +214,6 @@ public class ZoneManager {
   return null;
  }
 
- /**
-  * Retrieves all zones that contain the given location (for nested/prioritized support).
-  *
-  * @param location The location to check.
-  * @return A collection of all matching zones.
-  */
  @NotNull
  public Collection < Zone > getZonesAt ( @NotNull Location location ) {
   return zones.values ( ).stream ( )
@@ -266,22 +222,11 @@ public class ZoneManager {
     .toList ( );
  }
 
- /**
-  * Retrieves the highest priority zone at the given location.
-  *
-  * @param location The location to check.
-  * @return The highest priority Zone object if found, otherwise null.
-  */
  @Nullable
  public Zone getHighestPriorityZoneAt ( @NotNull Location location ) {
   return getZonesAt ( location ).stream ( ).findFirst ( ).orElse ( null );
  }
 
- /**
-  * Retrieves all currently loaded zones.
-  *
-  * @return A collection of all Zone objects.
-  */
  @NotNull
  public Collection < Zone > getAllZones ( ) {
   return zones.values ( );
