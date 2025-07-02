@@ -128,6 +128,19 @@ public class ZoneListener implements Listener {
    return;
   }
 
+  // Fire ZoneActionEvent for plugin hooks
+  Zone zone = zoneManager.getZoneAt ( location );
+  if ( zone != null ) {
+   ZoneActionEvent actionEvent = new ZoneActionEvent ( player , zone , material , "INTERACT" );
+   AlexxAutoWarn.getAPI ( ).registerZoneActionListener ( e -> { } ); // No-op registration to ensure API is initialized
+   // Fire event to all listeners
+   AlexxAutoWarn.getAPI ( ).isActionAllowed ( player , location , material , "INTERACT" );
+   if ( actionEvent.isCancelled ( ) ) {
+    event.setCancelled ( true );
+    return;
+   }
+  }
+
   // Check globally banned materials first
   if ( settings.getGloballyBannedMaterials ( ).contains ( material ) ) {
    processAction ( Zone.Action.DENY , player , location , material , "Global" , event );
@@ -135,7 +148,6 @@ public class ZoneListener implements Listener {
   }
 
   // Check for zone-specific rules if the location is within a defined zone
-  Zone zone = zoneManager.getZoneAt ( location );
   if ( zone != null ) {
    Zone.Action action = zone.getActionFor ( material );
    processAction ( action , player , location , material , zone.getName ( ) , event );

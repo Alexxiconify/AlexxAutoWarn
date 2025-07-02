@@ -157,8 +157,10 @@ public class ZoneManager {
       }
      }
 
+     int priority = zoneConfig.getInt ( "priority" , 0 );
+
      // Create and store the new Zone object
-     Zone zone = new Zone ( zoneName , world , corner1 , corner2 , defaultAction , materialActions );
+     Zone zone = new Zone ( zoneName , world , corner1 , corner2 , defaultAction , materialActions , priority );
      zones.put ( zone.getName ( ) , zone );
 
     } catch ( Exception e ) {
@@ -274,6 +276,31 @@ public class ZoneManager {
    }
   }
   return null;
+ }
+
+ /**
+  * Retrieves all zones that contain the given location (for nested/prioritized support).
+  *
+  * @param location The location to check.
+  * @return A collection of all matching zones.
+  */
+ @NotNull
+ public Collection < Zone > getZonesAt ( @NotNull Location location ) {
+  return zones.values ( ).stream ( )
+    .filter ( z -> z.contains ( location ) )
+    .sorted ( ( a , b ) -> Integer.compare ( b.getPriority ( ) , a.getPriority ( ) ) )
+    .toList ( );
+ }
+
+ /**
+  * Retrieves the highest priority zone at the given location.
+  *
+  * @param location The location to check.
+  * @return The highest priority Zone object if found, otherwise null.
+  */
+ @Nullable
+ public Zone getHighestPriorityZoneAt ( @NotNull Location location ) {
+  return getZonesAt ( location ).stream ( ).findFirst ( ).orElse ( null );
  }
 
  /**

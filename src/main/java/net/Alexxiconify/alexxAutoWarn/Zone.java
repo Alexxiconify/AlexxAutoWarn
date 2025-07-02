@@ -23,6 +23,7 @@ public final class Zone {
  private final Vector max;
  private final Action defaultAction;
  private final Map < Material, Action > materialActions;
+ private final int priority;
 
  /**
   * Constructs a new protection zone.
@@ -33,10 +34,12 @@ public final class Zone {
   * @param corner2         The second corner of the zone's bounding box.
   * @param defaultAction   The default action for materials not specifically defined.
   * @param materialActions A map of materials to their specific actions.
+  * @param priority        The priority of the zone (higher = takes precedence in overlaps).
   */
  public Zone (
    @NotNull String name , World world , @NotNull Vector corner1 , @NotNull Vector corner2 ,
-   @NotNull Action defaultAction , @NotNull Map < Material, Action > materialActions
+   @NotNull Action defaultAction , @NotNull Map < Material, Action > materialActions ,
+   int priority
  ) {
   this.name = name.toLowerCase ( ); // Store zone name in lowercase for consistent lookups
   this.worldName = world.getName ( );
@@ -48,6 +51,7 @@ public final class Zone {
   // Use EnumMap for performance with Material keys, and create an unmodifiable copy
   // to maintain immutability from the outside.
   this.materialActions = Collections.unmodifiableMap ( new EnumMap <> ( materialActions ) );
+  this.priority = priority;
  }
 
 
@@ -138,6 +142,11 @@ public final class Zone {
  public Map < Material, Action > getMaterialActions ( ) {
   return materialActions;
  }
+
+ /**
+  * Gets the priority of this zone. Higher values take precedence in overlaps.
+  */
+ public int getPriority ( ) { return priority; }
 
  @Override
  public boolean equals ( Object o ) {

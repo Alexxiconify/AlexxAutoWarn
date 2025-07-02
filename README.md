@@ -1,6 +1,22 @@
 # AlexxAutoWarn: Smart Zone Monitoring for Minecraft
 
-**AlexxAutoWarn** is a Spigot/Paper plugin for server admins to monitor and control specific material placements within custom zones. It offers flexible rules to deny, alert staff, or allow items, providing granular oversight.
+---
+
+## 🚀 New Features in v1.1 (Modular API & Plugin Integration)
+
+- **Public API (`AutoWarnAPI`)**: Query zones, register listeners, and check/override actions from other plugins.
+- **Custom Event System**: Fire and listen for `ZoneActionEvent` (cancellable), enabling deep plugin hooks.
+- **Custom Actions**: Register new actions (e.g., `WARP`, `TELEPORT`) and handle them via API.
+- **Plugin Integration**: Plugins like [WarpUtil](https://github.com/Alexxiconify/WarpUtil) can block/allow warps,
+  listen for zone events, and extend AutoWarn.
+- **Nested Zone Support (Stub)**: API ready for nested/prioritized zones.
+- **Extensible & Modular**: All core logic is in services/interfaces, not hardcoded in listeners.
+- **Configurable**: All messages, actions, and event triggers remain fully configurable.
+- **True Nested Zone Support**: Zones now support priorities (higher = takes precedence). All zones at a location are
+  available via API, and the highest-priority zone is easily queried.
+- **New Events**: Listen for `ZoneEnterEvent`, `ZoneLeaveEvent`, and `ZonePriorityChangeEvent` for advanced plugin
+  hooks.
+- **API Methods**: Query all zones at a location, get the highest-priority zone, and register listeners for new events.
 
 ---
 
@@ -86,10 +102,13 @@ banned-materials:
   - TNT
   - FIRE
 ```
+
 messages:
   player-denied-placement: "&cYou are not allowed to place {material} here!"
   staff-alert-message: "&c[AutoInform] &e{player} placed {material} in zone '{zone_name}'."
+
 ## Installation
+
 Download AlexxAutoWarn.jar from the releases page.
 
 Place the .jar in your server's plugins/ folder.
@@ -103,6 +122,7 @@ Edit config.yml in plugins/AlexxAutoWarn/.
 Reload the plugin with /autoinform reload or restart the server.
 
 ## Support
+
 For bugs, feature requests, or contributions:
 
 Open an issue on the GitHub Issues page.
@@ -110,5 +130,22 @@ Open an issue on the GitHub Issues page.
 Submit a pull request.
 
 ## License
+
 This project is licensed under the MIT License.
 See the [LICENSE](LICENSE.md) file for details.
+
+### Example: Listen for Zone Entry/Exit
+
+```java
+AutoWarnAPI api = AlexxAutoWarn.getAPI();
+api.registerZoneEnterListener(event -> {
+    Player p = event.getPlayer();
+    Zone z = event.getZone();
+    p.sendMessage("You entered zone: " + z.getName());
+});
+api.registerZoneLeaveListener(event -> {
+    Player p = event.getPlayer();
+    Zone z = event.getZone();
+    p.sendMessage("You left zone: " + z.getName());
+});
+```
