@@ -94,34 +94,6 @@ messages:
         banned materials.
       reload: <yellow>/aw reload</yellow> <gray>- Reloads plugin configuration.
 zones:
-  aaa:
-    world: world
-    corner1:
-      x: -2.0
-      y: 55.0
-      z: -79.0
-    corner2:
-      x: 1.0
-      y: 57.0
-      z: -77.0
-    default-action: ALERT
-    material-actions:
-      DIRT: DENY
-      LAVA: ALERT
-  example_zone:
-    world: world
-    corner1:
-      x: 0.0
-      y: 64.0
-      z: 0.0
-    corner2:
-      x: 100.0
-      y: 80.0
-      z: 100.0
-    default-action: ALERT
-    material-actions:
-      DIAMOND_BLOCK: DENY
-      LAVA: DENY
   test:
     world: world
     corner1:
