@@ -33,6 +33,7 @@ public class ZoneListener implements Listener {
 
  private final Settings settings;
  private final ZoneManager zoneManager;
+ private final AlexxAutoWarn plugin;
  private final NamespacedKey wandKey;
  private final CoreProtectAPI coreProtectAPI;
 
@@ -42,10 +43,11 @@ public class ZoneListener implements Listener {
   * @param plugin The main AlexxAutoWarn plugin instance.
   */
  public ZoneListener ( AlexxAutoWarn plugin ) {
+  this.plugin = plugin;
   this.settings = plugin.getSettings ( );
   this.zoneManager = plugin.getZoneManager ( );
   this.coreProtectAPI = plugin.getCoreProtectAPI ( );
-  this.wandKey = plugin.getWandKey ( );
+  this.wandKey = plugin.getAutoWarnCommand ( ).getWandKey ( );
  }
 
  @EventHandler ( priority = EventPriority.HIGH, ignoreCancelled = true )

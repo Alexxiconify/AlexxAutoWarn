@@ -1,10 +1,6 @@
-package net.Alexxiconify.alexxAutoWarn.commands;
+package net.Alexxiconify.alexxAutoWarn;
 
 import com.google.common.collect.ImmutableList;
-import net.Alexxiconify.alexxAutoWarn.AlexxAutoWarn;
-import net.Alexxiconify.alexxAutoWarn.managers.ZoneManager;
-import net.Alexxiconify.alexxAutoWarn.objects.Zone;
-import net.Alexxiconify.alexxAutoWarn.utils.Settings;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
