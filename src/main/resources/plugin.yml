@@ -22,6 +22,7 @@ permissions:
       autowarn.admin.list: true
       autowarn.admin.info: true
       autowarn.admin.setaction: true
+      autowarn.admin.priority: true
       autowarn.admin.reload: true
       autowarn.admin.banned: true
   autowarn.wand:
@@ -50,6 +51,9 @@ permissions:
     default: op
   autowarn.removeaction:
     description: Allows removing material actions from zones.
+    default: op
+  autowarn.priority:
+    description: Allows setting zone priorities.
     default: op
   autowarn.banned:
     description: Allows managing globally banned materials.

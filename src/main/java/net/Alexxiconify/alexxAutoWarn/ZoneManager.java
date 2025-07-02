@@ -201,6 +201,7 @@ public class ZoneManager {
     config.set ( zonePath + ".corner2.z" , zone.getMax ( ).getZ ( ) );
 
     config.set ( zonePath + ".default-action" , zone.getDefaultAction ( ).name ( ) );
+    config.set ( zonePath + ".priority" , zone.getPriority ( ) );
 
     if ( !zone.getMaterialActions ( ).isEmpty ( ) ) {
      zone.getMaterialActions ( ).forEach ( ( material , action ) -> {
