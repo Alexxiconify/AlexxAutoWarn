@@ -143,8 +143,8 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
      // Create the zone and add it
      Zone newZone = new Zone (
        zoneName , playerWorld , p1Vector , p2Vector ,
-       Zone.Action.ALERT , new EnumMap <> ( Material.class )
-     ); // Default to ALERT, empty material actions
+       Zone.Action.ALERT , new EnumMap <> ( Material.class ) , 0
+     ); // Default to ALERT, empty material actions, priority 0
      zoneManager.addOrUpdateZone ( newZone );
 
      player.sendMessage ( settings.getMessage (
@@ -259,7 +259,7 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
 
     Zone updatedDaZone = new Zone (
       daZone.getName ( ) , daWorld , daZone.getMin ( ) , daZone.getMax ( ) ,
-      newDefaultAction , daZone.getMaterialActions ( )
+      newDefaultAction , daZone.getMaterialActions ( ) , daZone.getPriority ( )
     );
     zoneManager.addOrUpdateZone ( updatedDaZone ); // This will save the updated zone
 
@@ -328,7 +328,7 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
 
     Zone updatedSaZone = new Zone (
       saZone.getName ( ) , saWorld , saZone.getMin ( ) , saZone.getMax ( ) ,
-      saZone.getDefaultAction ( ) , updatedMaterialActions
+      saZone.getDefaultAction ( ) , updatedMaterialActions , saZone.getPriority ( )
     );
     zoneManager.addOrUpdateZone ( updatedSaZone ); // This will save the updated zone
 
@@ -393,7 +393,7 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
 
     Zone updatedRaZone = new Zone (
       raZone.getName ( ) , raWorld , raZone.getMin ( ) , raZone.getMax ( ) ,
-      raZone.getDefaultAction ( ) , currentMaterialActions
+      raZone.getDefaultAction ( ) , currentMaterialActions , raZone.getPriority ( )
     );
     zoneManager.addOrUpdateZone ( updatedRaZone ); // This will save the updated zone
 
@@ -489,6 +489,52 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
       return true;
     }
 
+   case "priority":
+    if ( !sender.hasPermission ( "autowarn.priority" ) ) {
+     sender.sendMessage ( settings.getMessage ( "error.no-permission" ) );
+     return true;
+    }
+    if ( args.length != 3 ) {
+     sender.sendMessage ( settings.getMessage ( "error.usage.priority" ) );
+     return true;
+    }
+    String priorityZoneName = args[ 1 ].toLowerCase ( );
+    int newPriority;
+    try {
+     newPriority = Integer.parseInt ( args[ 2 ] );
+    } catch ( NumberFormatException e ) {
+     sender.sendMessage ( settings.getMessage ( "error.invalid-priority" ) );
+     return true;
+    }
+
+    Zone priorityZone = zoneManager.getZone ( priorityZoneName );
+    if ( priorityZone == null ) {
+     sender.sendMessage ( settings.getMessage (
+       "error.zone-not-found" ,
+       Placeholder.unparsed ( "zone" , priorityZoneName )
+     ) );
+     return true;
+    }
+
+    World priorityWorld = Bukkit.getWorld ( priorityZone.getWorldName ( ) );
+    if ( priorityWorld == null ) {
+     sender.sendMessage ( Component.text ( "Error: World '" + priorityZone.getWorldName ( ) + "' for zone '" + priorityZoneName + "' not found." ).color ( NamedTextColor.RED ) );
+     return true;
+    }
+
+    Zone updatedPriorityZone = new Zone (
+      priorityZone.getName ( ) , priorityWorld , priorityZone.getMin ( ) , priorityZone.getMax ( ) ,
+      priorityZone.getDefaultAction ( ) , priorityZone.getMaterialActions ( ) , newPriority
+    );
+    zoneManager.addOrUpdateZone ( updatedPriorityZone );
+
+    sender.sendMessage ( settings.getMessage (
+      "command.priority-success" ,
+      Placeholder.unparsed ( "zone" , priorityZoneName ) ,
+      Placeholder.unparsed ( "priority" , String.valueOf ( newPriority ) )
+    ) );
+    return true;
+
    case "reload":
     if ( !sender.hasPermission ( "autowarn.reload" ) ) {
      sender.sendMessage ( settings.getMessage ( "error.no-permission" ) );
@@ -537,6 +583,7 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
   sender.sendMessage ( Component.text ( "  Min: " ).append ( Component.text ( formatVector ( zone.getMin ( ) ) ).color ( NamedTextColor.GRAY ) ) );
   sender.sendMessage ( Component.text ( "  Max: " ).append ( Component.text ( formatVector ( zone.getMax ( ) ) ).color ( NamedTextColor.GRAY ) ) );
   sender.sendMessage ( Component.text ( "  Default Action: " ).append ( Component.text ( zone.getDefaultAction ( ).name ( ) ).color ( NamedTextColor.GRAY ) ) );
+  sender.sendMessage ( Component.text ( "  Priority: " ).append ( Component.text ( String.valueOf ( zone.getPriority ( ) ) ).color ( NamedTextColor.GRAY ) ) );
 
   Map < Material, Zone.Action > materialActions = zone.getMaterialActions ( );
   if ( !materialActions.isEmpty ( ) ) {
@@ -563,6 +610,7 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
   sender.sendMessage ( settings.getMessage ( "command.help.setaction" ) );
   sender.sendMessage ( settings.getMessage ( "command.help.removeaction" ) );
   sender.sendMessage ( settings.getMessage ( "command.help.defaultaction" ) );
+  sender.sendMessage ( settings.getMessage ( "command.help.priority" ) );
   sender.sendMessage ( settings.getMessage ( "command.help.banned" ) );
   sender.sendMessage ( settings.getMessage ( "command.help.reload" ) );
  }
@@ -607,7 +655,7 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
   List < String > completions = new ArrayList <> ( );
   List < String > commands = ImmutableList.of (
     "wand" , "pos1" , "pos2" , "define" , "remove" , "list" , "info" ,
-    "defaultaction" , "setaction" , "removeaction" , "banned" , "reload"
+    "defaultaction" , "setaction" , "removeaction" , "priority" , "banned" , "reload"
   );
 
   if ( args.length == 1 ) {
@@ -618,7 +666,7 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
   } else if ( args.length == 2 ) {
    String input = args[ 1 ].toLowerCase ( );
    switch ( args[ 0 ].toLowerCase ( ) ) {
-    case "remove" , "info" , "defaultaction" , "setaction" , "removeaction" -> {
+    case "remove" , "info" , "defaultaction" , "setaction" , "removeaction" , "priority" -> {
      List < String > zoneNames =
        zoneManager.getAllZones ( ).stream ( ).map ( Zone :: getName ).collect ( Collectors.toList ( ) );
      completions.addAll ( zoneNames.stream ( )

@@ -26,18 +26,20 @@ messages:
     invalid-zone-name: "<red>Invalid zone name. Must be 3-32 alphanumeric characters, underscores, or dashes."
     zone-not-found: "<red>Zone '<zone>' not found."
     define-no-selection: "<red>You must set both position 1 and 2 before defining a zone."
-    usage:
+      usage:
       define: "<red>Usage: /autowarn define <zone_name>"
       remove: "<red>Usage: /autowarn remove <zone_name>"
       info: "<red>Usage: /autowarn info <zone_name>"
       defaultaction: "<red>Usage: /autowarn defaultaction <zone_name> <action>"
       setaction: "<red>Usage: /autowarn setaction <zone_name> <material> <action>"
       removeaction: "<red>Usage: /autowarn removeaction <zone_name> <material>"
+      priority: "<red>Usage: /autowarn priority <zone_name> <priority>"
       banned: "<red>Usage: /autowarn banned [add|remove|list]"
       banned-add: "<red>Usage: /autowarn banned add <material>"
       banned-remove: "<red>Usage: /autowarn banned remove <material>"
     invalid-action: "<red>Invalid action. Must be DENY, ALERT, or ALLOW."
     invalid-material: "<red>Invalid material name."
+    invalid-priority: "<red>Invalid priority. Must be a number."
     no-material-action: "<yellow>No specific action found for that material in this zone."
     material-already-banned: "<yellow>That material is already globally banned."
     material-not-banned: "<yellow>That material is not currently globally banned."
@@ -68,6 +70,7 @@ messages:
     defaultaction-success: "<green>Default action for zone '<gold><zone></gold>' set to <action>."
     setaction-success: "<green>Action for <material> in zone '<gold><zone></gold>' set to <action>."
     removeaction-success: "<green>Action for <material> removed from zone '<gold><zone></gold>'."
+    priority-success: "<green>Priority for zone '<gold><zone></gold>' set to <priority>."
     banned-add-success: "<green><material> added to globally banned materials."
     banned-remove-success: "<green><material> removed from globally banned materials." # THIS LINE WAS THE ISSUE
     banned-list-empty: "<yellow>There are no globally banned materials."
@@ -85,6 +88,7 @@ messages:
       defaultaction: "<yellow>/aw defaultaction <zone_name> <action></yellow> <gray>- Sets default action for a zone."
       setaction: "<yellow>/aw setaction <zone_name> <material> <action></yellow> <gray>- Sets material action in a zone."
       removeaction: "<yellow>/aw removeaction <zone_name> <material></yellow> <gray>- Removes material action from a zone."
+      priority: "<yellow>/aw priority <zone_name> <priority></yellow> <gray>- Sets zone priority (higher = takes precedence)."
       banned: "<yellow>/aw banned [add|remove|list]</yellow> <gray>- Manages globally banned materials."
       reload: "<yellow>/aw reload</yellow> <gray>- Reloads plugin configuration."
 
