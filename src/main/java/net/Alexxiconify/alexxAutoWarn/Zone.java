@@ -23,8 +23,6 @@ public final class Zone {
  private final Vector max;
  private final Action defaultAction;
  private final Map < Material, Action > materialActions;
- private Map < Material, Action > currentMaterialActions;
- private Map < Material, Action > updatedMaterialActions;
 
  /**
   * Constructs a new protection zone.
