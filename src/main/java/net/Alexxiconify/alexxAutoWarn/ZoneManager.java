@@ -17,32 +17,17 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
-/**
- * Manages the loading, storage, and retrieval of AutoWarn zones.
- * Handles asynchronous saving and loading to prevent server lag.
- */
 public class ZoneManager {
-
  private final AlexxAutoWarn plugin;
  private final Map < String, Zone > zones = new ConcurrentHashMap <> ( );
 
- /**
-  * Constructs a new ZoneManager.
-  *
-  * @param plugin The main AlexxAutoWarn plugin instance.
-  */
  public ZoneManager ( AlexxAutoWarn plugin ) {
   this.plugin = plugin;
  }
 
- /**
-  * Asynchronously loads all zones from the configuration file.
-  *
-  * @return A CompletableFuture that completes when loading is finished.
-  */
  public CompletableFuture < Void > loadZones ( ) {
   return CompletableFuture.runAsync ( ( ) -> {
-   zones.clear ( ); // Clear existing zones before loading new ones
+   zones.clear ( );
    FileConfiguration config = plugin.getConfig ( );
    ConfigurationSection zonesSection = config.getConfigurationSection ( "zones" );
    if ( zonesSection == null ) {
@@ -50,7 +35,6 @@ public class ZoneManager {
     return;
    }
 
-   // Iterate through each defined zone in the config
    for ( String zoneName : zonesSection.getKeys ( false ) ) {
     ConfigurationSection zoneConfig = zonesSection.getConfigurationSection ( zoneName );
     if ( zoneConfig == null ) {
@@ -66,15 +50,12 @@ public class ZoneManager {
      }
      if ( world == null ) {
       plugin.getSettings ( ).log (
-        Level.WARNING , "World '" + worldName + "' for zone '" + zoneName + "' not found " +
-          "on the server. Skipping this zone."
+        Level.WARNING , "World '" + worldName + "' for zone '" + zoneName +
+          "' not found on the server. Skipping this zone."
       );
       continue;
      }
 
-     // Correctly read Vector from nested x, y, z values.
-     // ConfigurationSection.getVector() expects a directly serialized Vector,
-     // but the config stores x, y, z as individual keys.
      ConfigurationSection corner1Section = zoneConfig.getConfigurationSection ( "corner1" );
      ConfigurationSection corner2Section = zoneConfig.getConfigurationSection ( "corner2" );
 
@@ -96,31 +77,27 @@ public class ZoneManager {
       );
      }
 
-     // Ensure both corners are not null before creating the Zone
      if ( corner1 == null || corner2 == null ) {
       plugin.getSettings ( ).log (
-        Level.SEVERE , "Failed to load zone '" + zoneName + "': Missing 'corner1' or " +
-          "'corner2' coordinates. Please define x, y, z for both corners."
+        Level.SEVERE , "Failed to load zone '" + zoneName +
+          "': Missing 'corner1' or 'corner2' coordinates. Please define x, y, z for both corners."
       );
-      continue; // Skip this zone if corners are invalid
+      continue;
      }
 
-     // Parse default action, defaulting to ALERT if not specified or invalid
-     Zone.Action defaultAction = Zone.Action.ALERT; // Default to ALERT
+     Zone.Action defaultAction = Zone.Action.ALERT;
      String defaultActionString = zoneConfig.getString ( "default-action" );
      if ( defaultActionString != null ) {
       try {
        defaultAction = Zone.Action.valueOf ( defaultActionString.toUpperCase ( ) );
       } catch ( IllegalArgumentException e ) {
        plugin.getSettings ( ).log (
-         Level.WARNING ,
-         "Invalid default-action '" + defaultActionString + "' for zone '" + zoneName + "'" +
-           ". Defaulting to ALERT."
+         Level.WARNING , "Invalid default-action '" + defaultActionString +
+           "' for zone '" + zoneName + "'. Defaulting to ALERT."
        );
       }
      }
 
-     // Parse material-specific actions
      Map < Material, Zone.Action > materialActions = new EnumMap <> ( Material.class );
      ConfigurationSection actionsSection = zoneConfig.getConfigurationSection ( "material-actions" );
      if ( actionsSection != null ) {
@@ -130,9 +107,8 @@ public class ZoneManager {
         material = Material.valueOf ( materialKey.toUpperCase ( ) );
        } catch ( IllegalArgumentException e ) {
         plugin.getSettings ( ).log (
-          Level.WARNING ,
-          "Invalid material name '" + materialKey + "' in zone '" + zoneName + "'. " +
-            "Skipping."
+          Level.WARNING , "Invalid material name '" + materialKey +
+            "' in zone '" + zoneName + "'. Skipping."
         );
         continue;
        }
@@ -143,15 +119,15 @@ public class ZoneManager {
          materialActions.put ( material , action );
         } catch ( IllegalArgumentException e ) {
          plugin.getSettings ( ).log (
-           Level.WARNING ,
-           "Invalid action '" + actionString + "' for material '" + materialKey + "' in " +
-             "zone '" + zoneName + "'. Skipping this material action."
+           Level.WARNING , "Invalid action '" + actionString +
+             "' for material '" + materialKey + "' in zone '" + zoneName +
+             "'. Skipping this material action."
          );
         }
        } else {
         plugin.getSettings ( ).log (
-          Level.WARNING , "Invalid material name '" + materialKey + "' or action string " +
-            "for material in zone '" + zoneName + "'. Skipping."
+          Level.WARNING , "Invalid material name '" + materialKey +
+            "' or action string for material in zone '" + zoneName + "'. Skipping."
         );
        }
       }
@@ -159,19 +135,16 @@ public class ZoneManager {
 
      int priority = zoneConfig.getInt ( "priority" , 0 );
 
-     // Create and store the new Zone object
      Zone zone = new Zone ( zoneName , world , corner1 , corner2 , defaultAction , materialActions , priority );
      zones.put ( zone.getName ( ) , zone );
 
     } catch ( Exception e ) {
-     // Log any other unexpected errors during zone loading
      plugin.getLogger ( ).log (
-       Level.SEVERE ,
-       "An unexpected error occurred while loading zone '" + zoneName + "': " + e.getMessage ( ) , e
+       Level.SEVERE , "An unexpected error occurred while loading zone '" +
+         zoneName + "': " + e.getMessage ( ) , e
      );
     }
    }
-   // Log the total number of zones loaded
    plugin.getSettings ( ).log ( Level.INFO , "Loaded " + zones.size ( ) + " zones." );
   } );
  }
