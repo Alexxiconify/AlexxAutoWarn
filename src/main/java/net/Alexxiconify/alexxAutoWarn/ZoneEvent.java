@@ -110,10 +110,6 @@ class ZoneActionEvent {
     public void setCancelled ( boolean cancelled ) { this.cancelled = cancelled; }
 }
 
-/**
- * Handles all event listeners for the AutoWarn plugin.
- * This includes monitoring block placements and player interactions to enforce zone rules and wand functionality.
- */
 class ZoneListener implements Listener {
 
     private final Settings settings;
@@ -137,10 +133,8 @@ class ZoneListener implements Listener {
 
     @EventHandler ( priority = EventPriority.HIGH, ignoreCancelled = true )
     public void onBlockPlace ( BlockPlaceEvent event ) {
-        handleAction (
-          event.getPlayer ( ) , event.getBlock ( ).getLocation ( ) , event.getBlock ( ).getType ( ) ,
-          event
-        );
+        handleAction ( event.getPlayer ( ) , event.getBlock ( ).getLocation ( ) , event.getBlock ( ).getType ( ) ,
+                       event );
     }
 
     @EventHandler ( priority = EventPriority.HIGH, ignoreCancelled = true )
@@ -149,55 +143,35 @@ class ZoneListener implements Listener {
         handleAction ( event.getPlayer ( ) , event.getBlockClicked ( ).getLocation ( ) , placedMaterial , event );
     }
 
-    @EventHandler ( priority = EventPriority.NORMAL ) // Not ignoring cancelled to handle wand clicks
+    @EventHandler ( priority = EventPriority.NORMAL )
     public void onPlayerInteract ( PlayerInteractEvent event ) {
         Player player = event.getPlayer ( );
         ItemStack handItem = event.getItem ( );
 
-        // --- Wand Functionality ---
-        // Check if the item in hand is the AutoWarn wand
         if ( handItem != null && handItem.hasItemMeta ( ) ) {
             ItemMeta meta = handItem.getItemMeta ( );
-            // FIX: Check for PersistentDataType.STRING as set in AutoWarnCommand
             if ( meta.getPersistentDataContainer ( ).has ( wandKey , PersistentDataType.STRING ) ) {
-                event.setCancelled ( true ); // Always cancel event when using the wand to prevent unintended block
-                // interactions
+                event.setCancelled ( true );
                 Block clickedBlock = event.getClickedBlock ( );
-                if ( clickedBlock == null ) return; // Ensure a block was actually clicked
+                if ( clickedBlock == null ) return;
 
-                // Store the block location as a Vector
-                // Using .toBlockVector() to ensure coordinates are integer-based for block selection
                 Vector clickedBlockVector = clickedBlock.getLocation ( ).toVector ( ).toBlockVector ( );
 
-                // Handle left-click for pos1 and right-click for pos2
                 if ( event.getAction ( ) == Action.LEFT_CLICK_BLOCK ) {
-                    plugin.getAutoWarnCommand ( ).setPos1 ( player.getUniqueId ( ) , clickedBlockVector ); // Pass
-                    // Vector
-                    player.sendMessage ( settings.getMessage (
-                      "wand.pos1-set" , Placeholder.unparsed (
-                        "coords" ,
-                        formatLocation ( clickedBlock.getLocation ( ) )
-                      )
-                    ) );
+                    plugin.getAutoWarnCommand ( ).setPos1 ( player.getUniqueId ( ) , clickedBlockVector );
+                    player.sendMessage ( settings.getMessage ( "wand.pos1-set" , Placeholder.unparsed ( "coords" ,
+                                                                                                        formatLocation ( clickedBlock.getLocation ( ) ) ) ) );
                 } else if ( event.getAction ( ) == Action.RIGHT_CLICK_BLOCK ) {
-                    plugin.getAutoWarnCommand ( ).setPos2 ( player.getUniqueId ( ) , clickedBlockVector ); // Pass
-                    // Vector
-                    player.sendMessage ( settings.getMessage (
-                      "wand.pos2-set" , Placeholder.unparsed (
-                        "coords" ,
-                        formatLocation ( clickedBlock.getLocation ( ) )
-                      )
-                    ) );
+                    plugin.getAutoWarnCommand ( ).setPos2 ( player.getUniqueId ( ) , clickedBlockVector );
+                    player.sendMessage ( settings.getMessage ( "wand.pos2-set" , Placeholder.unparsed ( "coords" ,
+                                                                                                        formatLocation ( clickedBlock.getLocation ( ) ) ) ) );
                 }
-                return; // Stop processing further if the wand was used
+                return;
             }
         }
 
-        // --- Container Access Monitoring ---
-        // Check if chest access monitoring is enabled and the action is a right-click on a container
         if ( settings.isMonitorChestAccess ( ) && event.getAction ( ) == Action.RIGHT_CLICK_BLOCK ) {
             Block clickedBlock = event.getClickedBlock ( );
-            // Ensure the clicked block is a container (e.g., chest, furnace, barrel)
             if ( clickedBlock != null && clickedBlock.getState ( ) instanceof Container ) {
                 handleAction ( player , clickedBlock.getLocation ( ) , clickedBlock.getType ( ) , event );
             }
@@ -214,18 +188,14 @@ class ZoneListener implements Listener {
      * @param event    The cancellable event associated with the action.
      */
     private void handleAction ( Player player , Location location , Material material , Cancellable event ) {
-        // Bypass all checks if the player has the bypass permission
         if ( player.hasPermission ( "autowarn.bypass" ) ) {
             return;
         }
 
-        // Fire ZoneActionEvent for plugin hooks
         Zone zone = zoneManager.getZoneAt ( location );
         if ( zone != null ) {
             ZoneActionEvent actionEvent = new ZoneActionEvent ( player , zone , material , "INTERACT" );
-            AlexxAutoWarn.getAPI ( ).registerZoneActionListener ( e -> { } ); // No-op registration to ensure API is
-            // initialized
-            // Fire event to all listeners
+            AlexxAutoWarn.getAPI ( ).registerZoneActionListener ( e -> { } );
             AlexxAutoWarn.getAPI ( ).isActionAllowed ( player , location , material , "INTERACT" );
             if ( actionEvent.isCancelled ( ) ) {
                 event.setCancelled ( true );
@@ -233,13 +203,11 @@ class ZoneListener implements Listener {
             }
         }
 
-        // Check globally banned materials first
         if ( settings.getGloballyBannedMaterials ( ).contains ( material ) ) {
             processAction ( Zone.Action.DENY , player , location , material , "Global" , event );
             return;
         }
 
-        // Check for zone-specific rules if the location is within a defined zone
         if ( zone != null ) {
             Zone.Action action = zone.getActionFor ( material );
             processAction ( action , player , location , material , zone.getName ( ) , event );
@@ -257,11 +225,8 @@ class ZoneListener implements Listener {
      * @param zoneName The name of the zone (or "Global" for global bans).
      * @param event    The cancellable event.
      */
-    private void processAction (
-      Zone.Action action , Player player , Location loc , Material mat , String zoneName ,
-      Cancellable event
-    ) {
-        // Prepare placeholders for MiniMessage messages
+    private void processAction ( Zone.Action action , Player player , Location loc , Material mat , String zoneName ,
+                                 Cancellable event ) {
         var placeholders = new TagResolver[] {
           Placeholder.unparsed ( "player" , player.getName ( ) ) ,
           Placeholder.unparsed ( "material" , mat.name ( ).toLowerCase ( ).replace ( '_' , ' ' ) ) ,
@@ -269,36 +234,29 @@ class ZoneListener implements Listener {
           Placeholder.unparsed ( "location" , formatLocation ( loc ) )
         };
 
-        // Create a log message for the console/plugin logs
-        String logMessage = String.format (
-          "%s performed %s with %s in %s at %s" , player.getName ( ) , action.name ( ) ,
-          mat.name ( ) , zoneName , formatLocation ( loc )
-        );
+        String logMessage = String.format ( "%s performed %s with %s in %s at %s" , player.getName ( ) ,
+                                            action.name ( ) , mat.name ( ) , zoneName , formatLocation ( loc ) );
 
         switch ( action ) {
             case DENY:
-                event.setCancelled ( true ); // Cancel the event (e.g., block placement)
-                player.sendMessage ( settings.getMessage ( "action.denied" , placeholders ) ); // Send denial message
-                // to player
-                settings.log ( Level.INFO , "[DENIED] " + logMessage ); // Log to plugin console
-                logToCoreProtect ( player.getName ( ) , loc , mat ); // Log to CoreProtect
+                event.setCancelled ( true );
+                player.sendMessage ( settings.getMessage ( "action.denied" , placeholders ) );
+                settings.log ( Level.INFO , "[DENIED] " + logMessage );
+                logToCoreProtect ( player.getName ( ) , loc , mat );
                 break;
             case ALERT:
-                // Allow the action, but alert staff with permission
                 Bukkit.getOnlinePlayers ( ).forEach ( p -> {
                     if ( p.hasPermission ( "autowarn.notify" ) ) {
-                        p.sendMessage ( settings.getMessage ( "action.alert" , placeholders ) ); // Send alert
-                        // message to authorized staff
+                        p.sendMessage ( settings.getMessage ( "action.alert" , placeholders ) );
                     }
                 } );
-                settings.log ( Level.INFO , "[ALERT] " + logMessage ); // Log to plugin console
-                logToCoreProtect ( player.getName ( ) , loc , mat ); // Log to CoreProtect
+                settings.log ( Level.INFO , "[ALERT] " + logMessage );
+                logToCoreProtect ( player.getName ( ) , loc , mat );
                 break;
             case ALLOW:
-                // If allowed actions logging is enabled, log the action
                 if ( settings.isDebugLogAllowedActions ( ) ) {
                     settings.log ( Level.INFO , "[ALLOWED] " + logMessage );
-                    logToCoreProtect ( player.getName ( ) , loc , mat ); // Log to CoreProtect
+                    logToCoreProtect ( player.getName ( ) , loc , mat );
                 }
                 break;
         }
@@ -313,7 +271,7 @@ class ZoneListener implements Listener {
      */
     private void logToCoreProtect ( String user , Location location , Material material ) {
         if ( coreProtectAPI != null ) {
-            coreProtectAPI.logPlacement ( user , location , material , null ); // Logs a block placement/interaction
+            coreProtectAPI.logPlacement ( user , location , material , null );
         }
     }
 
@@ -324,9 +282,7 @@ class ZoneListener implements Listener {
      * @return A formatted string.
      */
     private String formatLocation ( Location loc ) {
-        return String.format (
-          "%s: %d, %d, %d" , loc.getWorld ( ).getName ( ) , loc.getBlockX ( ) , loc.getBlockY ( ) ,
-          loc.getBlockZ ( )
-        );
+        return String.format ( "%s: %d, %d, %d" , loc.getWorld ( ).getName ( ) , loc.getBlockX ( ) ,
+                               loc.getBlockY ( ) , loc.getBlockZ ( ) );
     }
 }
