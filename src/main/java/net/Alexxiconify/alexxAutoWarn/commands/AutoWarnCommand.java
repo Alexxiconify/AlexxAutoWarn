@@ -1,10 +1,10 @@
-package net.alexxiconify.alexxAutoWarn.commands; // Consistent casing
+package net.Alexxiconify.alexxAutoWarn.commands;
 
 import com.google.common.collect.ImmutableList;
-import net.alexxiconify.alexxAutoWarn.AlexxAutoWarn;
-import net.alexxiconify.alexxAutoWarn.managers.ZoneManager;
-import net.alexxiconify.alexxAutoWarn.objects.Zone;
-import net.alexxiconify.alexxAutoWarn.utils.Settings;
+import net.Alexxiconify.alexxAutoWarn.AlexxAutoWarn;
+import net.Alexxiconify.alexxAutoWarn.managers.ZoneManager;
+import net.Alexxiconify.alexxAutoWarn.objects.Zone;
+import net.Alexxiconify.alexxAutoWarn.utils.Settings;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
@@ -450,10 +450,10 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
   ItemStack wand = new ItemStack(Material.BLAZE_ROD); // Or any other suitable item
   ItemMeta meta = wand.getItemMeta();
   if (meta != null) {
-   meta.displayName(settings.getMessage("wand.name"));
-   meta.lore(Arrays.asList(
-           settings.getMessage("wand.lore1"),
-           settings.getMessage("wand.lore2")
+   meta.setDisplayName ( ChatColor.translateAlternateColorCodes ( '&' , settings.getMessageString ( "wand.name" ) ) );
+   meta.setLore ( Arrays.asList (
+     ChatColor.translateAlternateColorCodes ( '&' , settings.getMessageString ( "wand.lore1" ) ) ,
+     ChatColor.translateAlternateColorCodes ( '&' , settings.getMessageString ( "wand.lore2" ) )
    ));
    // Add persistent data to identify it as the selection wand
    meta.getPersistentDataContainer().set(WAND_KEY, PersistentDataType.STRING, "autowarn_wand");

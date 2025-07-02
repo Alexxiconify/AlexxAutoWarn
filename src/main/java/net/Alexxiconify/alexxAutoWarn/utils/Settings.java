@@ -1,6 +1,6 @@
-package net.alexxiconify.alexxAutoWarn.utils; // Consistent casing
+package net.Alexxiconify.alexxAutoWarn.utils;
 
-import net.alexxiconify.alexxAutoWarn.AlexxAutoWarn;
+import net.Alexxiconify.alexxAutoWarn.AlexxAutoWarn;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
@@ -81,6 +81,17 @@ public class Settings {
   String rawMessage = plugin.getConfig().getString("messages." + key, "<red>Message not found: " + key + "</red>");
   Component message = miniMessage.deserialize(rawMessage, resolvers);
   return pluginPrefix.append(message);
+ }
+
+ /**
+  * Retrieves a message as a string for use in item metadata.
+  *
+  * @param key The message key in config.yml.
+  * @return A formatted string with color codes.
+  */
+ public String getMessageString ( @NotNull String key ) {
+  String rawMessage = plugin.getConfig ( ).getString ( "messages." + key , "&cMessage not found: " + key );
+  return rawMessage;
  }
 
  /**

@@ -1,7 +1,7 @@
-package net.alexxiconify.alexxAutoWarn.managers; // Consistent casing: lowercase 'a' in alexxiconify
+package net.Alexxiconify.alexxAutoWarn.managers;
 
-import net.alexxiconify.alexxAutoWarn.AlexxAutoWarn;
-import net.alexxiconify.alexxAutoWarn.objects.Zone;
+import net.Alexxiconify.alexxAutoWarn.AlexxAutoWarn;
+import net.Alexxiconify.alexxAutoWarn.objects.Zone;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -117,7 +117,7 @@ public class ZoneManager {
      ConfigurationSection actionsSection = zoneConfig.getConfigurationSection("material-actions");
      if (actionsSection != null) {
       for (String materialKey : actionsSection.getKeys(false)) {
-       Material material = Material.getMaterial(materialKey.toUpperCase());
+       Material material = Material.valueOf(materialKey.toUpperCase());
        String actionString = actionsSection.getString(materialKey);
        if (material != null && actionString != null) {
         try {
