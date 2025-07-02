@@ -17,90 +17,99 @@ settings:
 #   https://docs.adventure.kyori.net/minimessage     #
 # -------------------------------------------------- #
 messages:
-  plugin-prefix: "<gray>[<#FFA500>AutoWarn</#FFA500>]</gray> "
+  plugin-prefix: '<gray>[<#FFA500>AutoWarn</#FFA500>]</gray> '
 
   # Error Messages
   error:
-    player-only: "<red>This command can only be run by a player."
-    no-permission: "<red>You do not have permission to use this command."
-    invalid-zone-name: "<red>Invalid zone name. Must be 3-32 alphanumeric characters, underscores, or dashes."
-    zone-not-found: "<red>Zone '<zone>' not found."
-    define-no-selection: "<red>You must set both position 1 and 2 before defining a zone."
-      usage:
-      define: "<red>Usage: /autowarn define <zone_name>"
-      remove: "<red>Usage: /autowarn remove <zone_name>"
-      info: "<red>Usage: /autowarn info <zone_name>"
-      defaultaction: "<red>Usage: /autowarn defaultaction <zone_name> <action>"
-      setaction: "<red>Usage: /autowarn setaction <zone_name> <material> <action>"
-      removeaction: "<red>Usage: /autowarn removeaction <zone_name> <material>"
-      priority: "<red>Usage: /autowarn priority <zone_name> <priority>"
-      banned: "<red>Usage: /autowarn banned [add|remove|list]"
-      banned-add: "<red>Usage: /autowarn banned add <material>"
-      banned-remove: "<red>Usage: /autowarn banned remove <material>"
-    invalid-action: "<red>Invalid action. Must be DENY, ALERT, or ALLOW."
-    invalid-material: "<red>Invalid material name."
-    invalid-priority: "<red>Invalid priority. Must be a number."
-    no-material-action: "<yellow>No specific action found for that material in this zone."
-    material-already-banned: "<yellow>That material is already globally banned."
-    material-not-banned: "<yellow>That material is not currently globally banned."
+    player-only: <red>This command can only be run by a player.
+    no-permission: <red>You do not have permission to use this command.
+    invalid-zone-name: <red>Invalid zone name. Must be 3-32 alphanumeric characters, underscores, or dashes.
+    zone-not-found: <red>Zone '<zone>' not found.
+    define-no-selection: <red>You must set both position 1 and 2 before defining a zone.
+    usage:
+      define: '<red>Usage: /autowarn define <zone_name>'
+      remove: '<red>Usage: /autowarn remove <zone_name>'
+      info: '<red>Usage: /autowarn info <zone_name>'
+      defaultaction: '<red>Usage: /autowarn defaultaction <zone_name> <action>'
+      setaction: '<red>Usage: /autowarn setaction <zone_name> <material> <action>'
+      removeaction: '<red>Usage: /autowarn removeaction <zone_name> <material>'
+      banned: '<red>Usage: /autowarn banned [add|remove|list]'
+      banned-add: '<red>Usage: /autowarn banned add <material>'
+      banned-remove: '<red>Usage: /autowarn banned remove <material>'
+    invalid-action: <red>Invalid action. Must be DENY, ALERT, or ALLOW.
+    invalid-material: <red>Invalid material name.
+    no-material-action: <yellow>No specific action found for that material in this zone.
+    material-already-banned: <yellow>That material is already globally banned.
+    material-not-banned: <yellow>That material is not currently globally banned.
 
 
   # Action Feedback
   action:
-    denied: "<red>You cannot do that here! (Zone: <zone>)"
-    alert: "<yellow>Alert! <player> used <material> in zone <zone> at <location>."
+    denied: '<red>You cannot do that here! (Zone: <zone>)'
+    alert: <yellow>Alert! <player> used <material> in zone <zone> at <location>.
 
   # Wand Feedback
   wand:
-    name: "<gold>AutoWarn Selection Wand"
-    lore1: "<gray>Left-click to set position 1."
-    lore2: "<gray>Right-click to set position 2."
-    pos1-set: "<green>Position 1 set to <white><coords></white>."
-    pos2-set: "<green>Position 2 set to <white><coords></white>."
+    name: <gold>AutoWarn Selection Wand
+    lore1: <gray>Left-click to set position 1.
+    lore2: <gray>Right-click to set position 2.
+    pos1-set: <green>Position 1 set to <white><coords></white>.
+    pos2-set: <green>Position 2 set to <white><coords></white>.
 
   # Command Feedback
   command:
-    wand-given: "<green>You have been given the selection wand."
-    pos-set: "<green>Position <pos> set to <white><coords></white>."
-    define-success: "<green>Successfully defined zone '<gold><zone></gold>'."
-    remove-success: "<green>Successfully removed zone '<gold><zone></gold>'."
-    reload-success: "<green>AutoWarn configuration and zones have been reloaded."
-    list-empty: "<yellow>There are no zones defined yet."
-    list-header: "<gold>AutoWarn Zones (<count>):"
-    defaultaction-success: "<green>Default action for zone '<gold><zone></gold>' set to <action>."
-    setaction-success: "<green>Action for <material> in zone '<gold><zone></gold>' set to <action>."
-    removeaction-success: "<green>Action for <material> removed from zone '<gold><zone></gold>'."
-    priority-success: "<green>Priority for zone '<gold><zone></gold>' set to <priority>."
-    banned-add-success: "<green><material> added to globally banned materials."
-    banned-remove-success: "<green><material> removed from globally banned materials." # THIS LINE WAS THE ISSUE
-    banned-list-empty: "<yellow>There are no globally banned materials."
-    banned-list-header: "<gold>Globally Banned Materials (<count>):"
+    wand-given: <green>You have been given the selection wand.
+    pos-set: <green>Position <pos> set to <white><coords></white>.
+    define-success: <green>Successfully defined zone '<gold><zone></gold>'.
+    remove-success: <green>Successfully removed zone '<gold><zone></gold>'.
+    reload-success: <green>AutoWarn configuration and zones have been reloaded.
+    list-empty: <yellow>There are no zones defined yet.
+    list-header: '<gold>AutoWarn Zones (<count>):'
+    defaultaction-success: <green>Default action for zone '<gold><zone></gold>' set
+      to <action>.
+    setaction-success: <green>Action for <material> in zone '<gold><zone></gold>'
+      set to <action>.
+    removeaction-success: <green>Action for <material> removed from zone '<gold><zone></gold>'.
+    banned-add-success: <green><material> added to globally banned materials.
+    banned-remove-success: <green><material> removed from globally banned materials. # THIS LINE WAS THE ISSUE
+    banned-list-empty: <yellow>There are no globally banned materials.
+    banned-list-header: '<gold>Globally Banned Materials (<count>):'
     # Help messages (UPDATED TO INCLUDE ALL MISSING ENTRIES)
-    info-header: "<gold>--- Zone Info: <zone> ---"
-    help-header: "<gold>--- AutoWarn Help ---"
+    help-header: <gold>--- AutoWarn Help ---
     help:
-      wand: "<yellow>/aw wand</yellow> <gray>- Gives you the selection wand."
-      pos: "<yellow>/aw pos1|pos2</yellow> <gray>- Sets a selection point."
-      define: "<yellow>/aw define <zone_name></yellow> <gray>- Defines a new zone."
-      remove: "<yellow>/aw remove <zone_name></yellow> <gray>- Removes an existing zone."
-      list: "<yellow>/aw list</yellow> <gray>- Lists all defined zones."
-      info: "<yellow>/aw info <zone_name></yellow> <gray>- Shows info about a zone."
-      defaultaction: "<yellow>/aw defaultaction <zone_name> <action></yellow> <gray>- Sets default action for a zone."
-      setaction: "<yellow>/aw setaction <zone_name> <material> <action></yellow> <gray>- Sets material action in a zone."
-      removeaction: "<yellow>/aw removeaction <zone_name> <material></yellow> <gray>- Removes material action from a zone."
-      priority: "<yellow>/aw priority <zone_name> <priority></yellow> <gray>- Sets zone priority (higher = takes precedence)."
-      banned: "<yellow>/aw banned [add|remove|list]</yellow> <gray>- Manages globally banned materials."
-      reload: "<yellow>/aw reload</yellow> <gray>- Reloads plugin configuration."
-
-# -------------------------------------------------- #
-#                   Zone Definitions                 #
-#  This section is managed by the plugin. Do not     #
-#          edit manually unless you know what        #
-#                  you are doing!                    #
-# -------------------------------------------------- #
+      wand: <yellow>/aw wand</yellow> <gray>- Gives you the selection wand.
+      pos: <yellow>/aw pos1|pos2</yellow> <gray>- Sets a selection point.
+      define: <yellow>/aw define <zone_name></yellow> <gray>- Defines a new zone.
+      remove: <yellow>/aw remove <zone_name></yellow> <gray>- Removes an existing
+        zone.
+      list: <yellow>/aw list</yellow> <gray>- Lists all defined zones.
+      info: <yellow>/aw info <zone_name></yellow> <gray>- Shows info about a zone.
+      defaultaction: <yellow>/aw defaultaction <zone_name> <action></yellow> <gray>-
+        Sets default action for a zone.
+      setaction: <yellow>/aw setaction <zone_name> <material> <action></yellow> <gray>-
+        Sets material action in a zone.
+      removeaction: <yellow>/aw removeaction <zone_name> <material></yellow> <gray>-
+        Removes material action from a zone.
+      banned: <yellow>/aw banned [add|remove|list]</yellow> <gray>- Manages globally
+        banned materials.
+      reload: <yellow>/aw reload</yellow> <gray>- Reloads plugin configuration.
 zones:
+  aaa:
+    world: world
+    corner1:
+      x: -2.0
+      y: 55.0
+      z: -79.0
+    corner2:
+      x: 1.0
+      y: 57.0
+      z: -77.0
+    default-action: ALERT
+    material-actions:
+      DIRT: DENY
+      LAVA: ALERT
   example_zone:
-    world: "world"
+    world: world
     corner1:
       x: 0.0
       y: 64.0
@@ -109,7 +118,18 @@ zones:
       x: 100.0
       y: 80.0
       z: 100.0
-    default-action: "ALERT"
+    default-action: ALERT
     material-actions:
-      DIAMOND_BLOCK: "DENY"
-      LAVA: "DENY"
+      DIAMOND_BLOCK: DENY
+      LAVA: DENY
+  test:
+    world: world
+    corner1:
+      x: 0.0
+      y: 55.0
+      z: -78.0
+    corner2:
+      x: 1.0
+      y: 57.0
+      z: -75.0
+    default-action: ALERT
