@@ -19,4 +19,12 @@ public interface AutoWarnAPI {
  void registerCustomAction ( String actionName , ZoneCustomAction action );
 
  boolean isActionAllowed ( Player player , Location loc , Material mat , String action );
+
+ Zone getHighestPriorityZoneAt ( Location loc );
+
+ void registerZoneEnterListener ( Consumer < ZoneEnterEvent > listener );
+
+ void registerZoneLeaveListener ( Consumer < ZoneLeaveEvent > listener );
+
+ void registerZonePriorityChangeListener ( Consumer < ZonePriorityChangeEvent > listener );
 }

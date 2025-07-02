@@ -12,6 +12,9 @@ public class AutoWarnAPIImpl implements AutoWarnAPI {
  private final ZoneManager zoneManager;
  private final List < Consumer < ZoneActionEvent > > actionListeners = new CopyOnWriteArrayList <> ( );
  private final Map < String, ZoneCustomAction > customActions = new HashMap <> ( );
+ private final List < Consumer < ZoneEnterEvent > > enterListeners = new CopyOnWriteArrayList <> ( );
+ private final List < Consumer < ZoneLeaveEvent > > leaveListeners = new CopyOnWriteArrayList <> ( );
+ private final List < Consumer < ZonePriorityChangeEvent > > priorityChangeListeners = new CopyOnWriteArrayList <> ( );
 
  public AutoWarnAPIImpl ( ZoneManager zoneManager ) {
   this.zoneManager = zoneManager;
@@ -57,5 +60,40 @@ public class AutoWarnAPIImpl implements AutoWarnAPI {
    custom.execute ( player , zone , mat , action );
   }
   return !event.isCancelled ( );
+ }
+
+ @Override
+ public Zone getHighestPriorityZoneAt ( Location loc ) {
+  return zoneManager.getHighestPriorityZoneAt ( loc );
+ }
+
+ @Override
+ public void registerZoneEnterListener ( Consumer < ZoneEnterEvent > listener ) {
+  enterListeners.add ( listener );
+ }
+
+ @Override
+ public void registerZoneLeaveListener ( Consumer < ZoneLeaveEvent > listener ) {
+  leaveListeners.add ( listener );
+ }
+
+ @Override
+ public void registerZonePriorityChangeListener ( Consumer < ZonePriorityChangeEvent > listener ) {
+  priorityChangeListeners.add ( listener );
+ }
+
+ public void fireZoneEnter ( Player player , Zone zone ) {
+  ZoneEnterEvent event = new ZoneEnterEvent ( player , zone );
+  for ( var l : enterListeners ) l.accept ( event );
+ }
+
+ public void fireZoneLeave ( Player player , Zone zone ) {
+  ZoneLeaveEvent event = new ZoneLeaveEvent ( player , zone );
+  for ( var l : leaveListeners ) l.accept ( event );
+ }
+
+ public void fireZonePriorityChange ( Player player , Zone from , Zone to ) {
+  ZonePriorityChangeEvent event = new ZonePriorityChangeEvent ( player , from , to );
+  for ( var l : priorityChangeListeners ) l.accept ( event );
  }
 }
