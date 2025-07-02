@@ -21,7 +21,7 @@ import java.util.logging.Level;
 interface AutoWarnAPI {
     Zone getZoneAt ( Location loc );
 
-    Collection < Zone > getZonesAt ( Location loc ); // For nested/prioritized zones
+    Collection < Zone > getZonesAt ( Location loc );
 
     Collection < Zone > getAllZones ( );
 
@@ -41,7 +41,6 @@ interface AutoWarnAPI {
 }
 
 public final class AlexxAutoWarn extends JavaPlugin {
-
     private static AutoWarnAPI api;
     private Settings settings;
     private ZoneManager zoneManager;
@@ -86,8 +85,8 @@ public final class AlexxAutoWarn extends JavaPlugin {
         }
 
         if ( api.APIVersion ( ) < 9 ) {
-            getLogger ( ).warning ( "Unsupported CoreProtect version found (API v" + api.APIVersion ( ) + "). Please " +
-                                      "update CoreProtect to at least API v9. Logging disabled." );
+            getLogger ( ).warning ( "Unsupported CoreProtect version found (API v" + api.APIVersion ( ) +
+                                      "). Please update CoreProtect to at least API v9. Logging disabled." );
             this.coreProtectAPI = null;
             return;
         }
@@ -183,14 +182,17 @@ class AutoWarnAPIImpl implements AutoWarnAPI {
     public boolean isActionAllowed ( Player player , Location loc , Material mat , String action ) {
         Zone zone = getZoneAt ( loc );
         if ( zone == null ) return true;
+
         ZoneActionEvent event = new ZoneActionEvent ( player , zone , mat , action );
         for ( Consumer < ZoneActionEvent > listener : actionListeners ) {
             listener.accept ( event );
         }
+
         ZoneCustomAction custom = customActions.get ( action.toUpperCase ( Locale.ROOT ) );
         if ( custom != null ) {
             custom.execute ( player , zone , mat , action );
         }
+
         return !event.isCancelled ( );
     }
 

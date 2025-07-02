@@ -111,18 +111,12 @@ class ZoneActionEvent {
 }
 
 class ZoneListener implements Listener {
-
     private final Settings settings;
     private final ZoneManager zoneManager;
     private final AlexxAutoWarn plugin;
     private final NamespacedKey wandKey;
     private final CoreProtectAPI coreProtectAPI;
 
-    /**
-     * Constructor for ZoneListener.
-     *
-     * @param plugin The main AlexxAutoWarn plugin instance.
-     */
     public ZoneListener ( AlexxAutoWarn plugin ) {
         this.plugin = plugin;
         this.settings = plugin.getSettings ( );
@@ -159,12 +153,16 @@ class ZoneListener implements Listener {
 
                 if ( event.getAction ( ) == Action.LEFT_CLICK_BLOCK ) {
                     plugin.getAutoWarnCommand ( ).setPos1 ( player.getUniqueId ( ) , clickedBlockVector );
-                    player.sendMessage ( settings.getMessage ( "wand.pos1-set" , Placeholder.unparsed ( "coords" ,
-                                                                                                        formatLocation ( clickedBlock.getLocation ( ) ) ) ) );
+                    player.sendMessage ( settings.getMessage (
+                      "wand.pos1-set" ,
+                      Placeholder.unparsed ( "coords" , formatLocation ( clickedBlock.getLocation ( ) ) )
+                    ) );
                 } else if ( event.getAction ( ) == Action.RIGHT_CLICK_BLOCK ) {
                     plugin.getAutoWarnCommand ( ).setPos2 ( player.getUniqueId ( ) , clickedBlockVector );
-                    player.sendMessage ( settings.getMessage ( "wand.pos2-set" , Placeholder.unparsed ( "coords" ,
-                                                                                                        formatLocation ( clickedBlock.getLocation ( ) ) ) ) );
+                    player.sendMessage ( settings.getMessage (
+                      "wand.pos2-set" ,
+                      Placeholder.unparsed ( "coords" , formatLocation ( clickedBlock.getLocation ( ) ) )
+                    ) );
                 }
                 return;
             }
@@ -178,15 +176,6 @@ class ZoneListener implements Listener {
         }
     }
 
-    /**
-     * Centralized method to handle a player action at a specific location.
-     * Applies global bans and zone-specific rules.
-     *
-     * @param player   The player performing the action.
-     * @param location The location where the action occurred.
-     * @param material The material involved in the action.
-     * @param event    The cancellable event associated with the action.
-     */
     private void handleAction ( Player player , Location location , Material material , Cancellable event ) {
         if ( player.hasPermission ( "autowarn.bypass" ) ) {
             return;
@@ -195,9 +184,8 @@ class ZoneListener implements Listener {
         Zone zone = zoneManager.getZoneAt ( location );
         if ( zone != null ) {
             ZoneActionEvent actionEvent = new ZoneActionEvent ( player , zone , material , "INTERACT" );
-            AlexxAutoWarn.getAPI ( ).registerZoneActionListener ( e -> { } );
-            AlexxAutoWarn.getAPI ( ).isActionAllowed ( player , location , material , "INTERACT" );
-            if ( actionEvent.isCancelled ( ) ) {
+            AutoWarnAPI api = AlexxAutoWarn.getAPI ( );
+            if ( api != null && !api.isActionAllowed ( player , location , material , "INTERACT" ) ) {
                 event.setCancelled ( true );
                 return;
             }
@@ -214,17 +202,6 @@ class ZoneListener implements Listener {
         }
     }
 
-    /**
-     * Processes the determined action (DENY, ALERT, ALLOW), sends messages to the player,
-     * logs the action, and integrates with CoreProtect if available.
-     *
-     * @param action   The action to perform (DENY, ALERT, ALLOW).
-     * @param player   The player involved in the action.
-     * @param loc      The location of the action.
-     * @param mat      The material involved.
-     * @param zoneName The name of the zone (or "Global" for global bans).
-     * @param event    The cancellable event.
-     */
     private void processAction ( Zone.Action action , Player player , Location loc , Material mat , String zoneName ,
                                  Cancellable event ) {
         var placeholders = new TagResolver[] {
@@ -234,8 +211,10 @@ class ZoneListener implements Listener {
           Placeholder.unparsed ( "location" , formatLocation ( loc ) )
         };
 
-        String logMessage = String.format ( "%s performed %s with %s in %s at %s" , player.getName ( ) ,
-                                            action.name ( ) , mat.name ( ) , zoneName , formatLocation ( loc ) );
+        String logMessage = String.format (
+          "%s performed %s with %s in %s at %s" ,
+          player.getName ( ) , action.name ( ) , mat.name ( ) , zoneName , formatLocation ( loc )
+        );
 
         switch ( action ) {
             case DENY:
@@ -262,27 +241,16 @@ class ZoneListener implements Listener {
         }
     }
 
-    /**
-     * Logs an action to the CoreProtect API if it's available.
-     *
-     * @param user     The user performing the action.
-     * @param location The location of the action.
-     * @param material The material involved.
-     */
     private void logToCoreProtect ( String user , Location location , Material material ) {
         if ( coreProtectAPI != null ) {
             coreProtectAPI.logPlacement ( user , location , material , null );
         }
     }
 
-    /**
-     * Formats a Location object into a human-readable string (World: X, Y, Z).
-     *
-     * @param loc The Location to format.
-     * @return A formatted string.
-     */
     private String formatLocation ( Location loc ) {
-        return String.format ( "%s: %d, %d, %d" , loc.getWorld ( ).getName ( ) , loc.getBlockX ( ) ,
-                               loc.getBlockY ( ) , loc.getBlockZ ( ) );
+        return String.format (
+          "%s: %d, %d, %d" , loc.getWorld ( ).getName ( ) ,
+          loc.getBlockX ( ) , loc.getBlockY ( ) , loc.getBlockZ ( )
+        );
     }
 }
