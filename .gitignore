@@ -111,3 +111,34 @@ buildNumber.properties
 
 # Common working directory
 run/
+
+# Project-specific ignores
+bukkit/
+full_build_log.txt
+
+# Build artifacts
+*.jar
+!bukkit/target/*.jar
+
+# IDE and editor files
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+*.tmp
+*.temp
