@@ -83,16 +83,6 @@ public class Settings {
   return pluginPrefix.append(message);
  }
 
- /**
-  * Retrieves a message as a string for use in item metadata.
-  *
-  * @param key The message key in config.yml.
-  * @return A formatted string with color codes.
-  */
- public String getMessageString ( @NotNull String key ) {
-  String rawMessage = plugin.getConfig ( ).getString ( "messages." + key , "&cMessage not found: " + key );
-  return rawMessage;
- }
 
  /**
   * Logs a message to the console using the plugin's logger.

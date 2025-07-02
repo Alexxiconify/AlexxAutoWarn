@@ -17,7 +17,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.util.StringUtil;
 import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -44,7 +43,7 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
  static {
   // Initialize WAND_KEY in a static block.
   // It's important that "alexxautowarn" matches the plugin's name in plugin.yml.
-  WAND_KEY = new NamespacedKey("alexxautowarn", "selection_wand");
+  WAND_KEY = NamespacedKey.fromString ( "alexxautowarn:selection_wand" );
  }
 
  private final AlexxAutoWarn plugin;
@@ -270,8 +269,14 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
      return true;
     }
 
-    Material saMaterial = Material.matchMaterial(saMaterialName.toUpperCase());
-    if (saMaterial == null || !saMaterial.isBlock()) { // Ensure it's a block-like material
+    Material saMaterial;
+    try {
+     saMaterial = Material.valueOf ( saMaterialName.toUpperCase ( ) );
+    } catch ( IllegalArgumentException e ) {
+     sender.sendMessage ( settings.getMessage ( "error.invalid-material" ) );
+     return true;
+    }
+    if ( !saMaterial.isBlock ( ) ) { // Ensure it's a block-like material
      sender.sendMessage(settings.getMessage("error.invalid-material"));
      return true;
     }
@@ -327,8 +332,14 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
      return true;
     }
 
-    Material raMaterial = Material.matchMaterial(raMaterialName.toUpperCase());
-    if (raMaterial == null || !raMaterial.isBlock()) { // Ensure it's a block-like material
+    Material raMaterial;
+    try {
+     raMaterial = Material.valueOf ( raMaterialName.toUpperCase ( ) );
+    } catch ( IllegalArgumentException e ) {
+     sender.sendMessage ( settings.getMessage ( "error.invalid-material" ) );
+     return true;
+    }
+    if ( !raMaterial.isBlock ( ) ) { // Ensure it's a block-like material
      sender.sendMessage(settings.getMessage("error.invalid-material"));
      return true;
     }
@@ -377,8 +388,14 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
        sender.sendMessage(settings.getMessage("error.usage.banned-add"));
        return true;
       }
-      Material materialToAdd = Material.matchMaterial(args[2].toUpperCase());
-      if (materialToAdd == null || !materialToAdd.isItem()) { // Can be any item or block
+      Material materialToAdd;
+      try {
+       materialToAdd = Material.valueOf ( args[ 2 ].toUpperCase ( ) );
+      } catch ( IllegalArgumentException e ) {
+       sender.sendMessage ( settings.getMessage ( "error.invalid-material" ) );
+       return true;
+      }
+      if ( !materialToAdd.isItem ( ) ) { // Can be any item or block
        sender.sendMessage(settings.getMessage("error.invalid-material"));
        return true;
       }
@@ -396,8 +413,10 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
        sender.sendMessage(settings.getMessage("error.usage.banned-remove"));
        return true;
       }
-      Material materialToRemove = Material.matchMaterial(args[2].toUpperCase());
-      if (materialToRemove == null) {
+      Material materialToRemove;
+      try {
+       materialToRemove = Material.valueOf ( args[ 2 ].toUpperCase ( ) );
+      } catch ( IllegalArgumentException e ) {
        sender.sendMessage(settings.getMessage("error.invalid-material"));
        return true;
       }
@@ -450,10 +469,10 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
   ItemStack wand = new ItemStack(Material.BLAZE_ROD); // Or any other suitable item
   ItemMeta meta = wand.getItemMeta();
   if (meta != null) {
-   meta.setDisplayName ( ChatColor.translateAlternateColorCodes ( '&' , settings.getMessageString ( "wand.name" ) ) );
-   meta.setLore ( Arrays.asList (
-     ChatColor.translateAlternateColorCodes ( '&' , settings.getMessageString ( "wand.lore1" ) ) ,
-     ChatColor.translateAlternateColorCodes ( '&' , settings.getMessageString ( "wand.lore2" ) )
+   meta.displayName ( settings.getMessage ( "wand.name" ) );
+   meta.lore ( Arrays.asList (
+     settings.getMessage ( "wand.lore1" ) ,
+     settings.getMessage ( "wand.lore2" )
    ));
    // Add persistent data to identify it as the selection wand
    meta.getPersistentDataContainer().set(WAND_KEY, PersistentDataType.STRING, "autowarn_wand");
@@ -538,30 +557,68 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
   List<String> commands = ImmutableList.of("wand", "pos1", "pos2", "define", "remove", "list", "info", "defaultaction", "setaction", "removeaction", "banned", "reload");
 
   if (args.length == 1) {
-   StringUtil.copyPartialMatches(args[0], commands, completions);
+   String input = args[ 0 ].toLowerCase ( );
+   completions.addAll ( commands.stream ( )
+                          .filter ( cmd -> cmd.toLowerCase ( ).startsWith ( input ) )
+                          .collect ( Collectors.toList ( ) ) );
   } else if (args.length == 2) {
+   String input = args[ 1 ].toLowerCase ( );
    switch (args[0].toLowerCase()) {
-    case "remove", "info", "defaultaction", "setaction", "removeaction" ->
-            StringUtil.copyPartialMatches(args[1], zoneManager.getAllZones().stream().map(Zone::getName).collect(Collectors.toList()), completions);
-    case "banned" -> StringUtil.copyPartialMatches(args[1], ImmutableList.of("add", "remove", "list"), completions);
+    case "remove" , "info" , "defaultaction" , "setaction" , "removeaction" -> {
+     List < String > zoneNames =
+       zoneManager.getAllZones ( ).stream ( ).map ( Zone :: getName ).collect ( Collectors.toList ( ) );
+     completions.addAll ( zoneNames.stream ( )
+                            .filter ( name -> name.toLowerCase ( ).startsWith ( input ) )
+                            .collect ( Collectors.toList ( ) ) );
+    }
+    case "banned" -> {
+     List < String > bannedCommands = ImmutableList.of ( "add" , "remove" , "list" );
+     completions.addAll ( bannedCommands.stream ( )
+                            .filter ( cmd -> cmd.toLowerCase ( ).startsWith ( input ) )
+                            .collect ( Collectors.toList ( ) ) );
+    }
    }
   } else if (args.length == 3) {
+   String input = args[ 2 ].toLowerCase ( );
    switch (args[0].toLowerCase()) {
-    case "defaultaction" ->
-            StringUtil.copyPartialMatches(args[2], Stream.of(Zone.Action.values()).map(Enum::name).collect(Collectors.toList()), completions);
-    case "setaction", "removeaction" ->
-            StringUtil.copyPartialMatches(args[2], Arrays.stream(Material.values()).filter(Material::isBlock).map(Enum::name).collect(Collectors.toList()), completions);
+    case "defaultaction" -> {
+     List < String > actions =
+       Stream.of ( Zone.Action.values ( ) ).map ( Enum :: name ).collect ( Collectors.toList ( ) );
+     completions.addAll ( actions.stream ( )
+                            .filter ( action -> action.toLowerCase ( ).startsWith ( input ) )
+                            .collect ( Collectors.toList ( ) ) );
+    }
+    case "setaction" , "removeaction" -> {
+     List < String > materials =
+       Arrays.stream ( Material.values ( ) ).filter ( Material :: isBlock ).map ( Enum :: name ).collect ( Collectors.toList ( ) );
+     completions.addAll ( materials.stream ( )
+                            .filter ( material -> material.toLowerCase ( ).startsWith ( input ) )
+                            .collect ( Collectors.toList ( ) ) );
+    }
     case "banned" -> {
      if ("add".equalsIgnoreCase(args[1])) {
-      StringUtil.copyPartialMatches(args[2], Arrays.stream(Material.values()).filter(Material::isItem).map(Enum::name).collect(Collectors.toList()), completions);
+      List < String > materials =
+        Arrays.stream ( Material.values ( ) ).filter ( Material :: isItem ).map ( Enum :: name ).collect ( Collectors.toList ( ) );
+      completions.addAll ( materials.stream ( )
+                             .filter ( material -> material.toLowerCase ( ).startsWith ( input ) )
+                             .collect ( Collectors.toList ( ) ) );
      } else if ("remove".equalsIgnoreCase(args[1])) {
-      StringUtil.copyPartialMatches(args[2], settings.getGloballyBannedMaterials().stream().map(Enum::name).collect(Collectors.toList()), completions);
+      List < String > bannedMaterials =
+        settings.getGloballyBannedMaterials ( ).stream ( ).map ( Enum :: name ).collect ( Collectors.toList ( ) );
+      completions.addAll ( bannedMaterials.stream ( )
+                             .filter ( material -> material.toLowerCase ( ).startsWith ( input ) )
+                             .collect ( Collectors.toList ( ) ) );
      }
     }
    }
   } else if (args.length == 4) {
    if ("setaction".equalsIgnoreCase(args[0])) {
-    StringUtil.copyPartialMatches(args[3], Stream.of(Zone.Action.values()).map(Enum::name).collect(Collectors.toList()), completions);
+    String input = args[ 3 ].toLowerCase ( );
+    List < String > actions =
+      Stream.of ( Zone.Action.values ( ) ).map ( Enum :: name ).collect ( Collectors.toList ( ) );
+    completions.addAll ( actions.stream ( )
+                           .filter ( action -> action.toLowerCase ( ).startsWith ( input ) )
+                           .collect ( Collectors.toList ( ) ) );
    }
   }
   Collections.sort(completions);
