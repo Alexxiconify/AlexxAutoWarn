@@ -41,11 +41,6 @@ interface AutoWarnAPI {
     void registerZonePriorityChangeListener ( Consumer < ZonePriorityChangeEvent > listener );
 }
 
-/**
- * Main class for the AlexxAutoWarn plugin.
- * Handles plugin lifecycle, configuration loading, CoreProtect integration,
- * and registration of commands and event listeners.
- */
 public final class AlexxAutoWarn extends JavaPlugin {
 
     private static AutoWarnAPI api;
@@ -66,28 +61,17 @@ public final class AlexxAutoWarn extends JavaPlugin {
         this.getLogger ( ).info ( "AlexxAutoWarn has been disabled." );
     }
 
-    /**
-     * Reloads the plugin's configuration and all associated components.
-     * This method overrides JavaPlugin's reloadConfig() and should be used
-     * as the primary entry point for plugin reloads.
-     */
     @Override
     public void reloadConfig ( ) {
-        super.reloadConfig ( ); // Call the parent method to reload the underlying configuration file
-        // Reload custom settings and zones after the base config has been reloaded.
-        // These checks are now guaranteed to be non-null due to initialization order in onEnable.
+        super.reloadConfig ( );
         if ( this.settings != null ) {
-            this.settings.reload ( ); // Tell your custom Settings class to reload its cached data
+            this.settings.reload ( );
         }
         if ( this.zoneManager != null ) {
-            this.zoneManager.loadZones ( ); // Reload zones after config is reloaded
+            this.zoneManager.loadZones ( );
         }
     }
 
-    /**
-     * Sets up the CoreProtect API hook.
-     * Checks if CoreProtect plugin is present, enabled, and compatible.
-     */
     private void setupCoreProtect ( ) {
         final Plugin coreProtectPlugin = getServer ( ).getPluginManager ( ).getPlugin ( "CoreProtect" );
         if ( !( coreProtectPlugin instanceof CoreProtect ) ) {
@@ -115,91 +99,42 @@ public final class AlexxAutoWarn extends JavaPlugin {
         getLogger ( ).info ( "Successfully hooked into CoreProtect API." );
     }
 
-    // --- Getters ---
-
-    /**
-     * Provides access to the plugin's settings manager.
-     *
-     * @return The Settings instance.
-     */
     @NotNull
-    public Settings getSettings ( ) {
-        return settings;
-    }
+    public Settings getSettings ( ) { return settings; }
 
-    /**
-     * Provides access to the plugin's zone manager.
-     * @return The ZoneManager instance.
-     */
     @NotNull
-    public ZoneManager getZoneManager ( ) {
-        return zoneManager;
-    }
+    public ZoneManager getZoneManager ( ) { return zoneManager; }
 
-    /**
-     * Provides access to the CoreProtect API instance.
-     * @return The CoreProtectAPI instance, or null if not hooked.
-     */
     @Nullable
-    public CoreProtectAPI getCoreProtectAPI ( ) {
-        return coreProtectAPI;
-    }
+    public CoreProtectAPI getCoreProtectAPI ( ) { return coreProtectAPI; }
 
-    /**
-     * Provides access to the plugin's command instance.
-     *
-     * @return The AutoWarnCommand instance.
-     */
     @NotNull
-    public AutoWarnCommand getAutoWarnCommand ( ) {
-        return autoWarnCommand;
-    }
+    public AutoWarnCommand getAutoWarnCommand ( ) { return autoWarnCommand; }
 
     @Override
     public void onEnable ( ) {
         final Stopwatch stopwatch = Stopwatch.createStarted ( );
         this.getLogger ( ).info ( "Starting AlexxAutoWarn..." );
 
-        // FIX: Ensure Settings and ZoneManager are initialized BEFORE reloadConfig()
-        // This ensures 'settings' and 'zoneManager' objects exist when reloadConfig() calls their reload/load methods.
         this.settings = new Settings ( this );
         this.zoneManager = new ZoneManager ( this );
 
-        // Ensure default config is saved and loaded
         saveDefaultConfig ( );
-        // Reload config. This will now correctly call settings.reload() and zoneManager.loadZones()
-        // because 'settings' and 'zoneManager' are already initialized.
         reloadConfig ( );
 
-        // Asynchronously load zones from config (this call in onEnable becomes redundant if reloadConfig() does it)
-        // However, keep it here for explicit asynchronous loading after the initial sync load via reloadConfig()
-        // or if zones need to be reloaded after some initial sync setup in onEnable.
-        // No, it's better to let reloadConfig() handle the initial load,
-        // and only call zoneManager.loadZones() directly if it's a separate async operation later.
-        // For initial setup, reloadConfig() handles it. Removed this redundant call.
-        // this.zoneManager.loadZones().thenRun(() -> {
-        //     this.getLogger().info("All zones loaded successfully.");
-        // });
-
-        // Setup CoreProtect API hook
         setupCoreProtect ( );
 
-        // Initialize and register commands
-        this.autoWarnCommand = new AutoWarnCommand ( this ); // Initialize the command instance
+        this.autoWarnCommand = new AutoWarnCommand ( this );
 
-        // Get the command from plugin.yml and set its executor and tab completer.
-        // Add explicit null check and logging for command registration.
         PluginCommand command = this.getCommand ( "autowarn" );
         if ( command == null ) {
-            getLogger ( ).severe ( "Command 'autowarn' not found in plugin.yml! Commands will not work. Ensure " +
-                                     "'autowarn' is defined in your plugin.yml under the 'commands' section." );
+            getLogger ( ).severe ( "Command 'autowarn' not found in plugin.yml! Commands will not work." );
         } else {
-            command.setExecutor ( this.autoWarnCommand ); // Set the executor to our specific instance
-            command.setTabCompleter ( this.autoWarnCommand ); // Set the tab completer to our specific instance
+            command.setExecutor ( this.autoWarnCommand );
+            command.setTabCompleter ( this.autoWarnCommand );
             getLogger ( ).info ( "Command 'autowarn' registered successfully." );
         }
 
-        // Register event listeners
         this.getServer ( ).getPluginManager ( ).registerEvents ( new ZoneListener ( this ) , this );
 
         api = new AutoWarnAPIImpl ( this.zoneManager );
