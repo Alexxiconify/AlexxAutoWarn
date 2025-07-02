@@ -4,7 +4,10 @@ import com.google.common.collect.ImmutableList;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
-import org.bukkit.*;
+import org.bukkit.Bukkit;
+import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
+import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -23,34 +26,24 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-/**
- * Handles all commands for the AlexxAutoWarn plugin.
- * Implements CommandExecutor for command handling and TabCompleter for tab completion.
- */
 public class AutoWarnCommand implements CommandExecutor, TabCompleter {
-
- // Regex for valid zone names
  private static final Pattern ZONE_NAME_PATTERN = Pattern.compile ( "^[a-zA-Z0-9_-]{3,32}$" );
- // Key for the selection wand's persistent data
  private static final NamespacedKey WAND_KEY;
 
  static {
-  // Initialize WAND_KEY in a static block.
-  // It's important that "alexxautowarn" matches the plugin's name in plugin.yml.
   WAND_KEY = NamespacedKey.fromString ( "alexxautowarn:selection_wand" );
  }
 
  private final Settings settings;
  private final ZoneManager zoneManager;
  private final AlexxAutoWarn plugin;
- // Changed to store Vector directly for consistency with Zone constructor
  private final Map < UUID, Vector > pos1 = new ConcurrentHashMap <> ( );
  private final Map < UUID, Vector > pos2 = new ConcurrentHashMap <> ( );
 
  public AutoWarnCommand ( AlexxAutoWarn plugin ) {
   this.plugin = plugin;
-  this.settings = plugin.getSettings ( ); // Get settings from the plugin instance
-  this.zoneManager = plugin.getZoneManager ( ); // Get zone manager from the plugin instance
+  this.settings = plugin.getSettings ( );
+  this.zoneManager = plugin.getZoneManager ( );
  }
 
  @Override
@@ -313,11 +306,9 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
      return true;
     }
 
-    // Create a new map to avoid modifying the original zone's map directly
-    // FIX: Initialize EnumMap explicitly with Material.class
     Map < Material, Zone.Action > updatedMaterialActions = new EnumMap <> ( Material.class );
-    updatedMaterialActions.putAll ( saZone.getMaterialActions ( ) ); // Copy existing actions
-    updatedMaterialActions.put ( saMaterial , saAction ); // Add/overwrite the specific action
+    updatedMaterialActions.putAll ( saZone.getMaterialActions ( ) );
+    updatedMaterialActions.put ( saMaterial , saAction );
 
     // Get the World object using Bukkit.getWorld(worldName)
     World saWorld = Bukkit.getWorld ( saZone.getWorldName ( ) );
@@ -373,10 +364,8 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
      return true;
     }
 
-    // Create a new map to avoid modifying the original zone's map directly
-    // FIX: Initialize EnumMap explicitly with Material.class
     Map < Material, Zone.Action > currentMaterialActions = new EnumMap <> ( Material.class );
-    currentMaterialActions.putAll ( raZone.getMaterialActions ( ) ); // Copy existing actions
+    currentMaterialActions.putAll ( raZone.getMaterialActions ( ) );
 
     if ( !currentMaterialActions.containsKey ( raMaterial ) ) {
      sender.sendMessage ( settings.getMessage ( "error.no-material-action" ) );
@@ -567,9 +556,7 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
   player.sendMessage ( settings.getMessage ( "command.wand-given" ) );
  }
 
- private String formatLocation ( Location loc ) {
-  return String.format ( "%s, %s, %s" , loc.getBlockX ( ) , loc.getBlockY ( ) , loc.getBlockZ ( ) );
- }
+
 
  private void sendZoneInfo ( CommandSender sender , Zone zone ) {
   sender.sendMessage ( settings.getMessage (
@@ -615,33 +602,14 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
   sender.sendMessage ( settings.getMessage ( "command.help.reload" ) );
  }
 
- // --- Public methods for ZoneListener to interact with ---
-
- /**
-  * Gets the NamespacedKey used to identify the AutoWarn wand.
-  *
-  * @return The NamespacedKey for the wand.
-  */
  public NamespacedKey getWandKey ( ) {
   return WAND_KEY;
  }
 
- /**
-  * Sets the first selection point for a player.
-  *
-  * @param uuid The UUID of the player.
-  * @param pos  The Vector representing the position.
-  */
  public void setPos1 ( UUID uuid , Vector pos ) {
   pos1.put ( uuid , pos );
  }
 
- /**
-  * Sets the second selection point for a player.
-  *
-  * @param uuid The UUID of the player.
-  * @param pos  The Vector representing the position.
-  */
  public void setPos2 ( UUID uuid , Vector pos ) {
   pos2.put ( uuid , pos );
  }
