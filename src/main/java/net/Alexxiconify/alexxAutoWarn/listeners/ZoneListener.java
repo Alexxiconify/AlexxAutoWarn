@@ -1,10 +1,10 @@
-package net.alexxiconify.alexxAutoWarn.listeners; // Consistent casing
+package net.Alexxiconify.alexxAutoWarn.listeners;
 
-import net.alexxiconify.alexxAutoWarn.AlexxAutoWarn;
-import net.alexxiconify.alexxAutoWarn.commands.AutoWarnCommand;
-import net.alexxiconify.alexxAutoWarn.managers.ZoneManager;
-import net.alexxiconify.alexxAutoWarn.objects.Zone;
-import net.alexxiconify.alexxAutoWarn.utils.Settings;
+import net.Alexxiconify.alexxAutoWarn.AlexxAutoWarn;
+import net.Alexxiconify.alexxAutoWarn.commands.AutoWarnCommand;
+import net.Alexxiconify.alexxAutoWarn.managers.ZoneManager;
+import net.Alexxiconify.alexxAutoWarn.objects.Zone;
+import net.Alexxiconify.alexxAutoWarn.utils.Settings;
 import net.coreprotect.CoreProtectAPI;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
@@ -88,10 +88,12 @@ public class ZoneListener implements Listener {
     // Handle left-click for pos1 and right-click for pos2
     if (event.getAction() == Action.LEFT_CLICK_BLOCK) {
      command.setPos1(player.getUniqueId(), clickedBlockVector); // Pass Vector
-     player.sendActionBar(settings.getMessage("wand.pos1-set", Placeholder.unparsed("coords", formatLocation(clickedBlock.getLocation()))));
+     player.sendMessage ( settings.getMessage ( "wand.pos1-set" , Placeholder.unparsed ( "coords" ,
+                                                                                         formatLocation ( clickedBlock.getLocation ( ) ) ) ) );
     } else if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
      command.setPos2(player.getUniqueId(), clickedBlockVector); // Pass Vector
-     player.sendActionBar(settings.getMessage("wand.pos2-set", Placeholder.unparsed("coords", formatLocation(clickedBlock.getLocation()))));
+     player.sendMessage ( settings.getMessage ( "wand.pos2-set" , Placeholder.unparsed ( "coords" ,
+                                                                                         formatLocation ( clickedBlock.getLocation ( ) ) ) ) );
     }
     return; // Stop processing further if the wand was used
    }

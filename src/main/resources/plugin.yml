@@ -1,6 +1,6 @@
 name: AlexxAutoWarn
 version: '1.0.0'
-main: net.alexxiconify.alexxAutoWarn.AlexxAutoWarn
+main: net.Alexxiconify.alexxAutoWarn.AlexxAutoWarn
 api-version: '1.21'
 author: Alexxiconify
 description: A modernized zone protection plugin.
@@ -24,6 +24,39 @@ permissions:
       autowarn.admin.setaction: true
       autowarn.admin.reload: true
       autowarn.admin.banned: true
+  autowarn.wand:
+    description: Allows use of the selection wand.
+    default: op
+  autowarn.pos:
+    description: Allows setting selection positions.
+    default: op
+  autowarn.define:
+    description: Allows defining zones.
+    default: op
+  autowarn.remove:
+    description: Allows removing zones.
+    default: op
+  autowarn.list:
+    description: Allows listing zones.
+    default: op
+  autowarn.info:
+    description: Allows viewing zone information.
+    default: op
+  autowarn.defaultaction:
+    description: Allows setting default actions for zones.
+    default: op
+  autowarn.setaction:
+    description: Allows setting material actions in zones.
+    default: op
+  autowarn.removeaction:
+    description: Allows removing material actions from zones.
+    default: op
+  autowarn.banned:
+    description: Allows managing globally banned materials.
+    default: op
+  autowarn.reload:
+    description: Allows reloading the plugin configuration.
+    default: op
   autowarn.bypass:
     description: Bypasses all zone restrictions.
     default: op

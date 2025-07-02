@@ -1,10 +1,10 @@
-package net.alexxiconify.alexxAutoWarn; // Consistent casing: lowercase 'a' in alexxiconify
+package net.Alexxiconify.alexxAutoWarn;
 
 import com.google.common.base.Stopwatch;
-import net.alexxiconify.alexxAutoWarn.commands.AutoWarnCommand;
-import net.alexxiconify.alexxAutoWarn.listeners.ZoneListener;
-import net.alexxiconify.alexxAutoWarn.managers.ZoneManager;
-import net.alexxiconify.alexxAutoWarn.utils.Settings;
+import net.Alexxiconify.alexxAutoWarn.commands.AutoWarnCommand;
+import net.Alexxiconify.alexxAutoWarn.listeners.ZoneListener;
+import net.Alexxiconify.alexxAutoWarn.managers.ZoneManager;
+import net.Alexxiconify.alexxAutoWarn.utils.Settings;
 import net.coreprotect.CoreProtect;
 import net.coreprotect.CoreProtectAPI;
 import org.bukkit.command.PluginCommand;

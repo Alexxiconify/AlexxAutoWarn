@@ -73,6 +73,7 @@ messages:
     banned-list-empty: "<yellow>There are no globally banned materials."
     banned-list-header: "<gold>Globally Banned Materials (<count>):"
     # Help messages (UPDATED TO INCLUDE ALL MISSING ENTRIES)
+    info-header: "<gold>--- Zone Info: <zone> ---"
     help-header: "<gold>--- AutoWarn Help ---"
     help:
       wand: "<yellow>/aw wand</yellow> <gray>- Gives you the selection wand."

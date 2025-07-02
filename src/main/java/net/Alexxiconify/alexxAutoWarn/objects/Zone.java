@@ -1,4 +1,4 @@
-package net.alexxiconify.alexxAutoWarn.objects; // Consistent casing: lowercase 'a' in alexxiconify
+package net.Alexxiconify.alexxAutoWarn.objects;
 
 import org.bukkit.Location;
 import org.bukkit.Material;
