@@ -18,7 +18,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 
-// API Interface and Implementation
 interface AutoWarnAPI {
     Zone getZoneAt ( Location loc );
 
@@ -47,16 +46,15 @@ public final class AlexxAutoWarn extends JavaPlugin {
     private Settings settings;
     private ZoneManager zoneManager;
     private CoreProtectAPI coreProtectAPI;
-    private AutoWarnCommand autoWarnCommand; // Added field to hold the command instance
+    private AutoWarnCommand autoWarnCommand;
 
     public static AutoWarnAPI getAPI ( ) { return api; }
 
     @Override
     public void onDisable ( ) {
         this.getLogger ( ).info ( "Disabling AlexxAutoWarn..." );
-        // Synchronously save zones on disable to ensure data is written before shutdown
         if ( this.zoneManager != null ) {
-            this.zoneManager.saveZones ( false ); // Perform a blocking save on disable
+            this.zoneManager.saveZones ( false );
         }
         this.getLogger ( ).info ( "AlexxAutoWarn has been disabled." );
     }
@@ -87,7 +85,6 @@ public final class AlexxAutoWarn extends JavaPlugin {
             return;
         }
 
-        // Check for a compatible CoreProtect version (API Version 9 is minimum for modern features)
         if ( api.APIVersion ( ) < 9 ) {
             getLogger ( ).warning ( "Unsupported CoreProtect version found (API v" + api.APIVersion ( ) + "). Please " +
                                       "update CoreProtect to at least API v9. Logging disabled." );
