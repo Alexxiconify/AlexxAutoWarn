@@ -3,6 +3,8 @@ package net.Alexxiconify.alexxAutoWarn;
 import com.google.common.base.Stopwatch;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandSender;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -144,14 +146,24 @@ public final class AlexxAutoWarn extends JavaPlugin {
 
         this.autoWarnCommand = new AutoWarnCommand ( this );
 
-        PluginCommand command = this.getCommand ( "autowarn" );
-        if ( command == null ) {
-            getLogger ( ).severe ( "Command 'autowarn' not found in plugin.yml! Commands will not work." );
-        } else {
-            command.setExecutor ( this.autoWarnCommand );
-            command.setTabCompleter ( this.autoWarnCommand );
-            getLogger ( ).info ( "Command 'autowarn' registered successfully." );
-        }
+        // Register command for Paper plugins
+        Command command = new Command ( "autowarn" ) {
+            @Override
+            public boolean execute ( @NotNull CommandSender sender , @NotNull String commandLabel , @NotNull String @NotNull [] args ) {
+                return autoWarnCommand.onCommand ( sender , this , commandLabel , args );
+            }
+
+            @Override
+            public @NotNull List < String > tabComplete ( @NotNull CommandSender sender , @NotNull String alias , @NotNull String @NotNull [] args ) throws IllegalArgumentException {
+                return autoWarnCommand.onTabComplete ( sender , this , alias , args );
+            }
+        };
+        command.setDescription ( "Main command for the AutoWarn plugin." );
+        command.setUsage ( "/<command> [subcommand] [args]" );
+        command.setAliases ( Arrays.asList ( "aw" ) );
+        
+        this.getServer ( ).getCommandMap ( ).register ( "autowarn" , command );
+        getLogger ( ).info ( "Command 'autowarn' registered successfully." );
 
         this.getServer ( ).getPluginManager ( ).registerEvents ( new ZoneListener ( this ) , this );
 
