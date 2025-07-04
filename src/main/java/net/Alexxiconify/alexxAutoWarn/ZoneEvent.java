@@ -1,6 +1,6 @@
 package net.Alexxiconify.alexxAutoWarn;
 
-import net.coreprotect.CoreProtectAPI;
+
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import org.bukkit.Location;
@@ -114,7 +114,7 @@ class ZoneListener implements Listener {
     private final ZoneManager zoneManager;
     private final AlexxAutoWarn plugin;
     private final NamespacedKey wandKey;
-    private final CoreProtectAPI coreProtectAPI;
+    private final Object coreProtectAPI;
 
     public ZoneListener ( AlexxAutoWarn plugin ) {
         this.plugin = plugin;
@@ -245,7 +245,13 @@ class ZoneListener implements Listener {
 
     private void logToCoreProtect ( String user , Location location , Material material ) {
         if ( coreProtectAPI != null ) {
-            coreProtectAPI.logPlacement ( user , location , material , null );
+            try {
+                coreProtectAPI.getClass ( ).getMethod ( "logPlacement" , String.class , Location.class , Material.class , Object.class )
+                    .invoke ( coreProtectAPI , user , location , material , null );
+            } catch ( Exception e ) {
+                // CoreProtect logging failed, but we don't want to break the plugin
+                plugin.getLogger ( ).fine ( "Failed to log to CoreProtect: " + e.getMessage ( ) );
+            }
         }
     }
 
