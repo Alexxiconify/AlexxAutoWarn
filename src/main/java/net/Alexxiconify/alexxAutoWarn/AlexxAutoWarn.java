@@ -69,28 +69,52 @@ public final class AlexxAutoWarn extends JavaPlugin {
 
     private void setupCoreProtect ( ) {
         final Plugin coreProtectPlugin = getServer ( ).getPluginManager ( ).getPlugin ( "CoreProtect" );
-        if ( !( coreProtectPlugin instanceof CoreProtect ) ) {
+        if ( coreProtectPlugin == null ) {
             getLogger ( ).warning ( "CoreProtect not found! Logging features will be disabled." );
             this.coreProtectAPI = null;
             return;
         }
 
-        final CoreProtectAPI api = ( ( CoreProtect ) coreProtectPlugin ).getAPI ( );
-        if ( !api.isEnabled ( ) ) {
-            getLogger ( ).warning ( "CoreProtect found, but the API is not enabled. Logging disabled." );
-            this.coreProtectAPI = null;
-            return;
-        }
+        try {
+            // Use reflection to access CoreProtect classes
+            Class<?> coreProtectClass = Class.forName ( "net.coreprotect.CoreProtect" );
+            if ( !coreProtectClass.isInstance ( coreProtectPlugin ) ) {
+                getLogger ( ).warning ( "CoreProtect plugin found but is not the expected type. Logging disabled." );
+                this.coreProtectAPI = null;
+                return;
+            }
 
-        if ( api.APIVersion ( ) < 9 ) {
-            getLogger ( ).warning ( "Unsupported CoreProtect version found (API v" + api.APIVersion ( ) +
-                                      "). Please update CoreProtect to at least API v9. Logging disabled." );
-            this.coreProtectAPI = null;
-            return;
-        }
+            // Get the API using reflection
+            Object api = coreProtectClass.getMethod ( "getAPI" ).invoke ( coreProtectPlugin );
+            if ( api == null ) {
+                getLogger ( ).warning ( "CoreProtect found, but the API is not available. Logging disabled." );
+                this.coreProtectAPI = null;
+                return;
+            }
 
-        this.coreProtectAPI = api;
-        getLogger ( ).info ( "Successfully hooked into CoreProtect API." );
+            // Check if API is enabled
+            Boolean isEnabled = ( Boolean ) api.getClass ( ).getMethod ( "isEnabled" ).invoke ( api );
+            if ( !isEnabled ) {
+                getLogger ( ).warning ( "CoreProtect found, but the API is not enabled. Logging disabled." );
+                this.coreProtectAPI = null;
+                return;
+            }
+
+            // Check API version
+            Integer apiVersion = ( Integer ) api.getClass ( ).getMethod ( "APIVersion" ).invoke ( api );
+            if ( apiVersion < 9 ) {
+                getLogger ( ).warning ( "Unsupported CoreProtect version found (API v" + apiVersion +
+                                          "). Please update CoreProtect to at least API v9. Logging disabled." );
+                this.coreProtectAPI = null;
+                return;
+            }
+
+            this.coreProtectAPI = api;
+            getLogger ( ).info ( "Successfully hooked into CoreProtect API." );
+        } catch ( Exception e ) {
+            getLogger ( ).warning ( "Failed to initialize CoreProtect API: " + e.getMessage ( ) + ". Logging disabled." );
+            this.coreProtectAPI = null;
+        }
     }
 
     @NotNull
@@ -100,7 +124,7 @@ public final class AlexxAutoWarn extends JavaPlugin {
     public ZoneManager getZoneManager ( ) { return zoneManager; }
 
     @Nullable
-    public CoreProtectAPI getCoreProtectAPI ( ) { return coreProtectAPI; }
+    public Object getCoreProtectAPI ( ) { return coreProtectAPI; }
 
     @NotNull
     public AutoWarnCommand getAutoWarnCommand ( ) { return autoWarnCommand; }
