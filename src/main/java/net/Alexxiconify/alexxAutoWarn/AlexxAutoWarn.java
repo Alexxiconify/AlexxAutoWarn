@@ -1,8 +1,6 @@
 package net.Alexxiconify.alexxAutoWarn;
 
 import com.google.common.base.Stopwatch;
-import net.coreprotect.CoreProtect;
-import net.coreprotect.CoreProtectAPI;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.command.PluginCommand;
@@ -44,7 +42,7 @@ public final class AlexxAutoWarn extends JavaPlugin {
     private static AutoWarnAPI api;
     private Settings settings;
     private ZoneManager zoneManager;
-    private CoreProtectAPI coreProtectAPI;
+    private Object coreProtectAPI;
     private AutoWarnCommand autoWarnCommand;
 
     public static AutoWarnAPI getAPI ( ) { return api; }

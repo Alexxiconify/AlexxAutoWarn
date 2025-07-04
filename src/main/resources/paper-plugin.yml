@@ -3,4 +3,5 @@ name: AlexxAutoWarn
 version: 1.0.1
 api-version: 1.21
 description: A modernized zone protection plugin for Paper.
-website: https://github.com/Alexxiconify/AlexxAutoWarn 
+website: https://github.com/Alexxiconify/AlexxAutoWarn
+softdepend: [CoreProtect] 
