@@ -1,4 +1,4 @@
-package net.Alexxiconify.alexxAutoWarn;
+package net.alexxiconify.alexxautowarn;
 
 import org.bukkit.Location;
 import org.bukkit.Material;

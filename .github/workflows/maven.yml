@@ -44,7 +44,7 @@ jobs:
     - name: Upload plugin JAR
       uses: actions/upload-artifact@v4
       with:
-        name: AlexxAutoWarn-plugin-jar
+        name: alexxautowarn-plugin-jar
         path: target/*.jar
 
     # Optional: Uploads the full dependency graph to GitHub to improve the quality of Dependabot alerts this repository can receive
@@ -62,26 +62,26 @@ jobs:
     - name: Download plugin JAR
       uses: actions/download-artifact@v4
       with:
-        name: AlexxAutoWarn-plugin-jar
+        name: alexxautowarn-plugin-jar
         path: ./downloaded-artifacts
 
     - name: Get plugin version and JAR filename
       id: get_info
       run: |
-        JAR_FILE=$(find ./downloaded-artifacts -name "AlexxAutoWarn-*.jar" | head -n 1)
+        JAR_FILE=$(find ./downloaded-artifacts -name "alexxautowarn-*.jar" | head -n 1)
         if [ -z "$JAR_FILE" ]; then
           echo "Error: JAR file not found in downloaded artifacts!"
           exit 1
         fi
         
-        VERSION=$(basename "$JAR_FILE" | sed -E 's/AlexxAutoWarn-(.*)\.jar/\1/')
+        VERSION=$(basename "$JAR_FILE" | sed -E 's/alexxautowarn-(.*)\.jar/\1/')
         
         echo "Detected JAR file: $JAR_FILE"
         echo "Detected version: $VERSION"
         
         echo "plugin_version=$VERSION" >> $GITHUB_OUTPUT
         echo "jar_path=$JAR_FILE" >> $GITHUB_OUTPUT
-        echo "jar_name=AlexxAutoWarn-${VERSION}.jar" >> $GITHUB_OUTPUT
+        echo "jar_name=alexxautowarn-${VERSION}.jar" >> $GITHUB_OUTPUT
 
     - name: Create GitHub Release
       id: create_release
@@ -94,7 +94,7 @@ jobs:
         body: |
           # Release Notes for ${{ github.ref }}
 
-          This release includes the latest build of the AlexxAutoWarn plugin.
+          This release includes the latest build of the alexxautowarn plugin.
 
           **Download:**
           - `${{ steps.get_info.outputs.jar_name }}`

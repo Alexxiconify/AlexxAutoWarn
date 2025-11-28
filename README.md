@@ -1,4 +1,4 @@
-# AlexxAutoWarn: Smart Zone Monitoring for Minecraft
+# alexxautowarn: Smart Zone Monitoring for Minecraft
 
 ---
 
@@ -82,7 +82,7 @@
 
 ## Configuration
 
-Customize plugin behavior in `plugins/AlexxAutoWarn/config.yml`.
+Customize plugin behavior in `plugins/alexxautowarn/config.yml`.
 
 ### Example Configuration
 
@@ -109,7 +109,7 @@ messages:
 
 ## Installation
 
-Download AlexxAutoWarn.jar from the releases page.
+Download alexxautowarn.jar from the releases page.
 
 Place the .jar in your server's plugins/ folder.
 
@@ -117,7 +117,7 @@ Place the .jar in your server's plugins/ folder.
 
 Start or restart your server.
 
-Edit config.yml in plugins/AlexxAutoWarn/.
+Edit config.yml in plugins/alexxautowarn/.
 
 Reload the plugin with /autoinform reload or restart the server.
 
@@ -137,7 +137,7 @@ See the [LICENSE](LICENSE.md) file for details.
 ### Example: Listen for Zone Entry/Exit
 
 ```java
-AutoWarnAPI api = AlexxAutoWarn.getAPI();
+AutoWarnAPI api = alexxautowarn.getAPI();
 api.registerZoneEnterListener(event -> {
     Player p = event.getPlayer();
     Zone z = event.getZone();

@@ -1,6 +1,6 @@
-name: AlexxAutoWarn
+name: alexxautowarn
 version: '1.0.0'
-main: net.Alexxiconify.alexxAutoWarn.AlexxAutoWarn
+main: net.alexxiconify.alexxautowarn.alexxautowarn
 api-version: '1.21'
 author: Alexxiconify
 description: A modernized zone protection plugin.

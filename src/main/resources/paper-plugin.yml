@@ -1,5 +1,5 @@
-main: net.Alexxiconify.alexxAutoWarn.AlexxAutoWarn
-name: AlexxAutoWarn
+main: net.alexxiconify.alexxautowarn.alexxautowarn
+name: alexxautowarn
 version: 1.0.1
 api-version: 1.21
 description: A modernized zone protection plugin for Paper.
