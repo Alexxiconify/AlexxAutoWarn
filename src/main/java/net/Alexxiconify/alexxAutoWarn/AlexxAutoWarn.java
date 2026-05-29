@@ -87,23 +87,23 @@ public final class AlexxAutoWarn extends JavaPlugin {
             }
 
             // Get the API using reflection
-            Object api = coreProtectClass.getMethod ( "getAPI" ).invoke ( coreProtectPlugin );
-            if ( api == null ) {
+            Object cpApi = coreProtectClass.getMethod ( "getAPI" ).invoke ( coreProtectPlugin );
+            if ( cpApi == null ) {
                 getLogger ( ).warning ( "CoreProtect found, but the API is not available. Logging disabled." );
                 this.coreProtectAPI = null;
                 return;
             }
 
             // Check if API is enabled
-            Boolean isEnabled = ( Boolean ) api.getClass ( ).getMethod ( "isEnabled" ).invoke ( api );
-            if ( !isEnabled ) {
+            Boolean isEnabled = ( Boolean ) cpApi.getClass ( ).getMethod ( "isEnabled" ).invoke ( cpApi );
+            if ( !Boolean.TRUE.equals ( isEnabled ) ) {
                 getLogger ( ).warning ( "CoreProtect found, but the API is not enabled. Logging disabled." );
                 this.coreProtectAPI = null;
                 return;
             }
 
             // Check API version
-            Integer apiVersion = ( Integer ) api.getClass ( ).getMethod ( "APIVersion" ).invoke ( api );
+            Integer apiVersion = ( Integer ) cpApi.getClass ( ).getMethod ( "APIVersion" ).invoke ( cpApi );
             if ( apiVersion < 9 ) {
                 getLogger ( ).warning ( "Unsupported CoreProtect version found (API v" + apiVersion +
                                           "). Please update CoreProtect to at least API v9. Logging disabled." );
@@ -111,7 +111,7 @@ public final class AlexxAutoWarn extends JavaPlugin {
                 return;
             }
 
-            this.coreProtectAPI = api;
+            this.coreProtectAPI = cpApi;
             getLogger ( ).info ( "Successfully hooked into CoreProtect API." );
         } catch ( Exception e ) {
             getLogger ( ).warning ( "Failed to initialize CoreProtect API: " + e.getMessage ( ) + ". Logging disabled." );
