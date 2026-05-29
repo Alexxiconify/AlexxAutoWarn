@@ -5,12 +5,6 @@ api-version: '1.21'
 author: Alexxiconify
 description: A modernized zone protection plugin.
 softdepend: [ CoreProtect ]
-commands:
-  autowarn:
-    description: Main command for the AutoWarn plugin.
-    usage: /<command> [subcommand] [args]
-    aliases: [ aw ]
-    permission: autowarn.admin.use
 permissions:
   autowarn.admin.*:
     description: Grants access to all admin commands.

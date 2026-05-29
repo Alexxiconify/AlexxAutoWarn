@@ -1,10 +1,10 @@
 package net.Alexxiconify.alexxAutoWarn;
 
 import com.google.common.base.Stopwatch;
-import net.coreprotect.CoreProtect;
-import net.coreprotect.CoreProtectAPI;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandSender;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -44,7 +44,7 @@ public final class AlexxAutoWarn extends JavaPlugin {
     private static AutoWarnAPI api;
     private Settings settings;
     private ZoneManager zoneManager;
-    private CoreProtectAPI coreProtectAPI;
+    private Object coreProtectAPI;
     private AutoWarnCommand autoWarnCommand;
 
     public static AutoWarnAPI getAPI ( ) { return api; }
@@ -71,28 +71,52 @@ public final class AlexxAutoWarn extends JavaPlugin {
 
     private void setupCoreProtect ( ) {
         final Plugin coreProtectPlugin = getServer ( ).getPluginManager ( ).getPlugin ( "CoreProtect" );
-        if ( !( coreProtectPlugin instanceof CoreProtect ) ) {
+        if ( coreProtectPlugin == null ) {
             getLogger ( ).warning ( "CoreProtect not found! Logging features will be disabled." );
             this.coreProtectAPI = null;
             return;
         }
 
-        final CoreProtectAPI api = ( ( CoreProtect ) coreProtectPlugin ).getAPI ( );
-        if ( !api.isEnabled ( ) ) {
-            getLogger ( ).warning ( "CoreProtect found, but the API is not enabled. Logging disabled." );
-            this.coreProtectAPI = null;
-            return;
-        }
+        try {
+            // Use reflection to access CoreProtect classes
+            Class<?> coreProtectClass = Class.forName ( "net.coreprotect.CoreProtect" );
+            if ( !coreProtectClass.isInstance ( coreProtectPlugin ) ) {
+                getLogger ( ).warning ( "CoreProtect plugin found but is not the expected type. Logging disabled." );
+                this.coreProtectAPI = null;
+                return;
+            }
 
-        if ( api.APIVersion ( ) < 9 ) {
-            getLogger ( ).warning ( "Unsupported CoreProtect version found (API v" + api.APIVersion ( ) +
-                                      "). Please update CoreProtect to at least API v9. Logging disabled." );
-            this.coreProtectAPI = null;
-            return;
-        }
+            // Get the API using reflection
+            Object api = coreProtectClass.getMethod ( "getAPI" ).invoke ( coreProtectPlugin );
+            if ( api == null ) {
+                getLogger ( ).warning ( "CoreProtect found, but the API is not available. Logging disabled." );
+                this.coreProtectAPI = null;
+                return;
+            }
 
-        this.coreProtectAPI = api;
-        getLogger ( ).info ( "Successfully hooked into CoreProtect API." );
+            // Check if API is enabled
+            Boolean isEnabled = ( Boolean ) api.getClass ( ).getMethod ( "isEnabled" ).invoke ( api );
+            if ( !isEnabled ) {
+                getLogger ( ).warning ( "CoreProtect found, but the API is not enabled. Logging disabled." );
+                this.coreProtectAPI = null;
+                return;
+            }
+
+            // Check API version
+            Integer apiVersion = ( Integer ) api.getClass ( ).getMethod ( "APIVersion" ).invoke ( api );
+            if ( apiVersion < 9 ) {
+                getLogger ( ).warning ( "Unsupported CoreProtect version found (API v" + apiVersion +
+                                          "). Please update CoreProtect to at least API v9. Logging disabled." );
+                this.coreProtectAPI = null;
+                return;
+            }
+
+            this.coreProtectAPI = api;
+            getLogger ( ).info ( "Successfully hooked into CoreProtect API." );
+        } catch ( Exception e ) {
+            getLogger ( ).warning ( "Failed to initialize CoreProtect API: " + e.getMessage ( ) + ". Logging disabled." );
+            this.coreProtectAPI = null;
+        }
     }
 
     @NotNull
@@ -102,7 +126,7 @@ public final class AlexxAutoWarn extends JavaPlugin {
     public ZoneManager getZoneManager ( ) { return zoneManager; }
 
     @Nullable
-    public CoreProtectAPI getCoreProtectAPI ( ) { return coreProtectAPI; }
+    public Object getCoreProtectAPI ( ) { return coreProtectAPI; }
 
     @NotNull
     public AutoWarnCommand getAutoWarnCommand ( ) { return autoWarnCommand; }
@@ -122,14 +146,24 @@ public final class AlexxAutoWarn extends JavaPlugin {
 
         this.autoWarnCommand = new AutoWarnCommand ( this );
 
-        PluginCommand command = this.getCommand ( "autowarn" );
-        if ( command == null ) {
-            getLogger ( ).severe ( "Command 'autowarn' not found in plugin.yml! Commands will not work." );
-        } else {
-            command.setExecutor ( this.autoWarnCommand );
-            command.setTabCompleter ( this.autoWarnCommand );
-            getLogger ( ).info ( "Command 'autowarn' registered successfully." );
-        }
+        // Register command for Paper plugins
+        Command command = new Command ( "autowarn" ) {
+            @Override
+            public boolean execute ( @NotNull CommandSender sender , @NotNull String commandLabel , @NotNull String @NotNull [] args ) {
+                return autoWarnCommand.onCommand ( sender , this , commandLabel , args );
+            }
+
+            @Override
+            public @NotNull List < String > tabComplete ( @NotNull CommandSender sender , @NotNull String alias , @NotNull String @NotNull [] args ) throws IllegalArgumentException {
+                return autoWarnCommand.onTabComplete ( sender , this , alias , args );
+            }
+        };
+        command.setDescription ( "Main command for the AutoWarn plugin." );
+        command.setUsage ( "/<command> [subcommand] [args]" );
+        command.setAliases ( Arrays.asList ( "aw" ) );
+        
+        this.getServer ( ).getCommandMap ( ).register ( "autowarn" , command );
+        getLogger ( ).info ( "Command 'autowarn' registered successfully." );
 
         this.getServer ( ).getPluginManager ( ).registerEvents ( new ZoneListener ( this ) , this );
 
