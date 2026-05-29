@@ -22,7 +22,7 @@ Why these changes
 
 Before/After snippets (for each changed file)
 
-1) `Settings.java`
+1: `Settings.java`
 Before:
 ```
 java
@@ -43,7 +43,7 @@ for (String key : sec.getKeys(false)) {
 
 Also replaced a direct String.format logging call with a guarded call so formatting only happens when the logger will actually log the message.
 
-2) `AutoWarnAPIImpl.java`
+2: `AutoWarnAPIImpl.java`
 Before:
 ```
 java
@@ -55,7 +55,7 @@ java
 zoneManager.getPlugin().getLogger().log(java.util.logging.Level.WARNING, "Zone listener threw exception", ex);
 ```
 
-3) `ZoneManager.java`
+3: `ZoneManager.java`
 Before:
 ```
 java
@@ -67,7 +67,7 @@ java
 Material material = Material.matchMaterial(materialName.trim().toUpperCase(Locale.ROOT));
 ```
 
-4) `Zone.java`
+4: `Zone.java`
 Before:
 ```
 java

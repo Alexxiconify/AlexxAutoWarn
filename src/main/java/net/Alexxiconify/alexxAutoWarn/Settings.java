@@ -65,6 +65,14 @@ public class Settings {
         return pluginPrefix.append(miniMessage.deserialize(raw, resolvers));
     }
 
+    public boolean messageContainsPlaceholder(@NotNull String key, @NotNull String placeholderName) {
+        String raw = messages.get(key);
+        if (raw == null) return false;
+        return raw.contains("<" + placeholderName + ">")
+                || raw.contains("{" + placeholderName + "}")
+                || raw.contains(placeholderName);
+    }
+
     public void log(Level level, String message) {
         if (plugin.getLogger().isLoggable(level)) {
             plugin.getLogger().log(level, miniMessage.stripTags(message));

@@ -14,7 +14,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.Location;
 import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.NonNull;
@@ -30,11 +29,11 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
+import java.util.Objects;
 
 public final class AutoWarnCommand implements CommandExecutor, TabCompleter {
     private static final Pattern ZONE_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_-]{3,32}$");
 
-    // Cache commonly used name lists to avoid repeated allocations during tab completion.
     private static final List<String> MATERIAL_NAMES = Arrays.stream(Material.values()).map(Enum::name).toList();
     private static final List<String> ACTION_NAMES = Arrays.stream(Zone.Action.values()).map(Enum::name).toList();
 
@@ -86,7 +85,7 @@ public final class AutoWarnCommand implements CommandExecutor, TabCompleter {
             return false;
         }
 
-        boolean handled = false;
+        boolean handled;
         switch (sub) {
             case CMD_WAND -> { handleWand(sender); handled = true; }
             case CMD_POS1, CMD_POS2 -> { handlePos(sender, sub); handled = true; }
@@ -101,9 +100,9 @@ public final class AutoWarnCommand implements CommandExecutor, TabCompleter {
             case CMD_BANNED -> { handleBanned(sender, args); handled = true; }
             case CMD_RELOAD -> { handleReload(sender); handled = true; }
             default -> {
-                // Unknown subcommand: show help but report not handled so Bukkit may show usage if desired.
+                                // Unknown subcommand: show help so user sees usage.
                 sendHelp(sender);
-                handled = false;
+                                handled = false;
             }
         }
 
@@ -133,13 +132,7 @@ public final class AutoWarnCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        // Guard against potential null Location (defensive).
-        Location loc = player.getLocation();
-        if (loc == null) {
-            sender.sendMessage(settings.getMessage(ERR_PLAYER_ONLY));
-            return;
-        }
-
+        org.bukkit.Location loc = Objects.requireNonNull(player.getLocation(), "player location");
         Vector position = loc.toVector().toBlockVector();
         if ("pos1".equals(sub)) {
             pos1.put(player.getUniqueId(), position);
@@ -234,7 +227,7 @@ public final class AutoWarnCommand implements CommandExecutor, TabCompleter {
         }
 
         updateZone(sender, args[1], zone -> new Zone(zone.getName(), zone.getWorldName(), zone.getMin(), zone.getMax(), action, zone.getMaterialActions(), zone.getPriority()),
-                "command.defaultaction-success", ACTION_VAR, action.name());
+                "command.defaultaction-success", Placeholder.unparsed(ACTION_VAR, action.name()));
     }
 
     private void handleSetAction(CommandSender sender, String[] args) {
@@ -261,7 +254,7 @@ public final class AutoWarnCommand implements CommandExecutor, TabCompleter {
             Map<Material, Zone.Action> actions = copyActions(zone);
             actions.put(material, action);
             return new Zone(zone.getName(), zone.getWorldName(), zone.getMin(), zone.getMax(), zone.getDefaultAction(), actions, zone.getPriority());
-        }, "command.setaction-success", MATERIAL_VAR, material.name(), ACTION_VAR, action.name());
+        }, "command.setaction-success", Placeholder.unparsed(MATERIAL_VAR, material.name()), Placeholder.unparsed(ACTION_VAR, action.name()));
     }
 
     private void handleRemoveAction(CommandSender sender, String[] args) {
@@ -284,7 +277,7 @@ public final class AutoWarnCommand implements CommandExecutor, TabCompleter {
             Map<Material, Zone.Action> actions = copyActions(zone);
             actions.remove(material);
             return new Zone(zone.getName(), zone.getWorldName(), zone.getMin(), zone.getMax(), zone.getDefaultAction(), actions, zone.getPriority());
-        }, "command.removeaction-success", MATERIAL_VAR, material.name());
+        }, "command.removeaction-success", Placeholder.unparsed(MATERIAL_VAR, material.name()));
     }
 
     private void handlePriority(CommandSender sender, String[] args) {
@@ -302,7 +295,7 @@ public final class AutoWarnCommand implements CommandExecutor, TabCompleter {
         }
 
         updateZone(sender, args[1], zone -> new Zone(zone.getName(), zone.getWorldName(), zone.getMin(), zone.getMax(), zone.getDefaultAction(), zone.getMaterialActions(), priority),
-                "command.priority-success", CMD_PRIORITY, String.valueOf(priority));
+                "command.priority-success", Placeholder.unparsed(CMD_PRIORITY, String.valueOf(priority)));
     }
 
     private void handleReload(CommandSender sender) {
@@ -319,7 +312,7 @@ public final class AutoWarnCommand implements CommandExecutor, TabCompleter {
         String action = args[1].toLowerCase(Locale.ROOT);
         switch (action) {
             case "add" -> handleBannedAdd(sender, args);
-            case "remove" -> handleBannedRemove(sender, args);
+            case CMD_REMOVE -> handleBannedRemove(sender, args);
             case "list" -> handleBannedList(sender);
             default -> sender.sendMessage(settings.getMessage("error.usage.banned"));
         }
@@ -378,7 +371,7 @@ public final class AutoWarnCommand implements CommandExecutor, TabCompleter {
         banned.stream().map(Material::name).sorted().forEach(name -> sender.sendMessage(Component.text(" - " + name).color(NamedTextColor.GRAY)));
     }
 
-    private void updateZone(CommandSender sender, String zoneName, ZoneUpdater updater, String successMsgKey, String... placeholders) {
+    private void updateZone(CommandSender sender, String zoneName, ZoneUpdater updater, String successMsgKey, TagResolver... resolvers) {
         Zone zone = zoneManager.getZone(zoneName);
         if (zone == null) {
             sender.sendMessage(settings.getMessage(ERR_ZONE_NOT_FOUND, Placeholder.unparsed(ZONE_VAR, zoneName)));
@@ -391,12 +384,11 @@ public final class AutoWarnCommand implements CommandExecutor, TabCompleter {
         }
 
         zoneManager.addOrUpdateZone(updated);
-        List<TagResolver> resolved = new java.util.ArrayList<>();
-        resolved.add(Placeholder.unparsed(ZONE_VAR, updated.getName()));
-        for (int i = 0; i + 1 < placeholders.length; i += 2) {
-            resolved.add(Placeholder.unparsed(placeholders[i], placeholders[i + 1]));
-        }
-        sender.sendMessage(settings.getMessage(successMsgKey, resolved.toArray(new TagResolver[0])));
+        int extra = resolvers == null ? 0 : resolvers.length;
+        TagResolver[] out = new TagResolver[extra + 1];
+        out[0] = Placeholder.unparsed(ZONE_VAR, updated.getName());
+        if (extra > 0) System.arraycopy(resolvers, 0, out, 1, extra);
+        sender.sendMessage(settings.getMessage(successMsgKey, out));
     }
 
     private void giveSelectionWand(Player player) {
@@ -443,9 +435,7 @@ public final class AutoWarnCommand implements CommandExecutor, TabCompleter {
         }
     }
 
-    public NamespacedKey getWandKey() {
-        return wandKey;
-    }
+    // getWandKey() removed; plugin-level wand key should be accessed via the main plugin class.
 
     public void setPos1(UUID uuid, Vector pos) {
         pos1.put(uuid, pos);
@@ -463,27 +453,27 @@ public final class AutoWarnCommand implements CommandExecutor, TabCompleter {
 
         if (args.length == 2) {
             return switch (args[0].toLowerCase(Locale.ROOT)) {
-                case "remove", "info", "defaultaction", "setaction", "removeaction", "priority" -> filter(args[1], zoneManager.getAllZones().stream().map(Zone::getName).toList());
-                case "banned" -> filter(args[1], List.of("add", "remove", "list"));
+                case CMD_REMOVE, CMD_INFO, CMD_DEFAULTACTION, CMD_SETACTION, CMD_REMOVEACTION, CMD_PRIORITY -> filter(args[1], zoneManager.getAllZones().stream().map(Zone::getName).toList());
+                case CMD_BANNED -> filter(args[1], List.of("add", CMD_REMOVE, "list"));
                 default -> Collections.emptyList();
             };
         }
 
         if (args.length == 3) {
             return switch (args[0].toLowerCase(Locale.ROOT)) {
-                case "defaultaction" -> filter(args[2], Arrays.stream(Zone.Action.values()).map(Enum::name).toList());
-                case "setaction", "removeaction" -> filter(args[2], Arrays.stream(Material.values()).map(Enum::name).toList());
-                case "banned" -> switch (args[1].toLowerCase(Locale.ROOT)) {
-                    case "add" -> filter(args[2], Arrays.stream(Material.values()).map(Enum::name).toList());
-                    case "remove" -> filter(args[2], settings.getGloballyBannedMaterials().stream().map(Enum::name).toList());
+                case CMD_DEFAULTACTION -> filter(args[2], ACTION_NAMES);
+                case CMD_SETACTION, CMD_REMOVEACTION -> filter(args[2], MATERIAL_NAMES);
+                case CMD_BANNED -> switch (args[1].toLowerCase(Locale.ROOT)) {
+                    case "add" -> filter(args[2], MATERIAL_NAMES);
+                    case CMD_REMOVE -> filter(args[2], settings.getGloballyBannedMaterials().stream().map(Enum::name).toList());
                     default -> Collections.emptyList();
                 };
                 default -> Collections.emptyList();
             };
         }
 
-        if (args.length == 4 && "setaction".equalsIgnoreCase(args[0])) {
-            return filter(args[3], Arrays.stream(Zone.Action.values()).map(Enum::name).toList());
+        if (args.length == 4 && CMD_SETACTION.equalsIgnoreCase(args[0])) {
+            return filter(args[3], ACTION_NAMES);
         }
 
         return Collections.emptyList();
