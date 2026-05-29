@@ -53,30 +53,30 @@
 > Main command: `/autoinform` (alias: `/ainform`)  
 > All admin commands require `autoinform.admin.set`.
 
-| Command | Description |
-|--------|-------------|
-| `/autoinform wand` | Get zone selection wand. |
-| `/autoinform <zone> pos1/pos2` | Set zone corners. |
-| `/autoinform <zone> define` | Define/update zones using selections. |
-| `/autoinform <zone> defaultaction <action>` | Set zone's default action. |
+| Command                                            | Description                              |
+|----------------------------------------------------|------------------------------------------|
+| `/autoinform wand`                                 | Get zone selection wand.                 |
+| `/autoinform <zone> pos1/pos2`                     | Set zone corners.                        |
+| `/autoinform <zone> define`                        | Define/update zones using selections.    |
+| `/autoinform <zone> defaultaction <action>`        | Set zone's default action.               |
 | `/autoinform <zone> setaction <material> <action>` | Set specific material action for a zone. |
-| `/autoinform remove <zone>` | Delete a zone. |
-| `/autoinform info [zone]` | Show zone info, or list all zones. |
-| `/autoinform list` | List all defined zones. |
-| `/autoinform clearwand` | Clear wand selections. |
-| `/autoinform reload` | Reload plugin config. |
-| `/autoinform banned add/remove <material>` | Manage global banned list. |
-| `/autoinform banned list` | List banned materials. |
+| `/autoinform remove <zone>`                        | Delete a zone.                           |
+| `/autoinform info [zone]`                          | Show zone info, or list all zones.       |
+| `/autoinform list`                                 | List all defined zones.                  |
+| `/autoinform clearwand`                            | Clear wand selections.                   |
+| `/autoinform reload`                               | Reload plugin config.                    |
+| `/autoinform banned add/remove <material>`         | Manage global banned list.               |
+| `/autoinform banned list`                          | List banned materials.                   |
 
 ---
 
 ## Permissions
 
-| Permission Node | Description | Default |
-|------------------|-------------|---------|
-| `autoinform.admin.set` | Access to all admin commands. | op |
-| `autoinform.alert.receive` | Receive in-game staff alerts. | op |
-| `autoinform.bypass` | Bypass all zone restrictions. | false |
+| Permission Node            | Description                   | Default |
+|----------------------------|-------------------------------|---------|
+| `autoinform.admin.set`     | Access to all admin commands. | op      |
+| `autoinform.alert.receive` | Receive in-game staff alerts. | op      |
+| `autoinform.bypass`        | Bypass all zone restrictions. | false   |
 
 ---
 
@@ -136,7 +136,8 @@ See the [LICENSE](LICENSE.md) file for details.
 
 ### Example: Listen for Zone Entry/Exit
 
-```java
+```
+java
 AutoWarnAPI api = alexxautowarn.getAPI();
 api.registerZoneEnterListener(event -> {
     Player p = event.getPlayer();

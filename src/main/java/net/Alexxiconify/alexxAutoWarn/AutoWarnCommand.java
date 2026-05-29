@@ -1,4 +1,4 @@
-package net.alexxiconify.alexxautowarn;
+package net.Alexxiconify.alexxAutoWarn;
 
 import com.google.common.collect.ImmutableList;
 import net.kyori.adventure.text.Component;
@@ -36,7 +36,7 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
     private static final String MATERIAL_VAR = "material";
     private static final String ACTION_VAR = "action";
 
-    private final AlexxAutoWarn.Settings settings;
+    private final Settings settings;
     private final ZoneManager zoneManager;
     private final AlexxAutoWarn plugin;
     private final Map<UUID, Vector> pos1 = new ConcurrentHashMap<>();
