@@ -120,7 +120,12 @@ final class ZoneListener implements Listener {
 
         AutoWarnAPI api = AlexxAutoWarn.getAPI();
         if (api instanceof AutoWarnAPIImpl impl) {
-            impl.fireZoneAction(new ZoneActionEvent(player, zone, material, action.name()));
+            ZoneActionEvent zoneActionEvent = new ZoneActionEvent(player, zone, material, action.name());
+            impl.fireZoneAction(zoneActionEvent);
+            if (zoneActionEvent.isCancelled()) {
+                event.setCancelled(true);
+                return;
+            }
         }
 
         switch (action) {
