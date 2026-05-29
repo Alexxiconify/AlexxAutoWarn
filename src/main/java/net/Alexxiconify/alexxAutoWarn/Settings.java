@@ -10,10 +10,8 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 import java.util.logging.Level;
-import java.util.stream.Collectors;
 
 public class Settings {
     private final AlexxAutoWarn plugin;
@@ -38,7 +36,7 @@ public class Settings {
         for (String materialName : config.getStringList("settings.globally-banned-materials")) {
             Material material = Material.matchMaterial(materialName.trim());
             if (material == null) {
-                plugin.getLogger().warning("Invalid globally banned material '" + materialName + "' found in config.yml. Skipping.");
+                plugin.getLogger().warning(String.format("Invalid globally banned material '%s' found in config.yml. Skipping.", materialName));
             } else {
                 globallyBannedMaterials.add(material);
             }
@@ -52,7 +50,9 @@ public class Settings {
     }
 
     public void log(Level level, String message) {
-        plugin.getLogger().log(level, MiniMessage.miniMessage().stripTags(message));
+        if (plugin.getLogger().isLoggable(level)) {
+            plugin.getLogger().log(level, MiniMessage.miniMessage().stripTags(message));
+        }
     }
 
     public boolean isMonitorChestAccess() {
@@ -81,7 +81,7 @@ public class Settings {
     }
 
     private void saveGloballyBannedMaterials() {
-        List<String> bannedNames = globallyBannedMaterials.stream().map(Material::name).sorted().collect(Collectors.toList());
+        List<String> bannedNames = globallyBannedMaterials.stream().map(Material::name).sorted().toList();
         plugin.getConfig().set("settings.globally-banned-materials", bannedNames);
         plugin.saveConfig();
     }

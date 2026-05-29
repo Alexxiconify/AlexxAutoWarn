@@ -1,6 +1,5 @@
 package net.alexxiconify.alexxautowarn;
 
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
@@ -30,7 +29,7 @@ public class ZoneManager {
         return plugin;
     }
 
-    public synchronized CompletableFuture<Void> loadZones() {
+    public synchronized void loadZones() {
         zones.clear();
         ConfigurationSection root = plugin.getConfig().getConfigurationSection("zones");
         if (root != null) {
@@ -41,7 +40,7 @@ public class ZoneManager {
                 }
             }
         }
-        return CompletableFuture.completedFuture(null);
+        CompletableFuture.completedFuture ( null );
     }
 
     public synchronized void saveZones(boolean saveConfig) {
@@ -111,7 +110,7 @@ public class ZoneManager {
         Vector corner1 = readVector(section.getConfigurationSection("corner1"));
         Vector corner2 = readVector(section.getConfigurationSection("corner2"));
         if (worldName == null || corner1 == null || corner2 == null) {
-            plugin.getLogger().warning("Skipping zone '" + zoneName + "' because it is missing world or corner data.");
+            plugin.getLogger().warning(String.format("Skipping zone '%s' because it is missing world or corner data.", zoneName));
             return null;
         }
 
