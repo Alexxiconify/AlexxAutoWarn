@@ -1,21 +1,12 @@
-MASTER COMMENTS (concise)
+MASTER COMMENTS
 Date: 2026-05-29
 
-Entries (file — line:col — original comment)
+Key notes (file — location — brief)
+- AutoWarnCommand.java — ~37: cache tab-completion name lists to reduce allocations.
+- AutoWarnCommand.java — ~103: unknown subcommand should show help/usage.
+- AutoWarnCommand.java — ~135: use requireNonNull for player location to satisfy static analysis.
+- AutoWarnCommand.java — ~441: remove/get wand key from main plugin class rather than helper.
 
-- src/main/java/net/alexxiconify/alexxautowarn/AutoWarnCommand.java — 37:5
-  // Cache commonly used name lists to avoid repeated allocations during tab completion.
-
-- src/main/java/net/alexxiconify/alexxautowarn/AutoWarnCommand.java — 103:17
-  // Unknown subcommand: show help but report not handled so Bukkit may show usage if desired.
-
-- src/main/java/net/alexxiconify/alexxautowarn/AutoWarnCommand.java — 135:9
-  // Use requireNonNull: player#getLocation is expected to be non-null in Bukkit, assert to satisfy static analysis.
-
-- src/main/java/net/alexxiconify/alexxautowarn/AutoWarnCommand.java — ~441:1
-  // getWandKey() removed; plugin-level wand key should be accessed via the main plugin class.
-
-Notes
-- The file lists removed/shortened comments with file and location. Source now contains concise comments; domain-explanatory comments were kept.
+These are retained as short maintenance pointers for developers.
 
 Signed-off: code-maintenance-script (2026-05-29)
