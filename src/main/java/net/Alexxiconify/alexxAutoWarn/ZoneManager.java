@@ -7,11 +7,9 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.util.Vector;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.EnumMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -27,9 +25,6 @@ public class ZoneManager {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
     }
 
-    public ZoneManager(alexxautowarn plugin) {
-        this((AlexxAutoWarn) plugin);
-    }
 
     public AlexxAutoWarn getPlugin() {
         return plugin;

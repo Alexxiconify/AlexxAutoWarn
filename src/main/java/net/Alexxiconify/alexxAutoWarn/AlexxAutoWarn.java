@@ -13,6 +13,7 @@ public final class AlexxAutoWarn extends JavaPlugin {
     private final Settings settings = new Settings(this);
     private final ZoneManager zoneManager = new ZoneManager(this);
     private final NamespacedKey wandKey = new NamespacedKey(this, "selection_wand");
+    private AutoWarnCommand autoWarnCommand;
 
     @Override
     public void onEnable() {
@@ -23,7 +24,7 @@ public final class AlexxAutoWarn extends JavaPlugin {
         api = new AutoWarnAPIImpl(zoneManager);
 
         PluginCommand command = Objects.requireNonNull(getCommand("autowarn"), "Command 'autowarn' is missing from plugin.yml");
-        AutoWarnCommand autoWarnCommand = new AutoWarnCommand(this);
+        autoWarnCommand = new AutoWarnCommand(this);
         command.setExecutor(autoWarnCommand);
         command.setTabCompleter(autoWarnCommand);
 
@@ -58,6 +59,10 @@ public final class AlexxAutoWarn extends JavaPlugin {
 
     public ZoneManager getZoneManager() {
         return zoneManager;
+    }
+
+    public AutoWarnCommand getAutoWarnCommand() {
+        return autoWarnCommand;
     }
 
     public Object getCoreProtectAPI() {

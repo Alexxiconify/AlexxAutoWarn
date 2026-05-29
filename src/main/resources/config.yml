@@ -38,6 +38,7 @@ messages:
       banned-remove: '<red>Usage: /autowarn banned remove <material>'
     invalid-action: <red>Invalid action. Must be DENY, ALERT, or ALLOW.
     invalid-material: <red>Invalid material name.
+    invalid-material-or-action: <red>Invalid material or action.
     no-material-action: <yellow>No specific action found for that material in this zone.
     material-already-banned: <yellow>That material is already globally banned.
     material-not-banned: <yellow>That material is not currently globally banned.
@@ -64,6 +65,7 @@ messages:
     reload-success: <green>AutoWarn configuration and zones have been reloaded.
     list-empty: <yellow>There are no zones defined yet.
     list-header: '<gold>AutoWarn Zones (<count>):'
+    info-header: '<gold>Zone Info: <zone>'
     defaultaction-success: >-
       <green>Default action for zone '<gold><zone></gold>' set to <action>.
     setaction-success: >-

@@ -1,24 +1,36 @@
 name: alexxautowarn
-version: '1.0.0'
-main: net.alexxiconify.alexxautowarn.alexxautowarn
+version: '1.0.1'
+main: net.alexxiconify.alexxautowarn.AlexxAutoWarn
 api-version: '1.21'
 author: Alexxiconify
-description: A modernized zone protection plugin.
-softdepend: [ CoreProtect ]
+description: A lightweight rectangular zone warning plugin for Paper.
+softdepend: [CoreProtect]
+commands:
+  autowarn:
+    description: Main command for AutoWarn zone management.
+    usage: /<command> [subcommand] [args]
+    aliases: [aw]
+    permission: autowarn.admin.use
 permissions:
   autowarn.admin.*:
     description: Grants access to all admin commands.
     children:
       autowarn.admin.use: true
-      autowarn.admin.wand: true
-      autowarn.admin.define: true
-      autowarn.admin.remove: true
-      autowarn.admin.list: true
-      autowarn.admin.info: true
-      autowarn.admin.setaction: true
-      autowarn.admin.priority: true
-      autowarn.admin.reload: true
-      autowarn.admin.banned: true
+      autowarn.wand: true
+      autowarn.pos: true
+      autowarn.define: true
+      autowarn.remove: true
+      autowarn.list: true
+      autowarn.info: true
+      autowarn.defaultaction: true
+      autowarn.setaction: true
+      autowarn.removeaction: true
+      autowarn.priority: true
+      autowarn.banned: true
+      autowarn.reload: true
+  autowarn.admin.use:
+    description: Allows use of the AutoWarn admin commands.
+    default: op
   autowarn.wand:
     description: Allows use of the selection wand.
     default: op
@@ -56,7 +68,10 @@ permissions:
     description: Allows reloading the plugin configuration.
     default: op
   autowarn.bypass:
-    description: Bypasses all zone restrictions.
+    description: Bypasses zone restrictions.
+    default: op
+  autowarn.bypass.all:
+    description: Bypasses all auto-warn checks.
     default: op
   autowarn.notify:
     description: Receives alerts for actions in zones.

@@ -1,24 +1,42 @@
-main: net.alexxiconify.alexxautowarn.alexxautowarn
+main: net.alexxiconify.alexxautowarn.AlexxAutoWarn
 name: alexxautowarn
-version: 1.0.1
-api-version: 1.21
-description: A modernized zone protection plugin for Paper.
+version: '1.0.1'
+api-version: '1.21'
+description: A lightweight rectangular zone warning plugin for Paper.
 website: https://github.com/Alexxiconify/AlexxAutoWarn
 softdepend: [CoreProtect]
 commands:
   autowarn:
-    description: Main command for the AutoWarn plugin.
+    description: Main command for AutoWarn zone management.
     usage: /<command> [subcommand] [args]
-    aliases: [ aw ]
+    aliases: [aw]
     permission: autowarn.admin.use
 permissions:
   autowarn.admin.*:
     description: Grants access to all admin commands.
     children:
       autowarn.admin.use: true
+      autowarn.wand: true
+      autowarn.pos: true
+      autowarn.define: true
+      autowarn.remove: true
+      autowarn.list: true
+      autowarn.info: true
+      autowarn.defaultaction: true
+      autowarn.setaction: true
+      autowarn.removeaction: true
+      autowarn.priority: true
+      autowarn.banned: true
+      autowarn.reload: true
   autowarn.admin.use:
     description: Allows use of the AutoWarn admin commands.
+    default: op
   autowarn.bypass:
-    description: Allows players to bypass zone warnings and notifications.
+    description: Bypasses zone restrictions.
+    default: op
   autowarn.bypass.all:
-    description: Allows bypassing all zone restrictions (notifications, messages, actions).
+    description: Bypasses all auto-warn checks.
+    default: op
+  autowarn.notify:
+    description: Receives alerts for actions in zones.
+    default: op
