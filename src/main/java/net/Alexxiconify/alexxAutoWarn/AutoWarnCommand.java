@@ -16,7 +16,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.NonNull;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -29,7 +29,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 public final class AutoWarnCommand implements CommandExecutor, TabCompleter {
     private static final Pattern ZONE_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_-]{3,32}$");
@@ -41,6 +40,20 @@ public final class AutoWarnCommand implements CommandExecutor, TabCompleter {
     private static final String ZONE_VAR = "zone";
     private static final String MATERIAL_VAR = "material";
     private static final String ACTION_VAR = "action";
+    // Command names (avoid duplicated literals)
+    private static final String CMD_WAND = "wand";
+    private static final String CMD_POS1 = "pos1";
+    private static final String CMD_POS2 = "pos2";
+    private static final String CMD_DEFINE = "define";
+    private static final String CMD_REMOVE = "remove";
+    private static final String CMD_LIST = "list";
+    private static final String CMD_INFO = "info";
+    private static final String CMD_DEFAULTACTION = "defaultaction";
+    private static final String CMD_SETACTION = "setaction";
+    private static final String CMD_REMOVEACTION = "removeaction";
+    private static final String CMD_PRIORITY = "priority";
+    private static final String CMD_BANNED = "banned";
+    private static final String CMD_RELOAD = "reload";
 
     private final AlexxAutoWarn plugin;
     private final Settings settings;
@@ -57,7 +70,7 @@ public final class AutoWarnCommand implements CommandExecutor, TabCompleter {
     }
 
     @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
+    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String @NonNull [] args) {
         if (args.length == 0) {
             sendHelp(sender);
             return true;
@@ -69,18 +82,18 @@ public final class AutoWarnCommand implements CommandExecutor, TabCompleter {
         }
 
         switch (sub) {
-            case "wand" -> handleWand(sender);
-            case "pos1", "pos2" -> handlePos(sender, sub);
-            case "define" -> handleDefine(sender, args);
-            case "remove" -> handleRemove(sender, args);
-            case "list" -> handleList(sender);
-            case "info" -> handleInfo(sender, args);
-            case "defaultaction" -> handleDefaultAction(sender, args);
-            case "setaction" -> handleSetAction(sender, args);
-            case "removeaction" -> handleRemoveAction(sender, args);
-            case "priority" -> handlePriority(sender, args);
-            case "banned" -> handleBanned(sender, args);
-            case "reload" -> handleReload(sender);
+            case CMD_WAND -> handleWand(sender);
+            case CMD_POS1, CMD_POS2 -> handlePos(sender, sub);
+            case CMD_DEFINE -> handleDefine(sender, args);
+            case CMD_REMOVE -> handleRemove(sender, args);
+            case CMD_LIST -> handleList(sender);
+            case CMD_INFO -> handleInfo(sender, args);
+            case CMD_DEFAULTACTION -> handleDefaultAction(sender, args);
+            case CMD_SETACTION -> handleSetAction(sender, args);
+            case CMD_REMOVEACTION -> handleRemoveAction(sender, args);
+            case CMD_PRIORITY -> handlePriority(sender, args);
+            case CMD_BANNED -> handleBanned(sender, args);
+            case CMD_RELOAD -> handleReload(sender);
             default -> sendHelp(sender);
         }
         return true;
@@ -285,59 +298,66 @@ public final class AutoWarnCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        switch (args[1].toLowerCase(Locale.ROOT)) {
-            case "add" -> {
-                if (args.length != 3) {
-                    sender.sendMessage(settings.getMessage("error.usage.banned-add"));
-                    return;
-                }
-
-                Material material = Material.matchMaterial(args[2].trim());
-                if (material == null) {
-                    sender.sendMessage(settings.getMessage(ERR_INVALID_MATERIAL));
-                    return;
-                }
-
-                if (settings.getGloballyBannedMaterials().contains(material)) {
-                    sender.sendMessage(settings.getMessage("error.material-already-banned"));
-                    return;
-                }
-
-                settings.addGloballyBannedMaterial(material);
-                sender.sendMessage(settings.getMessage("command.banned-add-success", Placeholder.unparsed(MATERIAL_VAR, material.name())));
-            }
-            case "remove" -> {
-                if (args.length != 3) {
-                    sender.sendMessage(settings.getMessage("error.usage.banned-remove"));
-                    return;
-                }
-
-                Material material = Material.matchMaterial(args[2].trim());
-                if (material == null) {
-                    sender.sendMessage(settings.getMessage(ERR_INVALID_MATERIAL));
-                    return;
-                }
-
-                if (!settings.getGloballyBannedMaterials().contains(material)) {
-                    sender.sendMessage(settings.getMessage("error.material-not-banned"));
-                    return;
-                }
-
-                settings.removeGloballyBannedMaterial(material);
-                sender.sendMessage(settings.getMessage("command.banned-remove-success", Placeholder.unparsed(MATERIAL_VAR, material.name())));
-            }
-            case "list" -> {
-                Set<Material> banned = settings.getGloballyBannedMaterials();
-                if (banned.isEmpty()) {
-                    sender.sendMessage(settings.getMessage("command.banned-list-empty"));
-                    return;
-                }
-
-                sender.sendMessage(settings.getMessage("command.banned-list-header", Placeholder.unparsed("count", String.valueOf(banned.size()))));
-                banned.stream().map(Material::name).sorted().forEach(name -> sender.sendMessage(Component.text(" - " + name).color(NamedTextColor.GRAY)));
-            }
+        String action = args[1].toLowerCase(Locale.ROOT);
+        switch (action) {
+            case "add" -> handleBannedAdd(sender, args);
+            case "remove" -> handleBannedRemove(sender, args);
+            case "list" -> handleBannedList(sender);
             default -> sender.sendMessage(settings.getMessage("error.usage.banned"));
         }
+    }
+
+    private void handleBannedAdd(CommandSender sender, String[] args) {
+        if (args.length != 3) {
+            sender.sendMessage(settings.getMessage("error.usage.banned-add"));
+            return;
+        }
+
+        Material material = Material.matchMaterial(args[2].trim());
+        if (material == null) {
+            sender.sendMessage(settings.getMessage(ERR_INVALID_MATERIAL));
+            return;
+        }
+
+        if (settings.getGloballyBannedMaterials().contains(material)) {
+            sender.sendMessage(settings.getMessage("error.material-already-banned"));
+            return;
+        }
+
+        settings.addGloballyBannedMaterial(material);
+        sender.sendMessage(settings.getMessage("command.banned-add-success", Placeholder.unparsed(MATERIAL_VAR, material.name())));
+    }
+
+    private void handleBannedRemove(CommandSender sender, String[] args) {
+        if (args.length != 3) {
+            sender.sendMessage(settings.getMessage("error.usage.banned-remove"));
+            return;
+        }
+
+        Material material = Material.matchMaterial(args[2].trim());
+        if (material == null) {
+            sender.sendMessage(settings.getMessage(ERR_INVALID_MATERIAL));
+            return;
+        }
+
+        if (!settings.getGloballyBannedMaterials().contains(material)) {
+            sender.sendMessage(settings.getMessage("error.material-not-banned"));
+            return;
+        }
+
+        settings.removeGloballyBannedMaterial(material);
+        sender.sendMessage(settings.getMessage("command.banned-remove-success", Placeholder.unparsed(MATERIAL_VAR, material.name())));
+    }
+
+    private void handleBannedList(CommandSender sender) {
+        Set<Material> banned = settings.getGloballyBannedMaterials();
+        if (banned.isEmpty()) {
+            sender.sendMessage(settings.getMessage("command.banned-list-empty"));
+            return;
+        }
+
+        sender.sendMessage(settings.getMessage("command.banned-list-header", Placeholder.unparsed("count", String.valueOf(banned.size()))));
+        banned.stream().map(Material::name).sorted().forEach(name -> sender.sendMessage(Component.text(" - " + name).color(NamedTextColor.GRAY)));
     }
 
     private void updateZone(CommandSender sender, String zoneName, ZoneUpdater updater, String successMsgKey, String... placeholders) {
@@ -390,7 +410,7 @@ public final class AutoWarnCommand implements CommandExecutor, TabCompleter {
 
         sender.sendMessage(Component.text("  Material Actions:").color(NamedTextColor.GOLD));
         actions.entrySet().stream()
-                .sorted((left, right) -> left.getKey().name().compareTo(right.getKey().name()))
+                .sorted(java.util.Comparator.comparing(e -> e.getKey().name()))
                 .forEach(entry -> sender.sendMessage(Component.text("    - " + entry.getKey().name() + ": " + entry.getValue().name()).color(NamedTextColor.GRAY)));
     }
 
@@ -400,7 +420,7 @@ public final class AutoWarnCommand implements CommandExecutor, TabCompleter {
 
     private void sendHelp(CommandSender sender) {
         sender.sendMessage(settings.getMessage("command.help-header"));
-        for (String key : List.of("wand", "pos", "define", "remove", "list", "info", "setaction", "removeaction", "defaultaction", "priority", "banned", "reload")) {
+        for (String key : List.of(CMD_WAND, "pos", CMD_DEFINE, CMD_REMOVE, CMD_LIST, CMD_INFO, CMD_SETACTION, CMD_REMOVEACTION, CMD_DEFAULTACTION, CMD_PRIORITY, CMD_BANNED, CMD_RELOAD)) {
             sender.sendMessage(settings.getMessage("command.help." + key));
         }
     }
@@ -418,9 +438,9 @@ public final class AutoWarnCommand implements CommandExecutor, TabCompleter {
     }
 
     @Override
-    public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
+    public @NonNull List<String> onTabComplete( @NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String @NonNull [] args) {
         if (args.length == 1) {
-            return filter(args[0], List.of("wand", "pos1", "pos2", "define", "remove", "list", "info", "defaultaction", "setaction", "removeaction", "priority", "banned", "reload"));
+            return filter(args[0], List.of(CMD_WAND, CMD_POS1, CMD_POS2, CMD_DEFINE, CMD_REMOVE, CMD_LIST, CMD_INFO, CMD_DEFAULTACTION, CMD_SETACTION, CMD_REMOVEACTION, CMD_PRIORITY, CMD_BANNED, CMD_RELOAD));
         }
 
         if (args.length == 2) {
@@ -453,7 +473,7 @@ public final class AutoWarnCommand implements CommandExecutor, TabCompleter {
 
     private List<String> filter(String input, List<String> options) {
         String lower = input.toLowerCase(Locale.ROOT);
-        return options.stream().filter(option -> option.toLowerCase(Locale.ROOT).startsWith(lower)).sorted().collect(Collectors.toList());
+        return options.stream().filter(option -> option.toLowerCase(Locale.ROOT).startsWith(lower)).sorted().toList();
     }
 
     private Map<Material, Zone.Action> copyActions(Zone zone) {

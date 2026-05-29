@@ -7,6 +7,10 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.block.Block;
 import org.bukkit.block.Container;
 import org.bukkit.entity.Player;
+import org.bukkit.event.player.PlayerMoveEvent;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -20,12 +24,14 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.util.Vector;
 
 import java.util.logging.Level;
+import java.util.Objects;
 
 final class ZoneListener implements Listener {
     private final AlexxAutoWarn plugin;
     private final Settings settings;
     private final ZoneManager zoneManager;
     private final NamespacedKey wandKey;
+    private final Map<UUID, String> lastZoneByPlayer = new ConcurrentHashMap<>();
 
     ZoneListener(AlexxAutoWarn plugin) {
         this.plugin = plugin;
@@ -42,9 +48,6 @@ final class ZoneListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onPlayerBucketEmpty(PlayerBucketEmptyEvent event) {
         Block target = event.getBlockClicked();
-        if (target == null) {
-            return;
-        }
         Material placedMaterial = event.getBucket() == Material.LAVA_BUCKET ? Material.LAVA : Material.WATER;
         Location location = target.getRelative(event.getBlockFace()).getLocation();
         handleAction(event.getPlayer(), location, placedMaterial, event);
@@ -83,6 +86,34 @@ final class ZoneListener implements Listener {
         }
     }
 
+    @EventHandler(priority = EventPriority.LOW)
+    public void onPlayerMove(PlayerMoveEvent event) {
+        // Only check when player moves between blocks or worlds to reduce noise.
+        var from = event.getFrom();
+        var to = event.getTo();
+        if (to == null || from.getBlockX() == to.getBlockX() && from.getBlockY() == to.getBlockY() && from.getBlockZ() == to.getBlockZ() && Objects.equals(from.getWorld(), to.getWorld())) {
+            return;
+        }
+
+        Player player = event.getPlayer();
+        Location toLoc = to;
+        Location fromLoc = from;
+
+        Zone oldZone = zoneManager.getHighestPriorityZoneAt(fromLoc);
+        Zone newZone = zoneManager.getHighestPriorityZoneAt(toLoc);
+
+        if (Objects.equals(oldZone, newZone)) return;
+
+        AutoWarnAPI api = AlexxAutoWarn.getAPI();
+        if (api != null) {
+            if (oldZone != null) api.fireZoneLeave(player, oldZone);
+            if (newZone != null) api.fireZoneEnter(player, newZone);
+            if (oldZone != null && newZone != null && oldZone.getPriority() != newZone.getPriority()) {
+                api.fireZonePriorityChange(player, oldZone, newZone);
+            }
+        }
+    }
+
     private boolean isWand(ItemStack item) {
         if (item == null || !item.hasItemMeta()) {
             return false;
@@ -97,7 +128,15 @@ final class ZoneListener implements Listener {
         }
 
         if (settings.getGloballyBannedMaterials().contains(material)) {
-            deny(player, location, material, "Global", event);
+            // Build placeholders and reuse deny helper to keep logic consistent.
+            var placeholders = new net.kyori.adventure.text.minimessage.tag.resolver.TagResolver[] {
+                    Placeholder.unparsed("player", player.getName()),
+                    Placeholder.unparsed("material", material.name().toLowerCase().replace('_', ' ')),
+                    Placeholder.unparsed("zone", "Global"),
+                    Placeholder.unparsed("location", formatLocation(location))
+            };
+            String logMessage = String.format("%s performed DENY with %s in %s at %s", player.getName(), material.name(), "Global", formatLocation(location));
+            deny(player, event, placeholders, logMessage);
             return;
         }
 
@@ -129,7 +168,7 @@ final class ZoneListener implements Listener {
         }
 
         switch (action) {
-            case DENY -> deny(player, location, material, zoneName, event, placeholders, logMessage);
+            case DENY -> deny(player, event, placeholders, logMessage);
             case ALERT -> {
                 plugin.getServer().getOnlinePlayers().stream()
                         .filter(staff -> staff.hasPermission("autowarn.notify"))
@@ -144,20 +183,8 @@ final class ZoneListener implements Listener {
         }
     }
 
-    private void deny(Player player, Location location, Material material, String zoneName, org.bukkit.event.Cancellable event) {
-        var placeholders = new net.kyori.adventure.text.minimessage.tag.resolver.TagResolver[] {
-                Placeholder.unparsed("player", player.getName()),
-                Placeholder.unparsed("material", material.name().toLowerCase().replace('_', ' ')),
-                Placeholder.unparsed("zone", zoneName),
-                Placeholder.unparsed("location", formatLocation(location))
-        };
-        String logMessage = String.format("%s performed DENY with %s in %s at %s", player.getName(), material.name(), zoneName, formatLocation(location));
-        event.setCancelled(true);
-        player.sendMessage(settings.getMessage("action.denied", placeholders));
-        settings.log(Level.INFO, "[DENIED] " + logMessage);
-    }
 
-    private void deny(Player player, Location location, Material material, String zoneName, org.bukkit.event.Cancellable event, net.kyori.adventure.text.minimessage.tag.resolver.TagResolver[] placeholders, String logMessage) {
+    private void deny(Player player, org.bukkit.event.Cancellable event, net.kyori.adventure.text.minimessage.tag.resolver.TagResolver[] placeholders, String logMessage) {
         event.setCancelled(true);
         player.sendMessage(settings.getMessage("action.denied", placeholders));
         settings.log(Level.INFO, "[DENIED] " + logMessage);

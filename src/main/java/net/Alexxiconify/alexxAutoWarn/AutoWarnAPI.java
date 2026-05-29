@@ -7,6 +7,7 @@ import org.bukkit.entity.Player;
 import java.util.Collection;
 import java.util.function.Consumer;
 
+@SuppressWarnings("unused") // Public API surface kept for other plugins; some methods are unused internally but required.
 public interface AutoWarnAPI {
     Zone getZoneAt(Location location);
 

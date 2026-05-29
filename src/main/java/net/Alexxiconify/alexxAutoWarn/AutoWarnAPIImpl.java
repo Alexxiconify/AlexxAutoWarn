@@ -66,7 +66,7 @@ final class AutoWarnAPIImpl implements AutoWarnAPI {
             return false;
         }
 
-        ZoneCustomAction customAction = customActions.get(normalize(action));
+        ZoneCustomAction customAction = (action == null) ? null : customActions.get(normalize(action));
         if (customAction != null) {
             customAction.execute(player, zone, material, action);
         }
@@ -128,12 +128,18 @@ final class AutoWarnAPIImpl implements AutoWarnAPI {
     private <T> void safeAccept(Consumer<T> listener, T event) {
         try {
             listener.accept(event);
-        } catch (RuntimeException ignored) {
-            // Listener failures should not break the plugin.
+        } catch (RuntimeException ex) {
+            // Listener failures should not break the plugin. Log at FINE to help debugging without spamming.
+            try {
+                zoneManager.getPlugin().getLogger().log(java.util.logging.Level.FINE, "Zone listener threw exception", ex);
+            } catch (Exception ignore2) {
+                // swallow
+            }
         }
     }
 
     private String normalize(String value) {
+        if (value == null) return "";
         return value.trim().toLowerCase(Locale.ROOT);
     }
 }

@@ -117,27 +117,18 @@ bukkit/
 full_build_log.txt
 
 # Build artifacts
-*.jar
 !bukkit/target/*.jar
 
 # IDE and editor files
 .vscode/
 *.swp
 *.swo
-*~
 
 # OS generated files
-.DS_Store
 .DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
 
 # Logs
 logs/
-*.log
 
 # Temporary files
 *.tmp
@@ -149,9 +140,7 @@ logs/
 **/.gradle/
 build/
 **/build/
-target/
 **/target/
-out/
 **/out/
 bin/
 **/bin/
@@ -159,7 +148,6 @@ bin/
 **/.cache/
 cache/
 **/cache/
-logs/
 **/logs/
 debug/
 **/debug/
@@ -175,20 +163,10 @@ scratch/
 **/scratch/
 node_modules/
 **/node_modules/
-.idea/
-.vscode/
-*.log
 *.log.*
-*.tmp
-*.temp
-*.swp
-*.swo
-*~
 *.bak
 *.orig
 *.rej
-hs_err_pid*
-*.class
 *.pdb
 *.d
 *.dll
@@ -198,7 +176,5 @@ hs_err_pid*
 *.pyc
 *.pyo
 __pycache__/
-.DS_Store
-Thumbs.db
 desktop.ini
 CACHEDIR.TAG

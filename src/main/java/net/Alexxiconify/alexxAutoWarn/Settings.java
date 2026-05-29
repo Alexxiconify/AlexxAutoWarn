@@ -7,10 +7,7 @@ import org.bukkit.Material;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.logging.Level;
 
 public class Settings {
@@ -20,6 +17,7 @@ public class Settings {
     private boolean monitorChestAccess;
     private boolean debugLogAllowedActions;
     private Component pluginPrefix = miniMessage.deserialize("<gray>[<gold>AutoWarn</gold>]</gray> ");
+    private final Map<String, String> messages = new HashMap<>();
     private Set<Material> globallyBannedMaterials = EnumSet.noneOf(Material.class);
 
     public Settings(AlexxAutoWarn plugin) {
@@ -32,26 +30,39 @@ public class Settings {
         debugLogAllowedActions = config.getBoolean("settings.debug-log-allowed-actions", false);
         pluginPrefix = miniMessage.deserialize(config.getString("messages.plugin-prefix", "<gray>[<gold>AutoWarn</gold>]</gray> "));
 
+        // Cache raw message strings to avoid repeated config lookups during runtime.
+        messages.clear();
+        org.bukkit.configuration.ConfigurationSection sec = config.getConfigurationSection("messages");
+        if (sec != null) {
+            for (String key : sec.getKeys(false)) {
+                messages.put(key, config.getString("messages." + key));
+            }
+        }
+
         globallyBannedMaterials = EnumSet.noneOf(Material.class);
+        var logger = plugin.getLogger();
         for (String materialName : config.getStringList("settings.globally-banned-materials")) {
             Material material = Material.matchMaterial(materialName.trim());
             if (material == null) {
-                plugin.getLogger().warning(String.format("Invalid globally banned material '%s' found in config.yml. Skipping.", materialName));
+                logger.warning(String.format("Invalid globally banned material '%s' found in config.yml. Skipping.", materialName));
             } else {
                 globallyBannedMaterials.add(material);
             }
         }
-        plugin.getLogger().log(Level.INFO, "Reloaded {0} globally banned materials.", globallyBannedMaterials.size());
+        logger.log(Level.INFO, "Reloaded {0} globally banned materials.", globallyBannedMaterials.size());
     }
 
     public Component getMessage(@NotNull String key, TagResolver... resolvers) {
-        String rawMessage = plugin.getConfig().getString("messages." + key, "<red>Message not found: " + key + "</red>");
-        return pluginPrefix.append(miniMessage.deserialize(rawMessage, resolvers));
+        String raw = messages.get(key);
+        if (raw == null) {
+            raw = "<red>Message not found: " + key + "</red>";
+        }
+        return pluginPrefix.append(miniMessage.deserialize(raw, resolvers));
     }
 
     public void log(Level level, String message) {
         if (plugin.getLogger().isLoggable(level)) {
-            plugin.getLogger().log(level, MiniMessage.miniMessage().stripTags(message));
+            plugin.getLogger().log(level, miniMessage.stripTags(message));
         }
     }
 

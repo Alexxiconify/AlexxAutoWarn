@@ -13,8 +13,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 
 public class ZoneManager {
     private final AlexxAutoWarn plugin;
@@ -36,11 +36,10 @@ public class ZoneManager {
             for (String zoneName : root.getKeys(false)) {
                 Zone zone = readZone(zoneName, root.getConfigurationSection(zoneName));
                 if (zone != null) {
-                    zones.put(zone.getName(), zone);
+                    zones.put(normalize(zone.getName()), zone);
                 }
             }
         }
-        CompletableFuture.completedFuture ( null );
     }
 
     public synchronized void saveZones(boolean saveConfig) {
@@ -55,7 +54,7 @@ public class ZoneManager {
     }
 
     public void addOrUpdateZone(Zone zone) {
-        zones.put(zone.getName(), zone);
+        zones.put(normalize(zone.getName()), zone);
         saveZones(true);
     }
 
@@ -85,14 +84,37 @@ public class ZoneManager {
         if (location == null) {
             return List.of();
         }
-        return zones.values().stream()
-                .filter(zone -> zone.contains(location))
-                .sorted(Comparator.comparingInt(Zone::getPriority).reversed().thenComparing(Zone::getName))
-                .toList();
+        // Avoid stream allocation overhead for hot paths: iterate and collect only matching zones,
+        // then sort the small resulting list by priority/name.
+        java.util.List<Zone> matches = new java.util.ArrayList<>();
+        for (Zone zone : zones.values()) {
+            if (zone.contains(location)) {
+                matches.add(zone);
+            }
+        }
+        matches.sort(java.util.Comparator.comparingInt(Zone::getPriority).reversed().thenComparing(Zone::getName));
+        return java.util.Collections.unmodifiableList(matches);
     }
 
     public Zone getHighestPriorityZoneAt(Location location) {
-        return getZonesAt(location).stream().findFirst().orElse(null);
+        if (location == null) {
+            return null;
+        }
+        // Iterate and track highest priority match to avoid creating temporary lists when only the top zone is needed.
+        Zone best = null;
+        for (Zone zone : zones.values()) {
+            if (!zone.contains(location)) continue;
+            if (best == null) {
+                best = zone;
+            } else {
+                int p = zone.getPriority();
+                int bp = best.getPriority();
+                if (p > bp || (p == bp && zone.getName().compareTo(best.getName()) < 0)) {
+                    best = zone;
+                }
+            }
+        }
+        return best;
     }
 
     public Collection<Zone> getAllZones() {
@@ -110,7 +132,9 @@ public class ZoneManager {
         Vector corner1 = readVector(section.getConfigurationSection("corner1"));
         Vector corner2 = readVector(section.getConfigurationSection("corner2"));
         if (worldName == null || corner1 == null || corner2 == null) {
-            plugin.getLogger().warning(String.format("Skipping zone '%s' because it is missing world or corner data.", zoneName));
+            if (plugin.getLogger().isLoggable(Level.WARNING)) {
+                plugin.getLogger().warning(String.format("Skipping zone '%s' because it is missing world or corner data.", zoneName));
+            }
             return null;
         }
 
