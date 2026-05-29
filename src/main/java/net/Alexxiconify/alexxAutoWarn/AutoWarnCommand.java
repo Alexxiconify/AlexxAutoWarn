@@ -6,7 +6,6 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
-import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -28,14 +27,22 @@ import java.util.stream.Stream;
 public class AutoWarnCommand implements CommandExecutor, TabCompleter {
     private static final Pattern ZONE_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_-]{3,32}$");
     private static final NamespacedKey WAND_KEY = NamespacedKey.fromString("alexxautowarn:selection_wand");
+    
+    private static final String ERR_NO_PERM = "error.no-permission";
+    private static final String ERR_PLAYER_ONLY = "error.player-only";
+    private static final String ERR_ZONE_NOT_FOUND = "error.zone-not-found";
+    private static final String ERR_INVALID_MATERIAL = "error.invalid-material";
+    private static final String ZONE_VAR = "zone";
+    private static final String MATERIAL_VAR = "material";
+    private static final String ACTION_VAR = "action";
 
-    private final alexxautowarn.Settings settings;
+    private final AlexxAutoWarn.Settings settings;
     private final ZoneManager zoneManager;
-    private final alexxautowarn plugin;
+    private final AlexxAutoWarn plugin;
     private final Map<UUID, Vector> pos1 = new ConcurrentHashMap<>();
     private final Map<UUID, Vector> pos2 = new ConcurrentHashMap<>();
 
-    public AutoWarnCommand(alexxautowarn plugin) {
+    public AutoWarnCommand(AlexxAutoWarn plugin) {
         this.plugin = plugin;
         this.settings = plugin.getSettings();
         this.zoneManager = plugin.getZoneManager();
@@ -52,152 +59,18 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
         if (!hasPermission(sender, sub)) return true;
 
         switch (sub) {
-            case "wand" -> {
-                if (sender instanceof Player p) giveSelectionWand(p);
-                else sender.sendMessage(settings.getMessage("error.player-only"));
-            }
-            case "pos1", "pos2" -> {
-                if (sender instanceof Player p) {
-                    Vector loc = p.getLocation().toVector().toBlockVector();
-                    if (sub.equals("pos1")) {
-                        pos1.put(p.getUniqueId(), loc);
-                        p.sendMessage(settings.getMessage("command.pos-set", Placeholder.unparsed("pos", "1"), Placeholder.unparsed("coords", formatVector(loc))));
-                    } else {
-                        pos2.put(p.getUniqueId(), loc);
-                        p.sendMessage(settings.getMessage("command.pos-set", Placeholder.unparsed("pos", "2"), Placeholder.unparsed("coords", formatVector(loc))));
-                    }
-                } else sender.sendMessage(settings.getMessage("error.player-only"));
-            }
-            case "define" -> {
-                if (sender instanceof Player p) {
-                    if (args.length != 2) {
-                        p.sendMessage(settings.getMessage("error.usage.define"));
-                        return true;
-                    }
-                    String name = args[1].toLowerCase();
-                    if (!ZONE_NAME_PATTERN.matcher(name).matches()) {
-                        p.sendMessage(settings.getMessage("error.invalid-zone-name"));
-                        return true;
-                    }
-                    Vector p1 = pos1.get(p.getUniqueId());
-                    Vector p2 = pos2.get(p.getUniqueId());
-                    if (p1 == null || p2 == null) {
-                        p.sendMessage(settings.getMessage("error.define-no-selection"));
-                        return true;
-                    }
-                    zoneManager.addOrUpdateZone(new Zone(name, p.getWorld(), p1, p2, Zone.Action.ALERT, new EnumMap<>(Material.class), 0));
-                    p.sendMessage(settings.getMessage("command.define-success", Placeholder.unparsed("zone", name)));
-                    pos1.remove(p.getUniqueId());
-                    pos2.remove(p.getUniqueId());
-                } else sender.sendMessage(settings.getMessage("error.player-only"));
-            }
-            case "remove" -> {
-                if (args.length != 2) {
-                    sender.sendMessage(settings.getMessage("error.usage.remove"));
-                    return true;
-                }
-                String name = args[1].toLowerCase();
-                if (zoneManager.removeZone(name)) {
-                    sender.sendMessage(settings.getMessage("command.remove-success", Placeholder.unparsed("zone", name)));
-                } else {
-                    sender.sendMessage(settings.getMessage("error.zone-not-found", Placeholder.unparsed("zone", name)));
-                }
-            }
-            case "list" -> {
-                Collection<Zone> zones = zoneManager.getAllZones();
-                if (zones.isEmpty()) sender.sendMessage(settings.getMessage("command.list-empty"));
-                else {
-                    sender.sendMessage(settings.getMessage("command.list-header", Placeholder.unparsed("count", String.valueOf(zones.size()))));
-                    zones.forEach(z -> sender.sendMessage(Component.text(" - " + z.getName()).color(NamedTextColor.GRAY)));
-                }
-            }
-            case "info" -> {
-                if (args.length != 2) {
-                    sender.sendMessage(settings.getMessage("error.usage.info"));
-                    return true;
-                }
-                Zone z = zoneManager.getZone(args[1]);
-                if (z == null) sender.sendMessage(settings.getMessage("error.zone-not-found", Placeholder.unparsed("zone", args[1])));
-                else sendZoneInfo(sender, z);
-            }
-            case "defaultaction" -> {
-                if (args.length != 3) {
-                    sender.sendMessage(settings.getMessage("error.usage.defaultaction"));
-                    return true;
-                }
-                updateZone(sender, args[1], z -> {
-                    try {
-                        return new Zone(z.getName(), plugin.getServer().getWorld(z.getWorldName()), z.getMin(), z.getMax(),
-                                Zone.Action.valueOf(args[2].trim().toUpperCase()), z.getMaterialActions(), z.getPriority());
-                    } catch (IllegalArgumentException e) {
-                        sender.sendMessage(settings.getMessage("error.invalid-action"));
-                        return null;
-                    }
-                }, "command.defaultaction-success", "action", args[2].toUpperCase());
-            }
-            case "setaction" -> {
-                if (args.length != 4) {
-                    sender.sendMessage(settings.getMessage("error.usage.setaction"));
-                    return true;
-                }
-                updateZone(sender, args[1], z -> {
-                    try {
-                        Material mat = Material.valueOf(args[2].toUpperCase());
-                        if (!mat.isBlock()) throw new IllegalArgumentException();
-                        Zone.Action act = Zone.Action.valueOf(args[3].trim().toUpperCase());
-                        Map<Material, Zone.Action> actions = new EnumMap<>(z.getMaterialActions());
-                        actions.put(mat, act);
-                        return new Zone(z.getName(), plugin.getServer().getWorld(z.getWorldName()), z.getMin(), z.getMax(),
-                                z.getDefaultAction(), actions, z.getPriority());
-                    } catch (IllegalArgumentException e) {
-                        sender.sendMessage(settings.getMessage("error.invalid-material-or-action"));
-                        return null;
-                    }
-                }, "command.setaction-success", "material", args[2].toUpperCase(), "action", args[3].toUpperCase());
-            }
-            case "removeaction" -> {
-                if (args.length != 3) {
-                    sender.sendMessage(settings.getMessage("error.usage.removeaction"));
-                    return true;
-                }
-                updateZone(sender, args[1], z -> {
-                    try {
-                        Material mat = Material.valueOf(args[2].toUpperCase());
-                        if (!z.getMaterialActions().containsKey(mat)) {
-                            sender.sendMessage(settings.getMessage("error.no-material-action"));
-                            return null;
-                        }
-                        Map<Material, Zone.Action> actions = new EnumMap<>(z.getMaterialActions());
-                        actions.remove(mat);
-                        return new Zone(z.getName(), plugin.getServer().getWorld(z.getWorldName()), z.getMin(), z.getMax(),
-                                z.getDefaultAction(), actions, z.getPriority());
-                    } catch (IllegalArgumentException e) {
-                        sender.sendMessage(settings.getMessage("error.invalid-material"));
-                        return null;
-                    }
-                }, "command.removeaction-success", "material", args[2].toUpperCase());
-            }
-            case "priority" -> {
-                if (args.length != 3) {
-                    sender.sendMessage(settings.getMessage("error.usage.priority"));
-                    return true;
-                }
-                updateZone(sender, args[1], z -> {
-                    try {
-                        int prio = Integer.parseInt(args[2]);
-                        return new Zone(z.getName(), plugin.getServer().getWorld(z.getWorldName()), z.getMin(), z.getMax(),
-                                z.getDefaultAction(), z.getMaterialActions(), prio);
-                    } catch (NumberFormatException e) {
-                        sender.sendMessage(settings.getMessage("error.invalid-priority"));
-                        return null;
-                    }
-                }, "command.priority-success", "priority", args[2]);
-            }
+            case "wand" -> handleWand(sender);
+            case "pos1", "pos2" -> handlePos(sender, sub);
+            case "define" -> handleDefine(sender, args);
+            case "remove" -> handleRemove(sender, args);
+            case "list" -> handleList(sender);
+            case "info" -> handleInfo(sender, args);
+            case "defaultaction" -> handleDefaultAction(sender, args);
+            case "setaction" -> handleSetAction(sender, args);
+            case "removeaction" -> handleRemoveAction(sender, args);
+            case "priority" -> handlePriority(sender, args);
             case "banned" -> handleBanned(sender, args);
-            case "reload" -> {
-                plugin.reloadConfig();
-                sender.sendMessage(settings.getMessage("command.reload-success"));
-            }
+            case "reload" -> handleReload(sender);
             default -> sendHelp(sender);
         }
         return true;
@@ -206,10 +79,177 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
     private boolean hasPermission(CommandSender sender, String sub) {
         String perm = "autowarn." + (sub.equals("pos1") || sub.equals("pos2") ? "pos" : sub);
         if (!sender.hasPermission(perm)) {
-            sender.sendMessage(settings.getMessage("error.no-permission"));
+            sender.sendMessage(settings.getMessage(ERR_NO_PERM));
             return false;
         }
         return true;
+    }
+
+    private void handleWand(CommandSender sender) {
+        if (sender instanceof Player p) {
+            giveSelectionWand(p);
+        } else {
+            sender.sendMessage(settings.getMessage(ERR_PLAYER_ONLY));
+        }
+    }
+
+    private void handlePos(CommandSender sender, String sub) {
+        if (sender instanceof Player p) {
+            Vector loc = p.getLocation().toVector().toBlockVector();
+            if (sub.equals("pos1")) {
+                pos1.put(p.getUniqueId(), loc);
+                p.sendMessage(settings.getMessage("command.pos-set", Placeholder.unparsed("pos", "1"), Placeholder.unparsed("coords", formatVector(loc))));
+            } else {
+                pos2.put(p.getUniqueId(), loc);
+                p.sendMessage(settings.getMessage("command.pos-set", Placeholder.unparsed("pos", "2"), Placeholder.unparsed("coords", formatVector(loc))));
+            }
+        } else {
+            sender.sendMessage(settings.getMessage(ERR_PLAYER_ONLY));
+        }
+    }
+
+    private void handleDefine(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player p)) {
+            sender.sendMessage(settings.getMessage(ERR_PLAYER_ONLY));
+            return;
+        }
+        if (args.length != 2) {
+            p.sendMessage(settings.getMessage("error.usage.define"));
+            return;
+        }
+        String name = args[1].toLowerCase();
+        if (!ZONE_NAME_PATTERN.matcher(name).matches()) {
+            p.sendMessage(settings.getMessage("error.invalid-zone-name"));
+            return;
+        }
+        Vector p1 = pos1.get(p.getUniqueId());
+        Vector p2 = pos2.get(p.getUniqueId());
+        if (p1 == null || p2 == null) {
+            p.sendMessage(settings.getMessage("error.define-no-selection"));
+            return;
+        }
+        zoneManager.addOrUpdateZone(new Zone(name, p.getWorld(), p1, p2, Zone.Action.ALERT, new EnumMap<>(Material.class), 0));
+        p.sendMessage(settings.getMessage("command.define-success", Placeholder.unparsed(ZONE_VAR, name)));
+        pos1.remove(p.getUniqueId());
+        pos2.remove(p.getUniqueId());
+    }
+
+    private void handleRemove(CommandSender sender, String[] args) {
+        if (args.length != 2) {
+            sender.sendMessage(settings.getMessage("error.usage.remove"));
+            return;
+        }
+        String name = args[1].toLowerCase();
+        if (zoneManager.removeZone(name)) {
+            sender.sendMessage(settings.getMessage("command.remove-success", Placeholder.unparsed(ZONE_VAR, name)));
+        } else {
+            sender.sendMessage(settings.getMessage(ERR_ZONE_NOT_FOUND, Placeholder.unparsed(ZONE_VAR, name)));
+        }
+    }
+
+    private void handleList(CommandSender sender) {
+        Collection<Zone> zones = zoneManager.getAllZones();
+        if (zones.isEmpty()) {
+            sender.sendMessage(settings.getMessage("command.list-empty"));
+        } else {
+            sender.sendMessage(settings.getMessage("command.list-header", Placeholder.unparsed("count", String.valueOf(zones.size()))));
+            zones.forEach(z -> sender.sendMessage(Component.text(" - " + z.getName()).color(NamedTextColor.GRAY)));
+        }
+    }
+
+    private void handleInfo(CommandSender sender, String[] args) {
+        if (args.length != 2) {
+            sender.sendMessage(settings.getMessage("error.usage.info"));
+            return;
+        }
+        Zone z = zoneManager.getZone(args[1]);
+        if (z == null) {
+            sender.sendMessage(settings.getMessage(ERR_ZONE_NOT_FOUND, Placeholder.unparsed(ZONE_VAR, args[1])));
+        } else {
+            sendZoneInfo(sender, z);
+        }
+    }
+
+    private void handleDefaultAction(CommandSender sender, String[] args) {
+        if (args.length != 3) {
+            sender.sendMessage(settings.getMessage("error.usage.defaultaction"));
+            return;
+        }
+        updateZone(sender, args[1], z -> {
+            try {
+                return new Zone(z.getName(), plugin.getServer().getWorld(z.getWorldName()), z.getMin(), z.getMax(),
+                        Zone.Action.valueOf(args[2].trim().toUpperCase()), z.getMaterialActions(), z.getPriority());
+            } catch (IllegalArgumentException e) {
+                sender.sendMessage(settings.getMessage("error.invalid-action"));
+                return null;
+            }
+        }, "command.defaultaction-success", ACTION_VAR, args[2].toUpperCase());
+    }
+
+    private void handleSetAction(CommandSender sender, String[] args) {
+        if (args.length != 4) {
+            sender.sendMessage(settings.getMessage("error.usage.setaction"));
+            return;
+        }
+        updateZone(sender, args[1], z -> {
+            try {
+                Material mat = Material.valueOf(args[2].toUpperCase());
+                if (!mat.isBlock()) throw new IllegalArgumentException();
+                Zone.Action act = Zone.Action.valueOf(args[3].trim().toUpperCase());
+                Map<Material, Zone.Action> actions = new EnumMap<>(z.getMaterialActions());
+                actions.put(mat, act);
+                return new Zone(z.getName(), plugin.getServer().getWorld(z.getWorldName()), z.getMin(), z.getMax(),
+                        z.getDefaultAction(), actions, z.getPriority());
+            } catch (IllegalArgumentException e) {
+                sender.sendMessage(settings.getMessage("error.invalid-material-or-action"));
+                return null;
+            }
+        }, "command.setaction-success", MATERIAL_VAR, args[2].toUpperCase(), ACTION_VAR, args[3].toUpperCase());
+    }
+
+    private void handleRemoveAction(CommandSender sender, String[] args) {
+        if (args.length != 3) {
+            sender.sendMessage(settings.getMessage("error.usage.removeaction"));
+            return;
+        }
+        updateZone(sender, args[1], z -> {
+            try {
+                Material mat = Material.valueOf(args[2].toUpperCase());
+                if (!z.getMaterialActions().containsKey(mat)) {
+                    sender.sendMessage(settings.getMessage("error.no-material-action"));
+                    return null;
+                }
+                Map<Material, Zone.Action> actions = new EnumMap<>(z.getMaterialActions());
+                actions.remove(mat);
+                return new Zone(z.getName(), plugin.getServer().getWorld(z.getWorldName()), z.getMin(), z.getMax(),
+                        z.getDefaultAction(), actions, z.getPriority());
+            } catch (IllegalArgumentException e) {
+                sender.sendMessage(settings.getMessage(ERR_INVALID_MATERIAL));
+                return null;
+            }
+        }, "command.removeaction-success", MATERIAL_VAR, args[2].toUpperCase());
+    }
+
+    private void handlePriority(CommandSender sender, String[] args) {
+        if (args.length != 3) {
+            sender.sendMessage(settings.getMessage("error.usage.priority"));
+            return;
+        }
+        updateZone(sender, args[1], z -> {
+            try {
+                int prio = Integer.parseInt(args[2]);
+                return new Zone(z.getName(), plugin.getServer().getWorld(z.getWorldName()), z.getMin(), z.getMax(),
+                        z.getDefaultAction(), z.getMaterialActions(), prio);
+            } catch (NumberFormatException e) {
+                sender.sendMessage(settings.getMessage("error.invalid-priority"));
+                return null;
+            }
+        }, "command.priority-success", "priority", args[2]);
+    }
+
+    private void handleReload(CommandSender sender) {
+        plugin.reloadConfig();
+        sender.sendMessage(settings.getMessage("command.reload-success"));
     }
 
     private void handleBanned(CommandSender sender, String[] args) {
@@ -226,9 +266,9 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
                         sender.sendMessage(settings.getMessage("error.material-already-banned"));
                     } else {
                         settings.addGloballyBannedMaterial(m);
-                        sender.sendMessage(settings.getMessage("command.banned-add-success", Placeholder.unparsed("material", m.name())));
+                        sender.sendMessage(settings.getMessage("command.banned-add-success", Placeholder.unparsed(MATERIAL_VAR, m.name())));
                     }
-                } catch (IllegalArgumentException e) { sender.sendMessage(settings.getMessage("error.invalid-material")); }
+                } catch (IllegalArgumentException e) { sender.sendMessage(settings.getMessage(ERR_INVALID_MATERIAL)); }
             }
             case "remove" -> {
                 if (args.length != 3) { sender.sendMessage(settings.getMessage("error.usage.banned-remove")); return; }
@@ -238,14 +278,15 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
                         sender.sendMessage(settings.getMessage("error.material-not-banned"));
                     } else {
                         settings.removeGloballyBannedMaterial(m);
-                        sender.sendMessage(settings.getMessage("command.banned-remove-success", Placeholder.unparsed("material", m.name())));
+                        sender.sendMessage(settings.getMessage("command.banned-remove-success", Placeholder.unparsed(MATERIAL_VAR, m.name())));
                     }
-                } catch (IllegalArgumentException e) { sender.sendMessage(settings.getMessage("error.invalid-material")); }
+                } catch (IllegalArgumentException e) { sender.sendMessage(settings.getMessage(ERR_INVALID_MATERIAL)); }
             }
             case "list" -> {
                 Set<Material> banned = settings.getGloballyBannedMaterials();
-                if (banned.isEmpty()) sender.sendMessage(settings.getMessage("command.banned-list-empty"));
-                else {
+                if (banned.isEmpty()) {
+                    sender.sendMessage(settings.getMessage("command.banned-list-empty"));
+                } else {
                     sender.sendMessage(settings.getMessage("command.banned-list-header", Placeholder.unparsed("count", String.valueOf(banned.size()))));
                     banned.forEach(m -> sender.sendMessage(Component.text(" - " + m.name()).color(NamedTextColor.GRAY)));
                 }
@@ -259,7 +300,7 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
     private void updateZone(CommandSender sender, String zoneName, ZoneUpdater updater, String successMsgKey, String... placeholders) {
         Zone z = zoneManager.getZone(zoneName);
         if (z == null) {
-            sender.sendMessage(settings.getMessage("error.zone-not-found", Placeholder.unparsed("zone", zoneName)));
+            sender.sendMessage(settings.getMessage(ERR_ZONE_NOT_FOUND, Placeholder.unparsed(ZONE_VAR, zoneName)));
             return;
         }
         if (plugin.getServer().getWorld(z.getWorldName()) == null) {
@@ -270,7 +311,7 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
         if (newZone != null) {
             zoneManager.addOrUpdateZone(newZone);
             List<Placeholder> pl = new ArrayList<>();
-            pl.add(Placeholder.unparsed("zone", zoneName));
+            pl.add(Placeholder.unparsed(ZONE_VAR, zoneName));
             for (int i = 0; i < placeholders.length; i += 2) {
                 pl.add(Placeholder.unparsed(placeholders[i], placeholders[i + 1]));
             }
@@ -292,7 +333,7 @@ public class AutoWarnCommand implements CommandExecutor, TabCompleter {
     }
 
     private void sendZoneInfo(CommandSender sender, Zone zone) {
-        sender.sendMessage(settings.getMessage("command.info-header", Placeholder.unparsed("zone", zone.getName())));
+        sender.sendMessage(settings.getMessage("command.info-header", Placeholder.unparsed(ZONE_VAR, zone.getName())));
         sender.sendMessage(Component.text("  World: ").append(Component.text(zone.getWorldName()).color(NamedTextColor.GRAY)));
         sender.sendMessage(Component.text("  Min: ").append(Component.text(formatVector(zone.getMin())).color(NamedTextColor.GRAY)));
         sender.sendMessage(Component.text("  Max: ").append(Component.text(formatVector(zone.getMax())).color(NamedTextColor.GRAY)));

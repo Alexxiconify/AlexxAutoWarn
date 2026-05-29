@@ -9,6 +9,7 @@ import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumMap;
 import java.util.Map;
@@ -29,7 +30,6 @@ public class ZoneManager {
             zones.clear();
             FileConfiguration config = plugin.getConfig();
             ConfigurationSection zonesSection = config.getConfigurationSection("zones");
-            
             if (zonesSection == null) {
                 plugin.getSettings().log(Level.INFO, "No zones section found in config.yml. Loaded 0 zones.");
                 return;
@@ -42,37 +42,23 @@ public class ZoneManager {
                 try {
                     String worldName = zoneConfig.getString("world");
                     World world = worldName != null ? plugin.getServer().getWorld(worldName) : null;
-                    
                     if (world == null) {
                         plugin.getSettings().log(Level.WARNING, "World '" + worldName + "' for zone '" + zoneName + "' not found. Skipping.");
                         continue;
                     }
 
-                    Vector corner1 = getVector(zoneConfig.getConfigurationSection("corner1"));
-                    Vector corner2 = getVector(zoneConfig.getConfigurationSection("corner2"));
-
+                    Vector corner1 = parseVector(zoneConfig.getConfigurationSection("corner1"));
+                    Vector corner2 = parseVector(zoneConfig.getConfigurationSection("corner2"));
                     if (corner1 == null || corner2 == null) {
                         plugin.getSettings().log(Level.SEVERE, "Zone '" + zoneName + "' missing corner coordinates.");
                         continue;
                     }
 
-                    Zone.Action defaultAction = getAction(zoneConfig.getString("default-action"), Zone.Action.ALERT);
-                    Map<Material, Zone.Action> materialActions = new EnumMap<>(Material.class);
-                    
-                    ConfigurationSection actionsSection = zoneConfig.getConfigurationSection("material-actions");
-                    if (actionsSection != null) {
-                        for (String key : actionsSection.getKeys(false)) {
-                            try {
-                                Material mat = Material.valueOf(key.toUpperCase());
-                                Zone.Action action = getAction(actionsSection.getString(key), null);
-                                if (action != null) materialActions.put(mat, action);
-                            } catch (IllegalArgumentException ignored) {}
-                        }
-                    }
-
+                    Zone.Action defaultAction = parseAction(zoneConfig.getString("default-action"), Zone.Action.ALERT);
+                    Map<Material, Zone.Action> materialActions = parseMaterialActions(zoneConfig.getConfigurationSection("material-actions"), zoneName);
                     int priority = zoneConfig.getInt("priority", 0);
-                    zones.put(zoneName, new Zone(zoneName, world, corner1, corner2, defaultAction, materialActions, priority));
 
+                    zones.put(zoneName, new Zone(zoneName, world, corner1, corner2, defaultAction, materialActions, priority));
                 } catch (Exception e) {
                     plugin.getLogger().log(Level.SEVERE, "Error loading zone '" + zoneName + "': " + e.getMessage(), e);
                 }
@@ -81,15 +67,37 @@ public class ZoneManager {
         });
     }
 
-    private Vector getVector(ConfigurationSection section) {
+    private @Nullable Vector parseVector(ConfigurationSection section) {
         if (section == null) return null;
         return new Vector(section.getDouble("x"), section.getDouble("y"), section.getDouble("z"));
     }
 
-    private Zone.Action getAction(String name, Zone.Action def) {
+    private @NotNull Zone.Action parseAction(String name, Zone.Action def) {
         if (name == null) return def;
-        try { return Zone.Action.valueOf(name.toUpperCase()); } 
-        catch (IllegalArgumentException e) { return def; }
+        try {
+            return Zone.Action.valueOf(name.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return def;
+        }
+    }
+
+    private @NotNull Map<Material, Zone.Action> parseMaterialActions(ConfigurationSection section, String zoneName) {
+        Map<Material, Zone.Action> materialActions = new EnumMap<>(Material.class);
+        if (section == null) return materialActions;
+
+        for (String materialKey : section.getKeys(false)) {
+            try {
+                Material material = Material.valueOf(materialKey.toUpperCase());
+                String actionString = section.getString(materialKey);
+                if (actionString != null) {
+                    Zone.Action action = Zone.Action.valueOf(actionString.toUpperCase());
+                    materialActions.put(material, action);
+                }
+            } catch (IllegalArgumentException e) {
+                plugin.getSettings().log(Level.WARNING, "Invalid material or action '" + materialKey + "' in zone '" + zoneName + "'. Skipping.");
+            }
+        }
+        return materialActions;
     }
 
     public void saveZones(boolean async) {
@@ -100,8 +108,8 @@ public class ZoneManager {
             for (Zone zone : zones.values()) {
                 String path = "zones." + zone.getName();
                 config.set(path + ".world", zone.getWorldName());
-                setVector(config, path + ".corner1", zone.getMin());
-                setVector(config, path + ".corner2", zone.getMax());
+                saveVector(config, path + ".corner1", zone.getMin());
+                saveVector(config, path + ".corner2", zone.getMax());
                 config.set(path + ".default-action", zone.getDefaultAction().name());
                 config.set(path + ".priority", zone.getPriority());
 
@@ -113,11 +121,14 @@ public class ZoneManager {
             plugin.getSettings().log(Level.INFO, "Saved " + zones.size() + " zones.");
         };
 
-        if (async) plugin.getServer().getScheduler().runTaskAsynchronously(plugin, saveTask);
-        else saveTask.run();
+        if (async) {
+            plugin.getServer().getScheduler().runTaskAsynchronously(plugin, saveTask);
+        } else {
+            saveTask.run();
+        }
     }
 
-    private void setVector(FileConfiguration config, String path, Vector vec) {
+    private void saveVector(FileConfiguration config, String path, Vector vec) {
         config.set(path + ".x", vec.getX());
         config.set(path + ".y", vec.getY());
         config.set(path + ".z", vec.getZ());
@@ -136,20 +147,26 @@ public class ZoneManager {
         return false;
     }
 
-    @Nullable public Zone getZone(@NotNull String zoneName) { return zones.get(zoneName.toLowerCase()); }
-
-    @Nullable public Zone getZoneAt(@NotNull Location location) {
-        return zones.values().stream().filter(z -> z.contains(location)).findFirst().orElse(null);
+    public @Nullable Zone getZone(@NotNull String zoneName) {
+        return zones.get(zoneName.toLowerCase());
     }
 
-    @NotNull public Collection<Zone> getZonesAt(@NotNull Location location) {
-        return zones.values().stream()
-                .filter(z -> z.contains(location))
-                .sorted((a, b) -> Integer.compare(b.getPriority(), a.getPriority()))
-                .toList();
+    public @Nullable Zone getZoneAt(@NotNull Location location) {
+        return getHighestPriorityZoneAt(location);
     }
 
-    @Nullable public Zone getHighestPriorityZoneAt(@NotNull Location location) {
+    public @NotNull Collection<Zone> getZonesAt(@NotNull Location location) {
+        ArrayList<Zone> result = new ArrayList<>();
+        for (Zone zone : zones.values()) {
+            if (zone.contains(location)) {
+                result.add(zone);
+            }
+        }
+        result.sort((a, b) -> Integer.compare(b.getPriority(), a.getPriority()));
+        return result;
+    }
+
+    public @Nullable Zone getHighestPriorityZoneAt(@NotNull Location location) {
         Zone highest = null;
         for (Zone zone : zones.values()) {
             if (zone.contains(location)) {
@@ -161,5 +178,7 @@ public class ZoneManager {
         return highest;
     }
 
-    @NotNull public Collection<Zone> getAllZones() { return zones.values(); }
+    public @NotNull Collection<Zone> getAllZones() {
+        return zones.values();
+    }
 }
