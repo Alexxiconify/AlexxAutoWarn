@@ -2,97 +2,102 @@ package net.alexxiconify.alexxautowarn;
 
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.World;
 import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Collections;
 import java.util.EnumMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
 public final class Zone {
- private final String name;
- private final String worldName;
- private final Vector min;
- private final Vector max;
- private final Action defaultAction;
- private final Map < Material, Action > materialActions;
- private final int priority;
+    private final String name;
+    private final String worldName;
+    private final Vector min;
+    private final Vector max;
+    private final Action defaultAction;
+    private final Map<Material, Action> materialActions;
+    private final int priority;
 
- public Zone (
-   @NotNull String name , World world , @NotNull Vector corner1 , @NotNull Vector corner2 ,
-   @NotNull Action defaultAction , @NotNull Map < Material, Action > materialActions , int priority
- ) {
-  this.name = name.toLowerCase ( );
-  this.worldName = world.getName ( );
-  this.min = Vector.getMinimum ( corner1 , corner2 );
-  this.max = Vector.getMaximum ( corner1 , corner2 );
-  this.defaultAction = defaultAction;
-  this.materialActions = Collections.unmodifiableMap ( new EnumMap <> ( materialActions ) );
-  this.priority = priority;
- }
+    public Zone(@NotNull String name, @NotNull String worldName, @NotNull Vector corner1, @NotNull Vector corner2,
+                @NotNull Action defaultAction, @NotNull Map<Material, Action> materialActions, int priority) {
+        this.name = normalize(name);
+        this.worldName = Objects.requireNonNull(worldName, "worldName");
+        this.min = Vector.getMinimum(corner1, corner2);
+        this.max = Vector.getMaximum(corner1, corner2);
+        this.defaultAction = Objects.requireNonNull(defaultAction, "defaultAction");
 
- public boolean contains ( @NotNull Location loc ) {
-  return loc.getWorld ( ).getName ( ).equals ( this.worldName ) &&
-    loc.getX ( ) >= min.getX ( ) && loc.getX ( ) <= max.getX ( ) &&
-    loc.getY ( ) >= min.getY ( ) && loc.getY ( ) <= max.getY ( ) &&
-    loc.getZ ( ) >= min.getZ ( ) && loc.getZ ( ) <= max.getZ ( );
- }
+        EnumMap<Material, Action> copy = new EnumMap<>(Material.class);
+        copy.putAll(materialActions);
+        this.materialActions = Collections.unmodifiableMap(copy);
+        this.priority = priority;
+    }
 
- @NotNull
- public Action getActionFor ( @NotNull Material material ) {
-  return materialActions.getOrDefault ( material , defaultAction );
- }
+    public boolean contains(@NotNull Location location) {
+        return location.getWorld() != null
+                && worldName.equalsIgnoreCase(location.getWorld().getName())
+                && location.getX() >= min.getX() && location.getX() <= max.getX()
+                && location.getY() >= min.getY() && location.getY() <= max.getY()
+                && location.getZ() >= min.getZ() && location.getZ() <= max.getZ();
+    }
 
- @NotNull
- public String getName ( ) {
-  return name;
- }
+    @NotNull
+    public Action getActionFor(@NotNull Material material) {
+        return materialActions.getOrDefault(material, defaultAction);
+    }
 
- @NotNull
- public String getWorldName ( ) {
-  return worldName;
- }
+    @NotNull
+    public String getName() {
+        return name;
+    }
 
- @NotNull
- public Vector getMin ( ) {
-  return min;
- }
+    @NotNull
+    public String getWorldName() {
+        return worldName;
+    }
 
- @NotNull
- public Vector getMax ( ) {
-  return max;
- }
+    @NotNull
+    public Vector getMin() {
+        return min;
+    }
 
- @NotNull
- public Action getDefaultAction ( ) {
-  return defaultAction;
- }
+    @NotNull
+    public Vector getMax() {
+        return max;
+    }
 
- @NotNull
- public Map < Material, Action > getMaterialActions ( ) {
-  return materialActions;
- }
+    @NotNull
+    public Action getDefaultAction() {
+        return defaultAction;
+    }
 
- public int getPriority ( ) {
-  return priority;
- }
+    @NotNull
+    public Map<Material, Action> getMaterialActions() {
+        return materialActions;
+    }
 
- @Override
- public boolean equals ( Object o ) {
-  if ( this == o ) return true;
-  if ( o == null || getClass ( ) != o.getClass ( ) ) return false;
-  Zone zone = ( Zone ) o;
-  return name.equals ( zone.name );
- }
+    public int getPriority() {
+        return priority;
+    }
 
- @Override
- public int hashCode ( ) {
-  return Objects.hash ( name );
- }
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Zone zone)) return false;
+        return name.equals(zone.name);
+    }
 
- public enum Action {
-  DENY, ALERT, ALLOW
- }
+    @Override
+    public int hashCode() {
+        return Objects.hash(name);
+    }
+
+    private String normalize(String value) {
+        return Objects.requireNonNull(value, "name").trim().toLowerCase(Locale.ROOT);
+    }
+
+    public enum Action {
+        DENY, ALERT, ALLOW
+    }
 }
