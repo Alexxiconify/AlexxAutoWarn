@@ -8,9 +8,6 @@ import org.bukkit.block.Block;
 import org.bukkit.block.Container;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerMoveEvent;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -31,7 +28,6 @@ final class ZoneListener implements Listener {
     private final Settings settings;
     private final ZoneManager zoneManager;
     private final NamespacedKey wandKey;
-    private final Map<UUID, String> lastZoneByPlayer = new ConcurrentHashMap<>();
 
     ZoneListener(AlexxAutoWarn plugin) {
         this.plugin = plugin;
@@ -48,7 +44,21 @@ final class ZoneListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onPlayerBucketEmpty(PlayerBucketEmptyEvent event) {
         Block target = event.getBlockClicked();
-        Material placedMaterial = event.getBucket() == Material.LAVA_BUCKET ? Material.LAVA : Material.WATER;
+        // Map bucket item to the material that will be placed. Handle known bucket types
+        // explicitly and return early for unsupported ones to avoid misclassification
+        // (e.g., treating milk or future bucket types as water).
+        Material placedMaterial;
+        switch (event.getBucket()) {
+            case LAVA_BUCKET -> placedMaterial = Material.LAVA;
+            case WATER_BUCKET -> placedMaterial = Material.WATER;
+            case POWDER_SNOW_BUCKET -> placedMaterial = Material.POWDER_SNOW;
+            // Add other known placeable bucket types here as needed.
+            default -> {
+                // Unsupported bucket type (e.g., MILK_BUCKET) — do not treat as water.
+                return;
+            }
+        }
+
         Location location = target.getRelative(event.getBlockFace()).getLocation();
         handleAction(event.getPlayer(), location, placedMaterial, event);
     }
@@ -91,16 +101,14 @@ final class ZoneListener implements Listener {
         // Only check when player moves between blocks or worlds to reduce noise.
         var from = event.getFrom();
         var to = event.getTo();
-        if (to == null || from.getBlockX() == to.getBlockX() && from.getBlockY() == to.getBlockY() && from.getBlockZ() == to.getBlockZ() && Objects.equals(from.getWorld(), to.getWorld())) {
+        // `to` is non-null for PlayerMoveEvent; only check whether block/ world changed.
+        if (from.getBlockX() == to.getBlockX() && from.getBlockY() == to.getBlockY() && from.getBlockZ() == to.getBlockZ() && Objects.equals(from.getWorld(), to.getWorld())) {
             return;
         }
 
         Player player = event.getPlayer();
-        Location toLoc = to;
-        Location fromLoc = from;
-
-        Zone oldZone = zoneManager.getHighestPriorityZoneAt(fromLoc);
-        Zone newZone = zoneManager.getHighestPriorityZoneAt(toLoc);
+        Zone oldZone = zoneManager.getHighestPriorityZoneAt(from);
+        Zone newZone = zoneManager.getHighestPriorityZoneAt(to);
 
         if (Objects.equals(oldZone, newZone)) return;
 
@@ -175,11 +183,10 @@ final class ZoneListener implements Listener {
                         .forEach(staff -> staff.sendMessage(settings.getMessage("action.alert", placeholders)));
                 settings.log(Level.INFO, "[ALERT] " + logMessage);
             }
-            case ALLOW -> {
-                if (settings.isDebugLogAllowedActions()) {
-                    settings.log(Level.INFO, "[ALLOWED] " + logMessage);
-                }
-            }
+            case ALLOW -> // Log allowed actions only when debug logging is enabled.
+              java.util.Optional.of(settings)
+                      .filter( Settings :: isDebugLogAllowedActions )
+                      .ifPresent(s -> s.log(Level.INFO, "[ALLOWED] " + logMessage));
         }
     }
 
