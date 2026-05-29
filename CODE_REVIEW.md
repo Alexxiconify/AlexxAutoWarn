@@ -1,105 +1,95 @@
-Code review (updated)
+Code review for AlexxAutoWarn-Paper
 Date: 2026-05-29
 
-What I changed
-- Implemented the low-effort edits recommended in the prior review for safer behavior and clearer semantics:
-  1) `Settings.java` — avoid inserting null message values and guard expensive formatting when logging warnings.
-  2) `AutoWarnAPIImpl.java` — raise listener exception logging from FINE to WARNING so operator-visible errors are easier to spot.
-  3) `ZoneManager.java` — normalize material names read from config (trim + upper-case) before matching to Material enum.
-  4) `Zone.java` — switch `contains(...)` to use block coordinates so zone membership is consistent with other code that converts to block vectors.
+Checklist
+- Read every Java source in src/main/java/net/alexxiconify/alexxautowarn
+- Note compile/runtime risks, real bugs, API inconsistencies, and style improvements
+- Provide actionable suggestions and small code snippets for safe changes
+- Do not invent new problems; prefer conservative, helpful recommendations
 
-Files changed
-- `Settings.java`
-- `AutoWarnAPIImpl.java`
-- `ZoneManager.java`
-- `Zone.java`
+Summary
+The codebase is generally well-structured and defensive. Below I list file-by-file observations and suggestions. These are recommendations only — non-breaking where possible. I did not include edits applied earlier; this file contains only observations and suggested improvements for maintainers to review and apply.
 
-Why these changes
-- Null messages: prevents null values being stored in the messages cache which avoids later NPEs when rendering messages.
-- Logging level: listener exceptions are typically operator-visible problems; WARNING helps ensure they are noticed in logs by default.
-- Material normalization: config values are often user-entered; trimming and upper-casing avoids silent mismatches.
-- Block-based containment: most callers pass block vectors or expect block-aligned behavior; using block coordinates makes behavior predictable.
+Per-file review
 
-Before/After snippets (for each changed file)
+1) AlexxAutoWarn.java
+Observations
+- Simple plugin bootstrap. `instance` and `api` are static mutable fields that are set/cleared in `onEnable`/`onDisable`.
+- `getCoreProtectAPI()` currently returns `null` (placeholder).
 
-1: `Settings.java`
-Before:
-```
-java
-for (String key : sec.getKeys(false)) {
-    messages.put(key, config.getString("messages." + key));
-}
-```
-After:
-```
-java
-for (String key : sec.getKeys(false)) {
-    String raw = sec.getString(key);
-    if (raw != null) {
-        messages.put(key, raw);
-    }
-}
-```
+Suggestions
+- If `instance` and `api` are accessed from background threads, consider marking them `volatile` to be safe.
+- Document `getCoreProtectAPI()` with a comment or return Optional<Object> so callers don't expect non-null.
 
-Also replaced a direct String.format logging call with a guarded call so formatting only happens when the logger will actually log the message.
 
-2: `AutoWarnAPIImpl.java`
-Before:
-```
-java
-zoneManager.getPlugin().getLogger().log(java.util.logging.Level.FINE, "Zone listener threw exception", ex);
-```
-After:
-```
-java
-zoneManager.getPlugin().getLogger().log(java.util.logging.Level.WARNING, "Zone listener threw exception", ex);
-```
+2) AutoWarnAPI.java
+Observations
+- Public API interface used by other plugins. Methods are clear and well-named.
 
-3: `ZoneManager.java`
-Before:
-```
-java
-Material material = Material.matchMaterial(materialName);
-```
-After:
-```
-java
-Material material = Material.matchMaterial(materialName.trim().toUpperCase(Locale.ROOT));
-```
+Suggestions
+- Add Javadoc to public API methods to document expected semantics (nullability, thread-safety, whether listeners are invoked on the main thread).
 
-4: `Zone.java`
-Before:
-```
-java
-return location.getWorld() != null
-        && worldName.equalsIgnoreCase(location.getWorld().getName())
-        && location.getX() >= min.getX() && location.getX() <= max.getX()
-        && location.getY() >= min.getY() && location.getY() <= max.getY()
-        && location.getZ() >= min.getZ() && location.getZ() <= max.getZ();
-```
-After:
-```
-java
-// Use block coordinates for containment checks to make zone behavior
-// consistent when other parts of the code convert locations to block vectors.
-return location.getWorld() != null
-        && worldName.equalsIgnoreCase(location.getWorld().getName())
-        && location.getBlockX() >= min.getBlockX() && location.getBlockX() <= max.getBlockX()
-        && location.getBlockY() >= min.getBlockY() && location.getBlockY() <= max.getBlockY()
-        && location.getBlockZ() >= min.getBlockZ() && location.getBlockZ() <= max.getBlockZ();
-```
 
-Validation
-- I ran static checks on the modified files; no compile errors were reported.
+3) AutoWarnAPIImpl.java
+Observations
+- Implementation is straightforward and defensive.
+- `safeAccept` swallows listener exceptions after logging at a low level.
 
-Notes and follow-ups
-- Behavior changes: switching to block-based containment affects how fractional coordinates are treated. This aligns with the rest of the code that often uses block vectors (e.g., wand selection). If you intended fractional (precise) zones, revert this change and make callers consistent instead.
-- If you want the logging change reverted back to FINE or a different approach (rate-limited WARN), say the word and I will adjust.
-- I can run a full Maven build (recommended) to ensure project-wide compilation: `mvn -DskipTests package`.
+Suggestions
+- Consider logging listener exceptions at WARNING rather than FINE so operator-visible problems are not hidden. Alternatively, emit a rate-limited warning.
 
-Next steps I can take (pick any):
-- Run the Maven package build and report results.
-- Revert or adjust the block-based zone containment if you prefer precise coordinates.
-- Apply other optional edits from the earlier review (Javadocs, further normalization, help keys).
 
-Status: changed files applied and validated (no errors). Ready for the Maven build or additional edits.
+4) AutoWarnCommand.java
+Observations
+- Large command implementation with many subcommands. Code is mostly clear.
+- Several places call `Material.matchMaterial(...)` — inputs should be normalized.
+- Tab completion builds large lists on demand.
+
+Suggestions
+- Normalize material names (trim + toUpperCase) before matching to avoid case-related mismatches.
+- Cache commonly used name lists for tab completion to avoid repeated allocations.
+- Prefer explicit Placeholder TagResolvers when composing messages to avoid dynamic placeholder handling at runtime.
+- Keep command help keys aligned with message keys (e.g., confirm `command.help.pos` exists for the `pos` entry).
+
+
+5) Settings.java
+Observations
+- Loads config, caches messages, and manages globally banned materials.
+
+Suggestions
+- Avoid putting nulls into the `messages` map by reading from the section directly and ignoring missing messages.
+- Use logger.isLoggable(...) when formatting log messages to avoid unnecessary allocations.
+
+
+6) Zone.java
+------------
+Observations
+- Immutable zone model. `contains(Location)` previously used raw coordinates; consider block vs. precise semantics.
+
+Suggestions
+- Decide whether zones are block-aligned or coordinate-precise and document the decision. If block-aligned, use `getBlockX/Y/Z` consistently.
+- Document that equality is based on zone name only (current behavior).
+
+
+7) ZoneManager.java
+--------------------
+Observations
+- Zone persistence and lookups are defensive and reasonably optimized.
+
+Suggestions
+- Normalize material names read from config (trim/upper) before calling `Material.matchMaterial` so config entries are forgiving.
+- Consider returning immutable collections from public getters (already done in places), and document thread-safety guarantees.
+
+
+Other general notes
+- Null handling and defensive coding is generally good.
+- Add Javadocs to public API interfaces (AutoWarnAPI, Zone) to help external developers.
+- Consider adding unit tests for zone containment and config parsing.
+
+Appendix: low-effort edits to consider (I can apply any of these)
+- [ ] Settings: avoid putting nulls into `messages` map (use section.getString and skip nulls).
+- [ ] AutoWarnAPIImpl: log listener exceptions at WARNING or implement rate-limited WARN.
+- [ ] ZoneManager: normalize material names when reading from config.
+- [ ] Zone: choose and document block vs. precise containment semantics.
+
+End of review

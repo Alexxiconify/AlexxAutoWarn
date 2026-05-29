@@ -177,4 +177,3 @@ node_modules/
 *.pyo
 __pycache__/
 desktop.ini
-CODE_REVIEW.md
