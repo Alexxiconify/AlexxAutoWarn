@@ -151,7 +151,7 @@ public class ZoneManager {
 
         Map<Material, Zone.Action> actions = new EnumMap<>(Material.class);
         for (String materialName : section.getKeys(false)) {
-            Material material = Material.matchMaterial(materialName);
+            Material material = Material.matchMaterial(materialName.trim().toUpperCase(Locale.ROOT));
             Zone.Action action = readAction(section.getString(materialName), null);
             if (material != null && action != null) {
                 actions.put(material, action);

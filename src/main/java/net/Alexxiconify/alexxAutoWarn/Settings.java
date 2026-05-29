@@ -35,7 +35,10 @@ public class Settings {
         org.bukkit.configuration.ConfigurationSection sec = config.getConfigurationSection("messages");
         if (sec != null) {
             for (String key : sec.getKeys(false)) {
-                messages.put(key, config.getString("messages." + key));
+                String raw = sec.getString(key);
+                if (raw != null) {
+                    messages.put(key, raw);
+                }
             }
         }
 
@@ -44,7 +47,9 @@ public class Settings {
         for (String materialName : config.getStringList("settings.globally-banned-materials")) {
             Material material = Material.matchMaterial(materialName.trim());
             if (material == null) {
-                logger.warning(String.format("Invalid globally banned material '%s' found in config.yml. Skipping.", materialName));
+                if (logger.isLoggable(Level.WARNING)) {
+                    logger.warning(String.format("Invalid globally banned material '%s' found in config.yml. Skipping.", materialName));
+                }
             } else {
                 globallyBannedMaterials.add(material);
             }

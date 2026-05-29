@@ -131,7 +131,7 @@ final class AutoWarnAPIImpl implements AutoWarnAPI {
         } catch (RuntimeException ex) {
             // Listener failures should not break the plugin. Log at FINE to help debugging without spamming.
             try {
-                zoneManager.getPlugin().getLogger().log(java.util.logging.Level.FINE, "Zone listener threw exception", ex);
+                zoneManager.getPlugin().getLogger().log(java.util.logging.Level.WARNING, "Zone listener threw exception", ex);
             } catch (Exception ignore2) {
                 // swallow
             }

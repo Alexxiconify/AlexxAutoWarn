@@ -35,11 +35,13 @@ public final class Zone {
     }
 
     public boolean contains(@NotNull Location location) {
+        // Use block coordinates for containment checks to make zone behavior
+        // consistent when other parts of the code convert locations to block vectors.
         return location.getWorld() != null
                 && worldName.equalsIgnoreCase(location.getWorld().getName())
-                && location.getX() >= min.getX() && location.getX() <= max.getX()
-                && location.getY() >= min.getY() && location.getY() <= max.getY()
-                && location.getZ() >= min.getZ() && location.getZ() <= max.getZ();
+                && location.getBlockX() >= min.getBlockX() && location.getBlockX() <= max.getBlockX()
+                && location.getBlockY() >= min.getBlockY() && location.getBlockY() <= max.getBlockY()
+                && location.getBlockZ() >= min.getBlockZ() && location.getBlockZ() <= max.getBlockZ();
     }
 
     @NotNull

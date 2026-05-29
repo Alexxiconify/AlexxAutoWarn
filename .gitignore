@@ -177,4 +177,4 @@ node_modules/
 *.pyo
 __pycache__/
 desktop.ini
-CACHEDIR.TAG
+CODE_REVIEW.md
