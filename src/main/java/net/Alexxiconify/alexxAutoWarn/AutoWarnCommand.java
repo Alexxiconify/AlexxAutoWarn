@@ -14,6 +14,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.Location;
 import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.NonNull;
@@ -32,6 +33,10 @@ import java.util.regex.Pattern;
 
 public final class AutoWarnCommand implements CommandExecutor, TabCompleter {
     private static final Pattern ZONE_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_-]{3,32}$");
+
+    // Cache commonly used name lists to avoid repeated allocations during tab completion.
+    private static final List<String> MATERIAL_NAMES = Arrays.stream(Material.values()).map(Enum::name).toList();
+    private static final List<String> ACTION_NAMES = Arrays.stream(Zone.Action.values()).map(Enum::name).toList();
 
     private static final String ERR_NO_PERM = "error.no-permission";
     private static final String ERR_PLAYER_ONLY = "error.player-only";
@@ -78,29 +83,35 @@ public final class AutoWarnCommand implements CommandExecutor, TabCompleter {
 
         String sub = args[0].toLowerCase(Locale.ROOT);
         if (!hasPermission(sender, sub)) {
-            return true;
+            return false;
         }
 
+        boolean handled = false;
         switch (sub) {
-            case CMD_WAND -> handleWand(sender);
-            case CMD_POS1, CMD_POS2 -> handlePos(sender, sub);
-            case CMD_DEFINE -> handleDefine(sender, args);
-            case CMD_REMOVE -> handleRemove(sender, args);
-            case CMD_LIST -> handleList(sender);
-            case CMD_INFO -> handleInfo(sender, args);
-            case CMD_DEFAULTACTION -> handleDefaultAction(sender, args);
-            case CMD_SETACTION -> handleSetAction(sender, args);
-            case CMD_REMOVEACTION -> handleRemoveAction(sender, args);
-            case CMD_PRIORITY -> handlePriority(sender, args);
-            case CMD_BANNED -> handleBanned(sender, args);
-            case CMD_RELOAD -> handleReload(sender);
-            default -> sendHelp(sender);
+            case CMD_WAND -> { handleWand(sender); handled = true; }
+            case CMD_POS1, CMD_POS2 -> { handlePos(sender, sub); handled = true; }
+            case CMD_DEFINE -> { handleDefine(sender, args); handled = true; }
+            case CMD_REMOVE -> { handleRemove(sender, args); handled = true; }
+            case CMD_LIST -> { handleList(sender); handled = true; }
+            case CMD_INFO -> { handleInfo(sender, args); handled = true; }
+            case CMD_DEFAULTACTION -> { handleDefaultAction(sender, args); handled = true; }
+            case CMD_SETACTION -> { handleSetAction(sender, args); handled = true; }
+            case CMD_REMOVEACTION -> { handleRemoveAction(sender, args); handled = true; }
+            case CMD_PRIORITY -> { handlePriority(sender, args); handled = true; }
+            case CMD_BANNED -> { handleBanned(sender, args); handled = true; }
+            case CMD_RELOAD -> { handleReload(sender); handled = true; }
+            default -> {
+                // Unknown subcommand: show help but report not handled so Bukkit may show usage if desired.
+                sendHelp(sender);
+                handled = false;
+            }
         }
-        return true;
+
+        return handled;
     }
 
     private boolean hasPermission(CommandSender sender, String sub) {
-        String perm = "autowarn." + (("pos1".equals(sub) || "pos2".equals(sub)) ? "pos" : sub);
+        String perm = "autowarn." + ((CMD_POS1.equals(sub) || CMD_POS2.equals(sub)) ? "pos" : sub);
         if (sender.hasPermission(perm)) {
             return true;
         }
@@ -122,7 +133,14 @@ public final class AutoWarnCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        Vector position = player.getLocation().toVector().toBlockVector();
+        // Guard against potential null Location (defensive).
+        Location loc = player.getLocation();
+        if (loc == null) {
+            sender.sendMessage(settings.getMessage(ERR_PLAYER_ONLY));
+            return;
+        }
+
+        Vector position = loc.toVector().toBlockVector();
         if ("pos1".equals(sub)) {
             pos1.put(player.getUniqueId(), position);
             player.sendMessage(settings.getMessage("command.pos-set", Placeholder.unparsed("pos", "1"), Placeholder.unparsed("coords", formatVector(position))));
@@ -284,7 +302,7 @@ public final class AutoWarnCommand implements CommandExecutor, TabCompleter {
         }
 
         updateZone(sender, args[1], zone -> new Zone(zone.getName(), zone.getWorldName(), zone.getMin(), zone.getMax(), zone.getDefaultAction(), zone.getMaterialActions(), priority),
-                "command.priority-success", "priority", String.valueOf(priority));
+                "command.priority-success", CMD_PRIORITY, String.valueOf(priority));
     }
 
     private void handleReload(CommandSender sender) {
